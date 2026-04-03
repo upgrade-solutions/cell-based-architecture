@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
-import { ProductUiDNA, OperationalDNA, UiCellAdapter } from './types'
+import { ProductUiDNA, OperationalDNA, UiCellContext, UiCellAdapter } from './types'
 import * as viteReactAdapter from './adapters/vite/react'
 
 interface TechnicalCell {
@@ -54,7 +54,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     )
   }
 
-  // ── Resolve DNA base directory (sibling of technical.json) ─────────────────
+  // ── Resolve DNA base directory ──────────────────────────────────────────────
   const dnaBase = path.join(path.dirname(path.resolve(technicalPath)), '..', '..', 'dna')
 
   // ── Load and validate Product UI DNA ───────────────────────────────────────
@@ -65,7 +65,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     throw new Error(`Invalid Product UI DNA:\n${errs}`)
   }
 
-  // ── Optionally load Operational DNA for stub generation ────────────────────
+  // ── Optionally load and validate Operational DNA ────────────────────────────
   const operationalRef = cell.adapter.config?.operational_dna as string | undefined
   let operationalRaw: OperationalDNA | undefined
 
@@ -79,10 +79,17 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     operationalRaw = opRaw as OperationalDNA
   }
 
+  // ── Build cell context ──────────────────────────────────────────────────────
+  const ctx: UiCellContext = {
+    uiFetchPath: `/dna/${cell.dna}.json`,
+    operationalFetchPath: operationalRef ? `/dna/${operationalRef}.json` : undefined,
+    dnaSourceDir: dnaBase,
+  }
+
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(uiDnaRaw as ProductUiDNA, path.resolve(outputDir), operationalRaw)
+  adapter.generate(uiDnaRaw as ProductUiDNA, path.resolve(outputDir), operationalRaw, ctx)
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

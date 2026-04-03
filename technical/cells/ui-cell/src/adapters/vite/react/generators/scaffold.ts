@@ -73,22 +73,35 @@ export function generateTsConfigNode(): string {
   ) + '\n'
 }
 
-export function generateViteConfig(appName: string): string {
+export function generateViteConfig(appName: string, dnaRelPath = '../../dna'): string {
   return `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
+import fs from 'fs'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  build: {
-    outDir: 'dist',
-  },
-  server: {
-    port: 5173,
-  },
-  define: {
-    __APP_NAME__: JSON.stringify('${appName}'),
-  },
+  plugins: [
+    react(),
+    {
+      name: 'dna-static',
+      configureServer(server) {
+        const dnaDir = path.resolve(__dirname, '${dnaRelPath}')
+        server.middlewares.use('/dna', (req, res, next) => {
+          const file = path.join(dnaDir, req.url ?? '')
+          if (fs.existsSync(file) && file.endsWith('.json')) {
+            res.setHeader('Content-Type', 'application/json')
+            res.setHeader('Cache-Control', 'no-cache')
+            res.end(fs.readFileSync(file, 'utf-8'))
+          } else {
+            next()
+          }
+        })
+      },
+    },
+  ],
+  build: { outDir: 'dist' },
+  server: { port: 5173 },
+  define: { __APP_NAME__: JSON.stringify('${appName}') },
 })
 `
 }

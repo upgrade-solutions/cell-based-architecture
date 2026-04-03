@@ -1,6 +1,25 @@
 // ── Fixed renderer component templates ───────────────────────────────────────
 // These are emitted once per generated app. They contain no DNA-derived values —
-// all DNA interpretation happens at runtime by reading src/dna.json.
+// all DNA is fetched at runtime from the source dna/ directory.
+
+export function rendererContext(): string {
+  return `import { createContext, useContext } from 'react'
+import type { ProductUiDNA } from './types'
+
+export interface DnaContextValue {
+  dna: ProductUiDNA
+  stubs: Record<string, Record<string, unknown>[]>
+}
+
+export const DnaContext = createContext<DnaContextValue | null>(null)
+
+export function useDna(): DnaContextValue {
+  const ctx = useContext(DnaContext)
+  if (!ctx) throw new Error('useDna must be used within a DnaContext.Provider')
+  return ctx
+}
+`
+}
 
 export function rendererTypes(): string {
   return `export interface Field {
@@ -47,35 +66,91 @@ export interface ProductUiDNA {
 }
 
 export function rendererApp(): string {
-  return `import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+  return `import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import type { ProductUiDNA } from './types'
+import { DnaContext } from './context'
 import Layout from './Layout'
 import Page from './Page'
-import dnaRaw from '../dna.json'
 
-const dna = dnaRaw as unknown as ProductUiDNA
+interface Config {
+  ui: string
+  operational?: string | null
+}
+
+function collectStubs(op: unknown): Record<string, Record<string, unknown>[]> {
+  const stubs: Record<string, Record<string, unknown>[]> = {}
+  function walk(domain: { nouns?: { name: string; examples?: Record<string, unknown>[] }[]; domains?: unknown[] }) {
+    for (const noun of domain.nouns ?? []) {
+      if (noun.examples?.length) stubs[noun.name] = noun.examples
+    }
+    for (const sub of domain.domains ?? []) walk(sub as typeof domain)
+  }
+  const typed = op as { domain: Parameters<typeof walk>[0] } | null
+  if (typed?.domain) walk(typed.domain)
+  return stubs
+}
 
 export default function App() {
-  const firstPath = dna.routes[0]?.path ?? '/'
+  const [dna, setDna] = useState<ProductUiDNA | null>(null)
+  const [stubs, setStubs] = useState<Record<string, Record<string, unknown>[]>>({})
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/config.json')
+      .then(r => r.json() as Promise<Config>)
+      .then(config =>
+        Promise.all([
+          fetch(config.ui).then(r => r.json()),
+          config.operational
+            ? fetch(config.operational).then(r => r.json())
+            : Promise.resolve(null),
+        ])
+      )
+      .then(([uiDna, operationalDna]) => {
+        setDna(uiDna as ProductUiDNA)
+        setStubs(collectStubs(operationalDna))
+      })
+      .catch(err => setError(String(err)))
+  }, [])
+
+  if (error) {
+    return (
+      <div style={{ padding: '2rem', color: '#dc2626', fontFamily: 'system-ui' }}>
+        Failed to load DNA: {error}
+      </div>
+    )
+  }
+
+  if (!dna) {
+    return (
+      <div style={{ padding: '2rem', color: '#6b7280', fontFamily: 'system-ui' }}>
+        Loading...
+      </div>
+    )
+  }
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
-          <Route index element={<Navigate to={firstPath} replace />} />
-          {dna.routes.map(route => {
-            const page = dna.pages.find(p => p.name === route.page)
-            if (!page) return null
-            return (
-              <Route
-                key={route.path}
-                path={route.path}
-                element={<Page page={page} />}
-              />
-            )
-          })}
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <DnaContext.Provider value={{ dna, stubs }}>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
+            <Route index element={<Navigate to={dna.routes[0]?.path ?? '/'} replace />} />
+            {dna.routes.map(route => {
+              const page = dna.pages.find(p => p.name === route.page)
+              if (!page) return null
+              return (
+                <Route
+                  key={route.path}
+                  path={route.path}
+                  element={<Page page={page} />}
+                />
+              )
+            })}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </DnaContext.Provider>
   )
 }
 `
@@ -276,10 +351,8 @@ export default function FormBlock({ block }: { block: Block }) {
 }
 
 export function rendererTableBlock(): string {
-  return `import type { Block } from '../types'
-import stubsRaw from '../../stubs.json'
-
-const stubs = stubsRaw as Record<string, Record<string, unknown>[]>
+  return `import { useDna } from '../context'
+import type { Block } from '../types'
 
 interface Props {
   block: Block
@@ -287,6 +360,7 @@ interface Props {
 }
 
 export default function TableBlock({ block, resource }: Props) {
+  const { stubs } = useDna()
   const fields = block.fields ?? []
   const rows = stubs[resource] ?? []
   return (
@@ -335,10 +409,8 @@ export default function TableBlock({ block, resource }: Props) {
 }
 
 export function rendererDetailBlock(): string {
-  return `import type { Block } from '../types'
-import stubsRaw from '../../stubs.json'
-
-const stubs = stubsRaw as Record<string, Record<string, unknown>[]>
+  return `import { useDna } from '../context'
+import type { Block } from '../types'
 
 interface Props {
   block: Block
@@ -346,6 +418,7 @@ interface Props {
 }
 
 export default function DetailBlock({ block, resource }: Props) {
+  const { stubs } = useDna()
   const fields = block.fields ?? []
   const record = (stubs[resource] ?? [])[0] ?? {}
   return (

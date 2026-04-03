@@ -41,7 +41,7 @@ export interface ProductUiDNA {
   routes: Route[]
 }
 
-// ── Operational DNA (minimal — used for stub generation) ─────────────────────
+// ── Operational DNA (minimal — used for stub extraction) ──────────────────────
 
 export interface Attribute {
   name: string
@@ -70,8 +70,16 @@ export interface OperationalDNA {
   domain: Domain
 }
 
+// ── Cell context — passed from run.ts to the adapter ─────────────────────────
+
+export interface UiCellContext {
+  uiFetchPath: string           // e.g. /dna/lending/product.ui.json
+  operationalFetchPath?: string // e.g. /dna/lending/operational.json
+  dnaSourceDir: string          // absolute path to the dna/ directory
+}
+
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface UiCellAdapter {
-  generate(ui: ProductUiDNA, outputDir: string, operational?: OperationalDNA): void
+  generate(ui: ProductUiDNA, outputDir: string, operational?: OperationalDNA, ctx?: UiCellContext): void
 }
