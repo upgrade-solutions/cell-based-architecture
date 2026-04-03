@@ -51,6 +51,7 @@ export function generateTsConfig(): string {
         target: 'ES2020',
         sourceMap: true,
         outDir: './dist',
+        rootDir: './src',
         baseUrl: './',
         incremental: true,
         skipLibCheck: true,
@@ -67,7 +68,7 @@ export function generateTsConfigBuild(): string {
   return JSON.stringify(
     {
       extends: './tsconfig.json',
-      exclude: ['node_modules', 'test', 'dist', '**/*spec.ts'],
+      exclude: ['node_modules', 'test', 'dist', '**/*spec.ts', 'drizzle.config.ts'],
     },
     null,
     2
