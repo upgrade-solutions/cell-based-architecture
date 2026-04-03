@@ -74,6 +74,13 @@ export function generateTsConfigBuild(): string {
   ) + '\n'
 }
 
+export function generateEnv(port = 3000): string {
+  return `PORT=${port}
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lending
+JWT_SECRET=dev-secret
+`
+}
+
 export function generateDrizzleConfig(): string {
   return `import { defineConfig } from 'drizzle-kit'
 

@@ -15,6 +15,7 @@ import {
   generateTsConfig,
   generateTsConfigBuild,
   generateDrizzleConfig,
+  generateEnv,
 } from './generators/scaffold'
 
 function write(outputDir: string, relPath: string, content: string): void {
@@ -86,6 +87,7 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'tsconfig.json', generateTsConfig())
   write(outputDir, 'tsconfig.build.json', generateTsConfigBuild())
   write(outputDir, 'drizzle.config.ts', generateDrizzleConfig())
+  write(outputDir, '.env', generateEnv())
 
   // ── Containerization (node runtime) ─────────────────────────────────────────
   write(outputDir, 'Dockerfile', generateDockerfile())

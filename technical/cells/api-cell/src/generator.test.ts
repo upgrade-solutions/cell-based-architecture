@@ -270,8 +270,9 @@ describe('generateService', () => {
     expect(svc).toContain('export class LoansService')
   })
 
-  test('has method stubs that throw', () => {
-    expect(svc).toContain("throw new Error('not implemented')")
+  test('has mock method implementations', () => {
+    expect(svc).toContain('store.set(')
+    expect(svc).toContain('NotFoundException')
   })
 
   test('annotates capability operations with Policy/Rules/Effects', () => {
@@ -394,12 +395,13 @@ describe('api-cell integration', () => {
     expect(ctrl).toContain("@Post(':id/repayments')")
   })
 
-  test('loans service has annotated stubs', () => {
+  test('loans service has mock implementations', () => {
     const svc = fs.readFileSync(path.join(outputDir, 'src/loans/loans.service.ts'), 'utf-8')
     expect(svc).toContain('// Policy:')
     expect(svc).toContain('// Rules:')
     expect(svc).toContain('// Effects:')
-    expect(svc).toContain("throw new Error('not implemented')")
+    expect(svc).toContain('store.set(')
+    expect(svc).toContain('NotFoundException')
   })
 
   test('loan DTOs exist for operations with request bodies', () => {
