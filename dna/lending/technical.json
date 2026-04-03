@@ -215,11 +215,11 @@
     },
     {
       "name": "ui-cell",
-      "description": "Reads Product UI DNA and produces the Next.js loan dashboard.",
+      "description": "Reads Product UI DNA and produces the Vite + React loan dashboard.",
       "dna": "lending/product.ui",
       "adapter": {
-        "type": "nextjs",
-        "version": "14"
+        "type": "vite/react",
+        "version": "5"
       },
       "constructs": ["auth-provider", "ui-server"],
       "variables": [

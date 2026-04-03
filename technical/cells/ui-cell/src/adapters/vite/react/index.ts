@@ -1,7 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { ProductUiDNA, UiCellAdapter } from '../../../types'
-import { toFileName } from '../../../utils'
 import { generateDockerfile, generateNginxConf, generateDockerIgnore } from '../docker'
 import {
   generatePackageJson,
@@ -11,9 +10,18 @@ import {
   generateIndexHtml,
   generateMain,
 } from './generators/scaffold'
-import { generateLayout } from './generators/layout'
-import { generateRouter } from './generators/router'
-import { generatePage } from './generators/page'
+import {
+  rendererTypes,
+  rendererApp,
+  rendererLayout,
+  rendererPage,
+  rendererBlock,
+  rendererFormBlock,
+  rendererTableBlock,
+  rendererDetailBlock,
+  rendererActionsBlock,
+  rendererEmptyStateBlock,
+} from './generators/renderer'
 
 function write(outputDir: string, relPath: string, content: string): void {
   const fullPath = path.join(outputDir, relPath)
@@ -27,28 +35,28 @@ export const generate: UiCellAdapter['generate'] = (
 ): void => {
   const appName = ui.layout.name.toLowerCase().replace(/[^a-z0-9-]/g, '-') + '-ui'
 
+  // ── DNA bundle — the only file that changes when DNA changes ─────────────────
+  write(outputDir, 'src/dna.json', JSON.stringify(ui, null, 2) + '\n')
+
   // ── Scaffold ────────────────────────────────────────────────────────────────
   write(outputDir, 'package.json', generatePackageJson(appName))
   write(outputDir, 'tsconfig.json', generateTsConfig())
   write(outputDir, 'tsconfig.node.json', generateTsConfigNode())
   write(outputDir, 'vite.config.ts', generateViteConfig(appName))
   write(outputDir, 'index.html', generateIndexHtml(ui.layout.name))
-
-  // ── Entry point ─────────────────────────────────────────────────────────────
   write(outputDir, 'src/main.tsx', generateMain())
 
-  // ── Router (App.tsx) ────────────────────────────────────────────────────────
-  write(outputDir, 'src/App.tsx', generateRouter(ui))
-
-  // ── Layout ──────────────────────────────────────────────────────────────────
-  const layoutFile = `src/layouts/${toFileName(ui.layout.name)}.tsx`
-  write(outputDir, layoutFile, generateLayout(ui.layout, ui.routes))
-
-  // ── Pages ───────────────────────────────────────────────────────────────────
-  for (const page of ui.pages) {
-    const pageFile = `src/pages/${toFileName(page.name)}.tsx`
-    write(outputDir, pageFile, generatePage(page))
-  }
+  // ── Renderer — generic, reads dna.json at runtime ───────────────────────────
+  write(outputDir, 'src/renderer/types.ts',                     rendererTypes())
+  write(outputDir, 'src/renderer/App.tsx',                      rendererApp())
+  write(outputDir, 'src/renderer/Layout.tsx',                   rendererLayout())
+  write(outputDir, 'src/renderer/Page.tsx',                     rendererPage())
+  write(outputDir, 'src/renderer/Block.tsx',                    rendererBlock())
+  write(outputDir, 'src/renderer/blocks/FormBlock.tsx',         rendererFormBlock())
+  write(outputDir, 'src/renderer/blocks/TableBlock.tsx',        rendererTableBlock())
+  write(outputDir, 'src/renderer/blocks/DetailBlock.tsx',       rendererDetailBlock())
+  write(outputDir, 'src/renderer/blocks/ActionsBlock.tsx',      rendererActionsBlock())
+  write(outputDir, 'src/renderer/blocks/EmptyStateBlock.tsx',   rendererEmptyStateBlock())
 
   // ── Containerization (nginx / static) ───────────────────────────────────────
   write(outputDir, 'Dockerfile', generateDockerfile())
