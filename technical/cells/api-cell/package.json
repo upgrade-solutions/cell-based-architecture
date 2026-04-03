@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "test": "node --experimental-vm-modules ../../../node_modules/.bin/jest",
-    "generate": "ts-node -r tsconfig-paths/register src/index.ts"
+    "generate": "ts-node -r tsconfig-paths/register src/index.ts",
+    "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json api-cell ../../../output/api-cell"
   },
   "dependencies": {
     "@cell/dna-validator": "*"

@@ -154,8 +154,8 @@ A cell is a **TypeScript package** that:
 
 | Cell | DNA Layer | Input | Output | Status |
 |------|-----------|-------|--------|--------|
-| `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `product/cells/api-cell/` |
-| `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | Planned |
+| `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
+| `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | Scaffolded — `technical/cells/ui-cell/` |
 | `auth-cell` | Technical | Policies, Constructs | Authorization middleware | Planned |
 | `workflow-cell` | Technical | Triggers, Flows, Effects, Constructs | Event-driven workflows | Planned |
 
@@ -209,6 +209,8 @@ cell-based-architecture/
     schemas/                        # JSON schemas for Operational primitives
   product/
     schemas/                        # JSON schemas for Product primitives
+  technical/
+    schemas/                        # JSON schemas for Technical primitives
     cells/
       api-cell/                     # Consumes Product API DNA → containerized REST API
         src/
@@ -218,10 +220,7 @@ cell-based-architecture/
               express/              # (planned)
           run.ts                    # Core orchestrator: loads DNA, validates, dispatches to adapter
           index.ts                  # CLI entry point
-      ui-cell/                      # (planned) Consumes Product UI DNA → UI app
-  technical/
-    schemas/                        # JSON schemas for Technical primitives
-    cells/
+      ui-cell/                      # Consumes Product UI DNA → UI app (scaffolded)
       auth-cell/                    # (planned) Consumes Technical DNA → auth layer
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
