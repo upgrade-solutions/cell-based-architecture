@@ -29,7 +29,7 @@ export function generatePackageJson(appName: string): string {
         '@types/jsonwebtoken': '^9.0.0',
         '@types/node': '^20.0.0',
         '@types/pg': '^8.10.0',
-        'drizzle-kit': '^0.20.0',
+        'drizzle-kit': '^0.21.0',
         typescript: '^5.4.0',
       },
     },
