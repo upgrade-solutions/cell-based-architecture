@@ -188,14 +188,11 @@
   "cells": [
     {
       "name": "api-cell",
-      "description": "Reads Product API DNA and produces the NestJS REST API for loan origination. Drizzle manages the database schema and migrations as a sub-adapter.",
+      "description": "Reads Product API DNA and runs a dynamic Express API — routes and OpenAPI spec are interpreted from DNA at startup.",
       "dna": "lending/product.api",
       "adapter": {
-        "type": "node/nestjs",
-        "version": "10",
+        "type": "node/express",
         "config": {
-          "orm": "drizzle",
-          "orm_version": "0.30",
           "operational_dna": "lending/operational"
         }
       },

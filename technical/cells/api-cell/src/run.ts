@@ -3,6 +3,7 @@ import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
 import { ProductApiDNA, OperationalDNA, ApiCellAdapter } from './types'
 import * as nestjsAdapter from './adapters/node/nestjs'
+import * as expressAdapter from './adapters/node/express'
 
 interface TechnicalCell {
   name: string
@@ -22,6 +23,7 @@ interface TechnicalDNA {
 
 const ADAPTERS: Record<string, ApiCellAdapter> = {
   'node/nestjs': nestjsAdapter,
+  'node/express': expressAdapter,
 }
 
 function resolveAdapter(type: string): ApiCellAdapter {
