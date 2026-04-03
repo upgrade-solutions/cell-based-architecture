@@ -131,12 +131,39 @@ No primitive name is shared across layers.
 
 # DNA Layer Relationships
 
-```
-Operational DNA  →  Product DNA     →  Technical DNA
-(business logic)    (product surface)  (implementation)
-     ↓                   ↓                  ↓
-  Noun/Verb/          Resource/Action/   Cell/Construct/
-  Capability          Page/Endpoint      Provider/Env
+```mermaid
+flowchart LR
+    subgraph Layers["DNA — Source of Truth (JSON)"]
+        direction TB
+        OP["Operational DNA\nNouns · Verbs · Capabilities\nTriggers · Policies · Rules · Effects · Flows"]
+        PROD["Product DNA\nResources · Actions · Operations\nPages · Routes · Endpoints · Schemas"]
+        TECH["Technical DNA\nCells · Constructs · Providers\nEnvironments · Variables"]
+        OP -->|"maps to"| PROD
+        PROD -->|"configures"| TECH
+    end
+
+    subgraph CellRuntime["Cell Runtime"]
+        direction TB
+        CELL["Cell\nTypeScript engine"]
+        ADAPTER["Adapter\ne.g. node/nestjs · node/express\nruby/rails · react · vue"]
+        SUBADAPTER["Sub-adapter\ne.g. drizzle ORM · auth0 · stripe"]
+        CELL -->|"dispatches to"| ADAPTER
+        ADAPTER -->|"optional plugin"| SUBADAPTER
+    end
+
+    TECH -->|"cell definition +\nconstructs + providers"| CELL
+    PROD -->|"API or UI DNA"| CELL
+    OP -.->|"secondary input\n(e.g. schema generation)"| CELL
+
+    subgraph Artifacts["Output Artifacts"]
+        API["REST API"]
+        UI["UI App"]
+        DB["DB Schema"]
+        INFRA["Infrastructure"]
+    end
+
+    ADAPTER --> Artifacts
+    SUBADAPTER --> Artifacts
 ```
 
 Operational DNA has no cell — it is validated JSON injected into Product and Technical cells as input.

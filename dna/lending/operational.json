@@ -57,7 +57,7 @@
                 "examples": [
                   { "id": "loan-1", "borrower_id": "borrower-2", "amount": 18500, "interest_rate": 0.082, "term_months": 24, "purpose": "Home renovation", "status": "active", "amount_paid": 3200, "due_date": "2026-08-01", "disbursed_at": "2024-08-01T09:00:00Z", "approved_at": "2024-07-28T14:30:00Z", "reviewed_by": "borrower-1" },
                   { "id": "loan-2", "borrower_id": "borrower-1", "amount": 45000, "interest_rate": 0.071, "term_months": 36, "purpose": "Business expansion", "status": "under_review", "amount_paid": 0, "due_date": null, "disbursed_at": null, "approved_at": null, "reviewed_by": null },
-                  { "id": "loan-3", "borrower_id": "borrower-4", "amount": 9000, "interest_rate": 0.095, "term_months": 12, "purpose": "Medical expenses", "status": "repaid", "amount_paid": 9000, "due_date": "2025-01-15", "disbursed_at": "2024-01-15T11:00:00Z", "approved_at": "2024-01-12T16:00:00Z", "reviewed_by": "borrower-2" }
+                  { "id": "loan-3", "borrower_id": "borrower-3", "amount": 9000, "interest_rate": 0.095, "term_months": 12, "purpose": "Medical expenses", "status": "repaid", "amount_paid": 9000, "due_date": "2025-01-15", "disbursed_at": "2024-01-15T11:00:00Z", "approved_at": "2024-01-12T16:00:00Z", "reviewed_by": "borrower-2" }
                 ],
                 "verbs": [
                   { "name": "Apply", "description": "A borrower submits a loan application." },
