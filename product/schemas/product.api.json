@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/api",
+  "title": "ProductApiDNA",
+  "description": "A complete Product API DNA document for an application instance. Composes a namespace with resources, operations, and endpoints into a single API surface definition.",
+  "type": "object",
+  "required": ["namespace", "endpoints"],
+  "properties": {
+    "namespace": {
+      "$ref": "https://dna.local/product/api/namespace",
+      "description": "The API namespace grouping all resources under a shared path prefix."
+    },
+    "resources": {
+      "type": "array",
+      "description": "The product-level resources exposed by this API, mapped from Operational Nouns.",
+      "items": { "$ref": "https://dna.local/product/core/resource" }
+    },
+    "operations": {
+      "type": "array",
+      "description": "The Resource:Action pairs available in this API, mapped from Operational Capabilities.",
+      "items": { "$ref": "https://dna.local/product/core/operation" }
+    },
+    "endpoints": {
+      "type": "array",
+      "description": "The HTTP endpoints that implement this API's operations.",
+      "minItems": 1,
+      "items": { "$ref": "https://dna.local/product/api/endpoint" }
+    }
+  },
+  "examples": [
+    {
+      "namespace": {
+        "name": "Lending",
+        "path": "/lending",
+        "domain": "acme.finance.lending",
+        "resources": ["Loan"]
+      },
+      "resources": [
+        {
+          "name": "Loan",
+          "noun": "Loan",
+          "fields": [
+            { "name": "id", "label": "ID", "type": "string" },
+            { "name": "amount", "label": "Amount", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ],
+          "actions": [
+            { "name": "Apply", "verb": "Apply" },
+            { "name": "Approve", "verb": "Approve" }
+          ]
+        }
+      ],
+      "operations": [
+        { "resource": "Loan", "action": "Apply", "name": "Loan.Apply", "capability": "Loan.Apply" },
+        { "resource": "Loan", "action": "Approve", "name": "Loan.Approve", "capability": "Loan.Approve" }
+      ],
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/lending/loans",
+          "operation": "Loan.Apply"
+        },
+        {
+          "method": "PATCH",
+          "path": "/lending/loans/:id/approve",
+          "operation": "Loan.Approve"
+        }
+      ]
+    }
+  ]
+}

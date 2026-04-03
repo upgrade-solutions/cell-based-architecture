@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/operational/domain",
+  "title": "Domain",
+  "description": "A Domain is a grouping mechanism that organizes related Nouns into a logical boundary. Domains can be multiple levels deep — e.g. organization → domain → subdomain — with Nouns at the leaves.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The lowercase identifier for this domain segment.",
+      "examples": ["acme", "billing", "invoicing", "identity", "auth"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this domain represents."
+    },
+    "path": {
+      "type": "string",
+      "description": "The fully qualified dot-separated path to this domain from the root.",
+      "examples": ["acme", "acme.billing", "acme.billing.invoicing", "acme.identity.auth"]
+    },
+    "domains": {
+      "type": "array",
+      "description": "Child domains nested within this domain.",
+      "items": { "$ref": "https://dna.local/operational/domain" }
+    },
+    "nouns": {
+      "type": "array",
+      "description": "The Nouns that live directly within this domain.",
+      "items": { "$ref": "https://dna.local/operational/noun" }
+    }
+  },
+  "examples": [
+    {
+      "name": "acme",
+      "path": "acme",
+      "domains": [
+        {
+          "name": "finance",
+          "path": "acme.finance",
+          "domains": [
+            {
+              "name": "lending",
+              "path": "acme.finance.lending",
+              "nouns": [{ "name": "Loan" }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/technical",
+  "title": "TechnicalDNA",
+  "description": "A complete Technical DNA document for an application instance. Composes environments, providers, constructs, variables, and cells into a single deployable infrastructure definition.",
+  "type": "object",
+  "required": ["cells"],
+  "properties": {
+    "environments": {
+      "type": "array",
+      "description": "The named deployment contexts for this application.",
+      "items": { "$ref": "https://dna.local/technical/environment" }
+    },
+    "providers": {
+      "type": "array",
+      "description": "The external platforms backing this application's constructs.",
+      "items": { "$ref": "https://dna.local/technical/provider" }
+    },
+    "constructs": {
+      "type": "array",
+      "description": "The named infrastructure components shared across cells. Declared once, referenced by many.",
+      "items": { "$ref": "https://dna.local/technical/construct" }
+    },
+    "variables": {
+      "type": "array",
+      "description": "Environment variables and secrets available to cells.",
+      "items": { "$ref": "https://dna.local/technical/variable" }
+    },
+    "cells": {
+      "type": "array",
+      "description": "The deployed units that consume DNA and produce running software or infrastructure.",
+      "minItems": 1,
+      "items": { "$ref": "https://dna.local/technical/cell" }
+    }
+  },
+  "examples": [
+    {
+      "environments": [
+        { "name": "dev" },
+        { "name": "prod" }
+      ],
+      "providers": [
+        { "name": "aws", "type": "cloud", "region": "us-east-1" },
+        { "name": "auth0", "type": "auth" }
+      ],
+      "constructs": [
+        { "name": "primary-db", "category": "storage", "type": "database", "provider": "aws", "config": { "engine": "postgres", "version": "15" } },
+        { "name": "api-server", "category": "compute", "type": "container", "provider": "aws" }
+      ],
+      "variables": [
+        { "name": "DATABASE_URL", "source": "secret", "required": true }
+      ],
+      "cells": [
+        {
+          "name": "db-cell",
+          "dna": "lending/operational",
+          "adapter": { "type": "postgres", "version": "15" },
+          "constructs": ["primary-db"]
+        },
+        {
+          "name": "api-cell",
+          "dna": "lending/product.api",
+          "adapter": { "type": "nestjs", "version": "10" },
+          "constructs": ["primary-db", "api-server"]
+        }
+      ]
+    }
+  ]
+}

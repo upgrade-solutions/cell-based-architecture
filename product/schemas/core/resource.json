@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/core/resource",
+  "title": "Resource",
+  "description": "A Resource is the product-level entity — it maps from an Operational Noun and is realized as a Page in UI and a REST resource in API.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The PascalCase name of the resource.",
+      "examples": ["Loan", "Order", "User", "Invoice"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this resource represents."
+    },
+    "noun": {
+      "type": "string",
+      "description": "The Operational Noun this resource maps from.",
+      "examples": ["Loan", "Order", "Employee"]
+    },
+    "fields": {
+      "type": "array",
+      "description": "The fields that describe this resource, mapped from Attributes.",
+      "items": { "$ref": "https://dna.local/product/core/field" }
+    },
+    "actions": {
+      "type": "array",
+      "description": "The actions that can be performed on this resource.",
+      "items": { "$ref": "https://dna.local/product/core/action" }
+    }
+  },
+  "examples": [
+    {
+      "name": "Loan",
+      "description": "A financial loan visible to borrowers and underwriters.",
+      "noun": "Loan",
+      "fields": [
+        { "name": "amount", "label": "Amount", "type": "number", "required": true },
+        { "name": "status", "label": "Status", "type": "enum", "values": ["pending", "active", "repaid", "defaulted"] }
+      ],
+      "actions": [
+        { "name": "Apply", "verb": "Apply" },
+        { "name": "Approve", "verb": "Approve" }
+      ]
+    }
+  ]
+}

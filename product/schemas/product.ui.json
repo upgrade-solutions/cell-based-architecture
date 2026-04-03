@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/ui",
+  "title": "ProductUiDNA",
+  "description": "A complete Product UI DNA document for an application instance. Composes a layout with pages and routes into a single UI surface definition.",
+  "type": "object",
+  "required": ["layout", "pages", "routes"],
+  "properties": {
+    "layout": {
+      "$ref": "https://dna.local/product/web/layout",
+      "description": "The structural shell all pages in this UI live within."
+    },
+    "pages": {
+      "type": "array",
+      "description": "The discrete screens that make up this UI, each mapped from a Resource.",
+      "minItems": 1,
+      "items": { "$ref": "https://dna.local/product/web/page" }
+    },
+    "routes": {
+      "type": "array",
+      "description": "The URL patterns that resolve to pages in this UI.",
+      "minItems": 1,
+      "items": { "$ref": "https://dna.local/product/web/route" }
+    }
+  },
+  "examples": [
+    {
+      "layout": {
+        "name": "LendingDashboard",
+        "type": "sidebar",
+        "description": "Primary shell for the lending application."
+      },
+      "pages": [
+        {
+          "name": "LoanList",
+          "resource": "Loan",
+          "blocks": [
+            { "name": "LoanTable", "type": "table", "operation": "Loan.List" }
+          ]
+        },
+        {
+          "name": "LoanDetail",
+          "resource": "Loan",
+          "blocks": [
+            { "name": "LoanSummary", "type": "detail", "operation": "Loan.View" },
+            { "name": "LoanActions", "type": "actions" }
+          ]
+        }
+      ],
+      "routes": [
+        { "path": "/loans", "page": "LoanList" },
+        { "path": "/loans/:id", "page": "LoanDetail" }
+      ]
+    }
+  ]
+}

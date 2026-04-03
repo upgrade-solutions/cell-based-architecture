@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/api/param",
+  "title": "Param",
+  "description": "A Param is a path, query, or header parameter on an API Endpoint, mapped from an Operational Attribute.",
+  "type": "object",
+  "required": ["name", "in", "type"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The snake_case name of the parameter.",
+      "examples": ["loan_id", "status", "page", "limit"]
+    },
+    "in": {
+      "type": "string",
+      "description": "Where the parameter appears in the HTTP request.",
+      "enum": ["path", "query", "header"]
+    },
+    "type": {
+      "type": "string",
+      "description": "The data type of the parameter.",
+      "enum": ["string", "number", "boolean", "enum"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this parameter represents."
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether this parameter must be present in the request.",
+      "default": false
+    },
+    "values": {
+      "type": "array",
+      "description": "Allowed values when type is 'enum'.",
+      "items": { "type": "string" }
+    },
+    "attribute": {
+      "type": "string",
+      "description": "The Operational Attribute this param maps from.",
+      "examples": ["id", "status"]
+    }
+  },
+  "if": { "properties": { "type": { "const": "enum" } } },
+  "then": { "required": ["values"] }
+}

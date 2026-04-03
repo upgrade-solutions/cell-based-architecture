@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/operational/attribute",
+  "title": "Attribute",
+  "description": "An Attribute is a property that belongs to a Noun. Attributes describe the data shape of a Noun — its fields, their types, and any constraints.",
+  "type": "object",
+  "required": ["name", "type"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The snake_case name of the attribute.",
+      "examples": ["amount", "interest_rate", "status", "published_at", "slug"]
+    },
+    "type": {
+      "type": "string",
+      "description": "The data type of the attribute.",
+      "enum": ["string", "text", "number", "boolean", "date", "datetime", "enum", "reference"],
+      "examples": ["string", "number", "date", "enum"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this attribute represents."
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether this attribute must be present on the noun.",
+      "default": false
+    },
+    "values": {
+      "type": "array",
+      "description": "The allowed values when type is 'enum'.",
+      "items": { "type": "string" },
+      "examples": [
+        ["pending", "active", "repaid", "defaulted"],
+        ["draft", "published", "archived"]
+      ]
+    },
+    "noun": {
+      "type": "string",
+      "description": "The referenced Noun name when type is 'reference'.",
+      "examples": ["Author", "Department", "Order"]
+    }
+  },
+  "if": { "properties": { "type": { "const": "enum" } } },
+  "then": { "required": ["values"] }
+}

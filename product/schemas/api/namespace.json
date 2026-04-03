@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/api/namespace",
+  "title": "Namespace",
+  "description": "A Namespace groups Resources under a shared API path prefix. It maps from an Operational Domain.",
+  "type": "object",
+  "required": ["name", "path"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The PascalCase name of the namespace.",
+      "examples": ["Finance", "Identity", "Orders"]
+    },
+    "path": {
+      "type": "string",
+      "description": "The URL path prefix for all resources in this namespace.",
+      "examples": ["/finance", "/identity", "/orders"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this namespace covers."
+    },
+    "domain": {
+      "type": "string",
+      "description": "The Operational Domain this namespace maps from.",
+      "examples": ["acme.finance.lending", "acme.identity.auth"]
+    },
+    "resources": {
+      "type": "array",
+      "description": "The Resources grouped under this namespace.",
+      "items": { "type": "string" },
+      "examples": [["Loan", "Payment"], ["User", "Role", "Session"]]
+    }
+  }
+}

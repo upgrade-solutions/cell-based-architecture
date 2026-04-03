@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/technical/output",
+  "title": "Output",
+  "description": "An Output is an exported value from one Cell that other Cells can reference via a Variable with source 'output'.",
+  "type": "object",
+  "required": ["name", "cell", "value"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The dot-separated reference key for this output (e.g. 'api.url', 'db.connection_string').",
+      "examples": ["api.url", "db.connection_string", "auth.jwks_uri"]
+    },
+    "cell": {
+      "type": "string",
+      "description": "The Cell name that produces this output.",
+      "examples": ["api", "db", "auth"]
+    },
+    "value": {
+      "type": "string",
+      "description": "The construct attribute or computed expression that produces this output value.",
+      "examples": ["api-gateway.url", "primary-db.connection_string"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this output contains."
+    }
+  },
+  "examples": [
+    { "name": "api.url", "cell": "api", "value": "api-gateway.url", "description": "The public URL of the API gateway." },
+    { "name": "db.connection_string", "cell": "db", "value": "primary-db.connection_string", "description": "The connection string for the primary database." }
+  ]
+}

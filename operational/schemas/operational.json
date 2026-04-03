@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/operational",
+  "title": "OperationalDNA",
+  "description": "A complete Operational DNA document for an application instance. Composes a domain hierarchy with the full behavior stack: capabilities, triggers, policies, rules, effects, and flows.",
+  "type": "object",
+  "required": ["domain"],
+  "properties": {
+    "domain": {
+      "$ref": "https://dna.local/operational/domain",
+      "description": "The root domain, containing the full nested hierarchy of subdomains and nouns."
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "All Noun:Verb capability pairs defined in this domain.",
+      "items": { "$ref": "https://dna.local/operational/capability" }
+    },
+    "triggers": {
+      "type": "array",
+      "description": "What initiates each capability — user actions, schedules, webhooks, or chained capabilities.",
+      "items": { "$ref": "https://dna.local/operational/trigger" }
+    },
+    "policies": {
+      "type": "array",
+      "description": "Who is permitted to perform each capability.",
+      "items": { "$ref": "https://dna.local/operational/policy" }
+    },
+    "rules": {
+      "type": "array",
+      "description": "Business conditions that must be satisfied before each capability executes.",
+      "items": { "$ref": "https://dna.local/operational/rule" }
+    },
+    "effects": {
+      "type": "array",
+      "description": "State changes and side effects that result from each capability.",
+      "items": { "$ref": "https://dna.local/operational/effect" }
+    },
+    "flows": {
+      "type": "array",
+      "description": "Valid lifecycle sequences of capabilities across nouns.",
+      "items": { "$ref": "https://dna.local/operational/flow" }
+    }
+  },
+  "examples": [
+    {
+      "domain": {
+        "name": "acme",
+        "path": "acme",
+        "domains": [
+          {
+            "name": "finance",
+            "path": "acme.finance",
+            "domains": [
+              {
+                "name": "lending",
+                "path": "acme.finance.lending",
+                "nouns": [
+                  {
+                    "name": "Loan",
+                    "attributes": [
+                      { "name": "amount", "type": "number", "required": true },
+                      { "name": "status", "type": "enum", "values": ["pending", "active", "repaid"] }
+                    ],
+                    "verbs": [
+                      { "name": "Apply" },
+                      { "name": "Approve" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "capabilities": [
+        { "noun": "Loan", "verb": "Apply", "name": "Loan.Apply" },
+        { "noun": "Loan", "verb": "Approve", "name": "Loan.Approve" }
+      ],
+      "triggers": [
+        { "capability": "Loan.Apply", "source": "user" },
+        { "capability": "Loan.Approve", "source": "user" }
+      ],
+      "policies": [
+        { "capability": "Loan.Apply", "allow": [{ "role": "borrower" }] },
+        { "capability": "Loan.Approve", "allow": [{ "role": "underwriter" }] }
+      ],
+      "rules": [
+        { "capability": "Loan.Approve", "conditions": [{ "attribute": "loan.status", "operator": "eq", "value": "under_review" }] }
+      ],
+      "effects": [
+        { "capability": "Loan.Apply", "changes": [{ "attribute": "loan.status", "set": "under_review" }] },
+        { "capability": "Loan.Approve", "changes": [{ "attribute": "loan.status", "set": "active" }] }
+      ],
+      "flows": [
+        { "noun": "Loan", "steps": ["Loan.Apply", "Loan.Approve"] }
+      ]
+    }
+  ]
+}

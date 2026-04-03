@@ -1,0 +1,234 @@
+{
+  "environments": [
+    {
+      "name": "dev",
+      "description": "Local and CI development environment."
+    },
+    {
+      "name": "prod",
+      "description": "Production environment serving live traffic."
+    }
+  ],
+
+  "providers": [
+    {
+      "name": "aws",
+      "type": "cloud",
+      "region": "us-east-1",
+      "description": "Primary cloud provider for compute, storage, and networking.",
+      "config": {
+        "account_id": "123456789012"
+      }
+    },
+    {
+      "name": "auth0",
+      "type": "auth",
+      "description": "Identity provider for authentication and role-based access control.",
+      "config": {
+        "domain": "acme.auth0.com",
+        "audience": "https://api.acme.finance"
+      }
+    }
+  ],
+
+  "constructs": [
+    {
+      "name": "primary-db",
+      "category": "storage",
+      "type": "database",
+      "provider": "aws",
+      "description": "Primary Postgres database for all lending domain data.",
+      "config": {
+        "engine": "postgres",
+        "version": "15",
+        "instance_class": "db.t3.medium"
+      }
+    },
+    {
+      "name": "primary-db",
+      "category": "storage",
+      "type": "database",
+      "provider": "aws",
+      "environment": "dev",
+      "description": "Dev database — smaller instance.",
+      "config": {
+        "engine": "postgres",
+        "version": "15",
+        "instance_class": "db.t3.micro"
+      }
+    },
+    {
+      "name": "session-cache",
+      "category": "storage",
+      "type": "cache",
+      "provider": "aws",
+      "description": "Redis cache for session state and short-lived tokens.",
+      "config": {
+        "engine": "redis",
+        "version": "7"
+      }
+    },
+    {
+      "name": "auth-provider",
+      "category": "storage",
+      "type": "database",
+      "provider": "auth0",
+      "description": "Auth0 tenant providing JWT issuance and role management."
+    },
+    {
+      "name": "api-gateway",
+      "category": "network",
+      "type": "gateway",
+      "provider": "aws",
+      "description": "AWS API Gateway fronting the API server.",
+      "config": {
+        "type": "HTTP"
+      }
+    },
+    {
+      "name": "api-server",
+      "category": "compute",
+      "type": "container",
+      "provider": "aws",
+      "description": "ECS Fargate container running the NestJS API.",
+      "config": {
+        "cpu": 512,
+        "memory": 1024,
+        "port": 3000
+      }
+    },
+    {
+      "name": "api-server",
+      "category": "compute",
+      "type": "container",
+      "provider": "aws",
+      "environment": "dev",
+      "description": "Dev API server — minimal resources.",
+      "config": {
+        "cpu": 256,
+        "memory": 512,
+        "port": 3000
+      }
+    },
+    {
+      "name": "ui-server",
+      "category": "compute",
+      "type": "container",
+      "provider": "aws",
+      "description": "ECS Fargate container running the Next.js UI.",
+      "config": {
+        "cpu": 256,
+        "memory": 512,
+        "port": 3001
+      }
+    }
+  ],
+
+  "variables": [
+    {
+      "name": "DATABASE_URL",
+      "source": "secret",
+      "description": "Postgres connection string for the primary database.",
+      "required": true
+    },
+    {
+      "name": "REDIS_URL",
+      "source": "secret",
+      "description": "Redis connection URL for the session cache.",
+      "required": true
+    },
+    {
+      "name": "AUTH0_DOMAIN",
+      "source": "secret",
+      "description": "Auth0 domain for JWT verification.",
+      "required": true
+    },
+    {
+      "name": "AUTH0_AUDIENCE",
+      "source": "literal",
+      "value": "https://api.acme.finance",
+      "description": "Expected JWT audience claim.",
+      "required": true
+    },
+    {
+      "name": "AUTH0_CLIENT_ID",
+      "source": "secret",
+      "description": "Auth0 client ID for the API.",
+      "required": true
+    },
+    {
+      "name": "AUTH0_CLIENT_SECRET",
+      "source": "secret",
+      "description": "Auth0 client secret for the API.",
+      "required": true
+    },
+    {
+      "name": "NEXT_PUBLIC_API_URL",
+      "source": "output",
+      "value": "api-cell.api_url",
+      "description": "Public API base URL injected into the Next.js UI at build time.",
+      "required": true
+    },
+    {
+      "name": "NODE_ENV",
+      "source": "literal",
+      "value": "development",
+      "environment": "dev",
+      "required": false
+    },
+    {
+      "name": "NODE_ENV",
+      "source": "literal",
+      "value": "production",
+      "environment": "prod",
+      "required": false
+    }
+  ],
+
+  "cells": [
+    {
+      "name": "api-cell",
+      "description": "Reads Product API DNA and produces the NestJS REST API for loan origination. Drizzle manages the database schema and migrations as a sub-adapter.",
+      "dna": "lending/product.api",
+      "adapter": {
+        "type": "node/nestjs",
+        "version": "10",
+        "config": {
+          "orm": "drizzle",
+          "orm_version": "0.30",
+          "operational_dna": "lending/operational"
+        }
+      },
+      "constructs": ["primary-db", "session-cache", "auth-provider", "api-gateway", "api-server"],
+      "variables": [
+        { "name": "DATABASE_URL", "source": "secret", "required": true },
+        { "name": "REDIS_URL", "source": "secret", "required": true },
+        { "name": "AUTH0_DOMAIN", "source": "secret", "required": true },
+        { "name": "AUTH0_AUDIENCE", "source": "literal", "value": "https://api.acme.finance", "required": true },
+        { "name": "AUTH0_CLIENT_ID", "source": "secret", "required": true },
+        { "name": "AUTH0_CLIENT_SECRET", "source": "secret", "required": true },
+        { "name": "NODE_ENV", "source": "env", "required": false }
+      ],
+      "outputs": [
+        { "name": "api_url", "cell": "api-cell", "value": "api-gateway.url" }
+      ]
+    },
+    {
+      "name": "ui-cell",
+      "description": "Reads Product UI DNA and produces the Next.js loan dashboard.",
+      "dna": "lending/product.ui",
+      "adapter": {
+        "type": "nextjs",
+        "version": "14"
+      },
+      "constructs": ["auth-provider", "ui-server"],
+      "variables": [
+        { "name": "AUTH0_DOMAIN", "source": "secret", "required": true },
+        { "name": "AUTH0_CLIENT_ID", "source": "secret", "required": true },
+        { "name": "AUTH0_CLIENT_SECRET", "source": "secret", "required": true },
+        { "name": "NEXT_PUBLIC_API_URL", "source": "output", "value": "api-cell.api_url", "required": true },
+        { "name": "NODE_ENV", "source": "env", "required": false }
+      ]
+    }
+  ]
+}

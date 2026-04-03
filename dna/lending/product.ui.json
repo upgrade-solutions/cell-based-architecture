@@ -1,0 +1,180 @@
+{
+  "layout": {
+    "name": "LendingDashboard",
+    "type": "sidebar",
+    "description": "Primary shell for the lending application with left sidebar navigation."
+  },
+
+  "pages": [
+    {
+      "name": "LoanList",
+      "resource": "Loan",
+      "description": "A paginated, filterable list of loans. Borrowers see their own loans; underwriters see all.",
+      "blocks": [
+        {
+          "name": "LoanFilters",
+          "type": "form",
+          "description": "Filter controls for status and date range.",
+          "operation": "Loan.List",
+          "fields": [
+            { "name": "status", "label": "Status", "type": "enum", "values": ["draft", "under_review", "approved", "rejected", "active", "repaid", "defaulted"] }
+          ]
+        },
+        {
+          "name": "LoanTable",
+          "type": "table",
+          "description": "Tabular list of loans with sortable columns and row-level actions.",
+          "operation": "Loan.List",
+          "fields": [
+            { "name": "id", "label": "Loan ID", "type": "string" },
+            { "name": "borrower_id", "label": "Borrower", "type": "string" },
+            { "name": "amount", "label": "Amount", "type": "number" },
+            { "name": "term_months", "label": "Term", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "due_date", "label": "Due Date", "type": "date" }
+          ]
+        },
+        {
+          "name": "LoanListEmpty",
+          "type": "empty-state",
+          "description": "Shown when no loans match the current filters."
+        }
+      ]
+    },
+    {
+      "name": "LoanDetail",
+      "resource": "Loan",
+      "description": "Full detail view for a single loan with contextual actions based on status and role.",
+      "blocks": [
+        {
+          "name": "LoanSummary",
+          "type": "detail",
+          "description": "Key loan attributes: amount, status, terms, dates.",
+          "operation": "Loan.View",
+          "fields": [
+            { "name": "id", "label": "Loan ID", "type": "string" },
+            { "name": "borrower_id", "label": "Borrower", "type": "string" },
+            { "name": "amount", "label": "Principal", "type": "number" },
+            { "name": "interest_rate", "label": "Interest Rate", "type": "number" },
+            { "name": "term_months", "label": "Term (months)", "type": "number" },
+            { "name": "purpose", "label": "Purpose", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "due_date", "label": "Due Date", "type": "date" },
+            { "name": "approved_at", "label": "Approved At", "type": "datetime" },
+            { "name": "disbursed_at", "label": "Disbursed At", "type": "datetime" }
+          ]
+        },
+        {
+          "name": "LoanActions",
+          "type": "actions",
+          "description": "Contextual action buttons: Approve or Reject (underwriter), Repay (borrower). Visibility driven by loan status and actor role."
+        },
+        {
+          "name": "RepaymentHistory",
+          "type": "table",
+          "description": "List of all repayments made against this loan.",
+          "operation": "Loan.Repay",
+          "fields": [
+            { "name": "amount_paid", "label": "Amount Paid", "type": "number" },
+            { "name": "due_date", "label": "Due Date", "type": "date" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LoanApply",
+      "resource": "Loan",
+      "description": "Multi-step form for a borrower to submit a new loan application.",
+      "blocks": [
+        {
+          "name": "ApplicationForm",
+          "type": "form",
+          "description": "Loan application form: amount, term, purpose.",
+          "operation": "Loan.Apply",
+          "fields": [
+            { "name": "amount", "label": "Loan Amount", "type": "number", "required": true },
+            { "name": "term_months", "label": "Repayment Term (months)", "type": "number", "required": true },
+            { "name": "purpose", "label": "Loan Purpose", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ReviewQueue",
+      "resource": "Loan",
+      "description": "Underwriter workbench — lists all loans under review and provides inline approval or rejection.",
+      "blocks": [
+        {
+          "name": "ReviewTable",
+          "type": "table",
+          "description": "Loans currently in under_review status, sorted oldest first.",
+          "operation": "Loan.Review",
+          "fields": [
+            { "name": "id", "label": "Loan ID", "type": "string" },
+            { "name": "borrower_id", "label": "Borrower", "type": "string" },
+            { "name": "amount", "label": "Amount", "type": "number" },
+            { "name": "term_months", "label": "Term", "type": "number" },
+            { "name": "purpose", "label": "Purpose", "type": "string" }
+          ]
+        },
+        {
+          "name": "ApprovalForm",
+          "type": "form",
+          "description": "Form for underwriter to set interest rate and due date before approving.",
+          "operation": "Loan.Approve",
+          "fields": [
+            { "name": "interest_rate", "label": "Interest Rate", "type": "number", "required": true },
+            { "name": "due_date", "label": "Final Due Date", "type": "date", "required": true }
+          ]
+        },
+        {
+          "name": "ReviewActions",
+          "type": "actions",
+          "description": "Approve or Reject buttons for the selected loan."
+        }
+      ]
+    },
+    {
+      "name": "BorrowerProfile",
+      "resource": "Borrower",
+      "description": "Profile page showing borrower details and their loan history.",
+      "blocks": [
+        {
+          "name": "ProfileDetail",
+          "type": "detail",
+          "description": "Core borrower information.",
+          "operation": "Borrower.View",
+          "fields": [
+            { "name": "id", "label": "ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "annual_income", "label": "Annual Income", "type": "number" },
+            { "name": "credit_score", "label": "Credit Score", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "BorrowerLoans",
+          "type": "table",
+          "description": "All loans associated with this borrower.",
+          "operation": "Loan.List",
+          "fields": [
+            { "name": "id", "label": "Loan ID", "type": "string" },
+            { "name": "amount", "label": "Amount", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "due_date", "label": "Due Date", "type": "date" }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "routes": [
+    { "path": "/loans", "page": "LoanList", "description": "Loan list — filtered by role at runtime." },
+    { "path": "/loans/apply", "page": "LoanApply", "description": "New loan application form." },
+    { "path": "/loans/:id", "page": "LoanDetail", "description": "Full loan detail with actions." },
+    { "path": "/review", "page": "ReviewQueue", "description": "Underwriter review queue." },
+    { "path": "/borrowers/:id", "page": "BorrowerProfile", "description": "Borrower profile and loan history." }
+  ]
+}

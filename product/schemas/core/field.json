@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/core/field",
+  "title": "Field",
+  "description": "A Field is an input or display element within a Page or Block, mapped from an Operational Attribute.",
+  "type": "object",
+  "required": ["name", "type"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The snake_case name of the field, matching its Attribute name.",
+      "examples": ["amount", "status", "due_date", "first_name"]
+    },
+    "label": {
+      "type": "string",
+      "description": "The human-readable label shown in the UI.",
+      "examples": ["Amount", "Status", "Due Date", "First Name"]
+    },
+    "type": {
+      "type": "string",
+      "description": "The display/input type of the field.",
+      "enum": ["string", "text", "number", "boolean", "date", "datetime", "enum", "reference"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this field represents."
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether this field is required in a form context.",
+      "default": false
+    },
+    "readonly": {
+      "type": "boolean",
+      "description": "When true, the field is display-only and cannot be edited.",
+      "default": false
+    },
+    "values": {
+      "type": "array",
+      "description": "Allowed values when type is 'enum'.",
+      "items": { "type": "string" },
+      "examples": [["pending", "active", "repaid", "defaulted"]]
+    },
+    "attribute": {
+      "type": "string",
+      "description": "The Operational Attribute this field maps from.",
+      "examples": ["amount", "status", "due_date"]
+    }
+  },
+  "if": { "properties": { "type": { "const": "enum" } } },
+  "then": { "required": ["values"] }
+}

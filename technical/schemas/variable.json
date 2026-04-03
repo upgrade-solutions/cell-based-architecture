@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/technical/variable",
+  "title": "Variable",
+  "description": "A Variable is an environment variable or secret reference used by Cells and Constructs.",
+  "type": "object",
+  "required": ["name", "source"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The SCREAMING_SNAKE_CASE name of the variable.",
+      "examples": ["DATABASE_URL", "API_KEY", "AUTH0_SECRET", "STRIPE_WEBHOOK_SECRET"]
+    },
+    "source": {
+      "type": "string",
+      "description": "Where the variable value comes from.",
+      "enum": ["env", "secret", "output", "literal"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this variable is used for."
+    },
+    "value": {
+      "type": "string",
+      "description": "The literal value when source is 'literal', or the secret/output reference path when source is 'secret' or 'output'.",
+      "examples": ["arn:aws:secretsmanager:us-east-1:123:secret:db-url", "api.url"]
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether this variable must be present for the cell to run.",
+      "default": true
+    },
+    "environment": {
+      "type": "string",
+      "description": "If set, this variable is scoped to a specific Environment.",
+      "examples": ["dev", "staging", "prod"]
+    }
+  },
+  "examples": [
+    { "name": "DATABASE_URL", "source": "secret", "value": "arn:aws:secretsmanager:us-east-1:123:secret:db-url", "required": true },
+    { "name": "NODE_ENV", "source": "literal", "value": "production", "environment": "prod" }
+  ]
+}

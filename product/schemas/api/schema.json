@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/api/schema",
+  "title": "Schema",
+  "description": "A Schema is a named request/response data shape used by API Endpoints. It maps from a Resource and its Fields.",
+  "type": "object",
+  "required": ["name", "fields"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The PascalCase name of the schema.",
+      "examples": ["LoanResponse", "CreateLoanRequest", "LoanListResponse"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this schema represents."
+    },
+    "fields": {
+      "type": "array",
+      "description": "The fields that make up this schema.",
+      "minItems": 1,
+      "items": { "$ref": "https://dna.local/product/core/field" }
+    },
+    "resource": {
+      "type": "string",
+      "description": "The Resource this schema maps from, if applicable.",
+      "examples": ["Loan", "Order"]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/api/endpoint",
+  "title": "Endpoint",
+  "description": "An Endpoint is a single HTTP operation: method + path + request + response. It maps from an Operation.",
+  "type": "object",
+  "required": ["method", "path", "operation"],
+  "properties": {
+    "method": {
+      "type": "string",
+      "description": "The HTTP method.",
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    },
+    "path": {
+      "type": "string",
+      "description": "The URL path pattern for this endpoint.",
+      "examples": ["/loans", "/loans/:id", "/loans/:id/approve"]
+    },
+    "operation": {
+      "type": "string",
+      "description": "The Operation this endpoint maps from, expressed as Resource.Action.",
+      "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
+      "examples": ["Loan.Apply", "Loan.Approve", "Order.Ship"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this endpoint does."
+    },
+    "params": {
+      "type": "array",
+      "description": "Path, query, or header parameters for this endpoint.",
+      "items": { "$ref": "https://dna.local/product/api/param" }
+    },
+    "request": {
+      "$ref": "https://dna.local/product/api/schema",
+      "description": "The request body schema, if applicable."
+    },
+    "response": {
+      "$ref": "https://dna.local/product/api/schema",
+      "description": "The success response body schema."
+    }
+  }
+}

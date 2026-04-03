@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/core/operation",
+  "title": "Operation",
+  "description": "An Operation is a Resource:Action pair — the unit of user/system interaction at the product level. It maps from an Operational Capability and is the atomic thing a user or system does.",
+  "type": "object",
+  "required": ["resource", "action"],
+  "properties": {
+    "resource": {
+      "type": "string",
+      "description": "The Resource this operation belongs to.",
+      "examples": ["Loan", "Order", "User"]
+    },
+    "action": {
+      "type": "string",
+      "description": "The Action to be performed on the Resource.",
+      "examples": ["Apply", "Approve", "Delete"]
+    },
+    "name": {
+      "type": "string",
+      "description": "The operation expressed as Resource.Action.",
+      "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
+      "examples": ["Loan.Apply", "Loan.Approve", "Order.Ship"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this operation does."
+    },
+    "capability": {
+      "type": "string",
+      "description": "The Operational Capability this operation maps from, expressed as Noun.Verb.",
+      "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
+      "examples": ["Loan.Apply", "Order.Ship"]
+    }
+  },
+  "examples": [
+    { "resource": "Loan", "action": "Apply", "name": "Loan.Apply", "capability": "Loan.Apply", "description": "A borrower submits a loan application." },
+    { "resource": "Loan", "action": "Approve", "name": "Loan.Approve", "capability": "Loan.Approve", "description": "An underwriter approves a pending loan application." }
+  ]
+}

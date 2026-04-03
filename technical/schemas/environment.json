@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/technical/environment",
+  "title": "Environment",
+  "description": "An Environment is a named deployment context. All Technical primitives can be scoped to an Environment.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the environment.",
+      "enum": ["dev", "staging", "prod"],
+      "examples": ["dev", "staging", "prod"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of this environment's purpose."
+    },
+    "providers": {
+      "type": "array",
+      "description": "The Providers active in this environment.",
+      "items": { "$ref": "https://dna.local/technical/provider" }
+    },
+    "variables": {
+      "type": "array",
+      "description": "Variables scoped to this environment.",
+      "items": { "$ref": "https://dna.local/technical/variable" }
+    }
+  },
+  "examples": [
+    { "name": "prod", "description": "Live production environment.", "providers": [{ "name": "aws", "type": "cloud", "region": "us-east-1" }] },
+    { "name": "dev", "description": "Local development environment." }
+  ]
+}

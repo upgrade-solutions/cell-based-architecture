@@ -1,0 +1,12 @@
+{
+  "name": "cell-based-architecture",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "product/cells/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
