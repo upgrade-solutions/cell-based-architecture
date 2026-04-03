@@ -219,7 +219,10 @@
       "dna": "lending/product.ui",
       "adapter": {
         "type": "vite/react",
-        "version": "5"
+        "version": "5",
+        "config": {
+          "operational_dna": "lending/operational"
+        }
       },
       "constructs": ["auth-provider", "ui-server"],
       "variables": [

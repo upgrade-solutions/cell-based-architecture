@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductUiDNA, UiCellAdapter } from '../../../types'
+import { ProductUiDNA, OperationalDNA, UiCellAdapter } from '../../../types'
 import { generateDockerfile, generateNginxConf, generateDockerIgnore } from '../docker'
 import {
   generatePackageJson,
@@ -22,6 +22,7 @@ import {
   rendererActionsBlock,
   rendererEmptyStateBlock,
 } from './generators/renderer'
+import { generateStubs } from './generators/stubs'
 
 function write(outputDir: string, relPath: string, content: string): void {
   const fullPath = path.join(outputDir, relPath)
@@ -32,11 +33,13 @@ function write(outputDir: string, relPath: string, content: string): void {
 export const generate: UiCellAdapter['generate'] = (
   ui: ProductUiDNA,
   outputDir: string,
+  operational?: OperationalDNA,
 ): void => {
   const appName = ui.layout.name.toLowerCase().replace(/[^a-z0-9-]/g, '-') + '-ui'
 
-  // ── DNA bundle — the only file that changes when DNA changes ─────────────────
+  // ── DNA bundle — the only files that change when DNA changes ────────────────
   write(outputDir, 'src/dna.json', JSON.stringify(ui, null, 2) + '\n')
+  write(outputDir, 'src/stubs.json', operational ? generateStubs(operational) : '{}\n')
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
   write(outputDir, 'package.json', generatePackageJson(appName))

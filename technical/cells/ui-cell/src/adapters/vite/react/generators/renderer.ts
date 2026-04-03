@@ -173,7 +173,7 @@ export default function Page({ page }: { page: PageDNA }) {
         {toTitle(page.name)}
       </h1>
       {page.blocks.map(block => (
-        <Block key={block.name} block={block} />
+        <Block key={block.name} block={block} resource={page.resource} />
       ))}
     </div>
   )
@@ -189,11 +189,16 @@ import DetailBlock from './blocks/DetailBlock'
 import ActionsBlock from './blocks/ActionsBlock'
 import EmptyStateBlock from './blocks/EmptyStateBlock'
 
-export default function Block({ block }: { block: BlockDNA }) {
+interface Props {
+  block: BlockDNA
+  resource: string
+}
+
+export default function Block({ block, resource }: Props) {
   switch (block.type) {
     case 'form':        return <FormBlock block={block} />
-    case 'table':       return <TableBlock block={block} />
-    case 'detail':      return <DetailBlock block={block} />
+    case 'table':       return <TableBlock block={block} resource={resource} />
+    case 'detail':      return <DetailBlock block={block} resource={resource} />
     case 'actions':     return <ActionsBlock block={block} />
     case 'empty-state': return <EmptyStateBlock block={block} />
     default:
@@ -272,9 +277,18 @@ export default function FormBlock({ block }: { block: Block }) {
 
 export function rendererTableBlock(): string {
   return `import type { Block } from '../types'
+import stubsRaw from '../../stubs.json'
 
-export default function TableBlock({ block }: { block: Block }) {
+const stubs = stubsRaw as Record<string, Record<string, unknown>[]>
+
+interface Props {
+  block: Block
+  resource: string
+}
+
+export default function TableBlock({ block, resource }: Props) {
   const fields = block.fields ?? []
+  const rows = stubs[resource] ?? []
   return (
     <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -291,7 +305,27 @@ export default function TableBlock({ block }: { block: Block }) {
           </tr>
         </thead>
         <tbody>
-          {/* TODO: replace with real data fetched from the API */}
+          {rows.length > 0 ? rows.map((row, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
+              {fields.map(f => (
+                <td
+                  key={f.name}
+                  style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e5e7eb' }}
+                >
+                  {String(row[f.name] ?? '—')}
+                </td>
+              ))}
+            </tr>
+          )) : (
+            <tr>
+              <td
+                colSpan={fields.length}
+                style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}
+              >
+                No data
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -302,9 +336,18 @@ export default function TableBlock({ block }: { block: Block }) {
 
 export function rendererDetailBlock(): string {
   return `import type { Block } from '../types'
+import stubsRaw from '../../stubs.json'
 
-export default function DetailBlock({ block }: { block: Block }) {
+const stubs = stubsRaw as Record<string, Record<string, unknown>[]>
+
+interface Props {
+  block: Block
+  resource: string
+}
+
+export default function DetailBlock({ block, resource }: Props) {
   const fields = block.fields ?? []
+  const record = (stubs[resource] ?? [])[0] ?? {}
   return (
     <dl
       style={{
@@ -320,7 +363,7 @@ export default function DetailBlock({ block }: { block: Block }) {
       {fields.map(f => (
         <div key={f.name} style={{ display: 'contents' }}>
           <dt style={{ fontWeight: 500, color: '#6b7280', fontSize: '0.875rem' }}>{f.label}</dt>
-          <dd style={{ margin: 0 }}>—</dd>
+          <dd style={{ margin: 0 }}>{String(record[f.name] ?? '—')}</dd>
         </div>
       ))}
     </dl>

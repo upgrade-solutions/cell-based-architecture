@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
-import { ProductUiDNA, UiCellAdapter } from './types'
+import { ProductUiDNA, OperationalDNA, UiCellAdapter } from './types'
 import * as viteReactAdapter from './adapters/vite/react'
 
 interface TechnicalCell {
@@ -65,10 +65,24 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     throw new Error(`Invalid Product UI DNA:\n${errs}`)
   }
 
+  // ── Optionally load Operational DNA for stub generation ────────────────────
+  const operationalRef = cell.adapter.config?.operational_dna as string | undefined
+  let operationalRaw: OperationalDNA | undefined
+
+  if (operationalRef) {
+    const opRaw = loadDna(dnaBase, operationalRef)
+    const opValidation = validator.validate(opRaw, 'operational')
+    if (!opValidation.valid) {
+      const errs = opValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
+      throw new Error(`Invalid Operational DNA:\n${errs}`)
+    }
+    operationalRaw = opRaw as OperationalDNA
+  }
+
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(uiDnaRaw as ProductUiDNA, path.resolve(outputDir))
+  adapter.generate(uiDnaRaw as ProductUiDNA, path.resolve(outputDir), operationalRaw)
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

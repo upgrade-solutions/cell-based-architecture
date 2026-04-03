@@ -41,8 +41,36 @@ export interface ProductUiDNA {
   routes: Route[]
 }
 
+// ── Operational DNA (minimal — used for stub generation) ─────────────────────
+
+export interface Attribute {
+  name: string
+  type: string
+  required?: boolean
+  values?: string[]
+  description?: string
+}
+
+export interface Noun {
+  name: string
+  description?: string
+  attributes?: Attribute[]
+}
+
+export interface Domain {
+  name: string
+  path?: string
+  description?: string
+  nouns?: Noun[]
+  domains?: Domain[]
+}
+
+export interface OperationalDNA {
+  domain: Domain
+}
+
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface UiCellAdapter {
-  generate(ui: ProductUiDNA, outputDir: string): void
+  generate(ui: ProductUiDNA, outputDir: string, operational?: OperationalDNA): void
 }
