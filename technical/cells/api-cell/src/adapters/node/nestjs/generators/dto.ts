@@ -34,7 +34,12 @@ export function dtoFileName(action: string, resource: string): string {
 function fieldLines(field: Field): string[] {
   const decorators: string[] = []
 
-  if (!field.required) decorators.push('@IsOptional()')
+  if (field.required) {
+    decorators.push('@ApiProperty()')
+  } else {
+    decorators.push('@ApiProperty({ required: false })')
+    decorators.push('@IsOptional()')
+  }
 
   if (field.type === 'enum' && field.values?.length) {
     decorators.push(`@IsIn([${field.values.map(v => `'${v}'`).join(', ')}])`)
@@ -88,7 +93,8 @@ export function generateDto(endpoint: Endpoint, resource: string): string | null
 
   const body = allLines.join('\n').replace(/\n$/, '')
 
-  return `${importLine}
+  return `import { ApiProperty } from '@nestjs/swagger'
+${importLine}
 
 export class ${className} {
 ${body}

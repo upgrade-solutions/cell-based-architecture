@@ -79,10 +79,14 @@ export function generateController(
     ]
 
     const summary = ep.description ?? ep.operation
+    const apiQueryDecorators = queryParams.map(
+      p => `  @ApiQuery({ name: '${p.name}', required: false })`
+    )
     const lines: string[] = [
       `  // ${ep.operation}${ep.description ? `: ${ep.description}` : ''}`,
       `  @ApiOperation({ summary: '${summary.replace(/'/g, "\\'")}' })`,
       `  @ApiBearerAuth()`,
+      ...apiQueryDecorators,
       `  @UseGuards(AuthGuard)`,
       ...(roles.length ? [`  @Roles(${roles.map(r => `'${r}'`).join(', ')})`] : []),
       `  ${pathDec}`,
@@ -107,7 +111,7 @@ export function generateController(
 
   return [
     `import { ${nestImports.join(', ')} } from '@nestjs/common'`,
-    `import { ApiOperation, ApiBearerAuth, ApiTags } from '@nestjs/swagger'`,
+    `import { ApiOperation, ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger'`,
     `import { AuthGuard } from '../auth/auth.guard'`,
     `import { Roles } from '../auth/roles.decorator'`,
     `import { ${serviceName} } from './${fileName}.service'`,

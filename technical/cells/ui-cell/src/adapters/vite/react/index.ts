@@ -12,6 +12,7 @@ import {
 } from './generators/scaffold'
 import {
   rendererTypes,
+  rendererContext,
   rendererApp,
   rendererLayout,
   rendererPage,
@@ -21,6 +22,7 @@ import {
   rendererDetailBlock,
   rendererActionsBlock,
   rendererEmptyStateBlock,
+  rendererContext,
 } from './generators/renderer'
 import { generateStubs } from './generators/stubs'
 
@@ -37,9 +39,9 @@ export const generate: UiCellAdapter['generate'] = (
 ): void => {
   const appName = ui.layout.name.toLowerCase().replace(/[^a-z0-9-]/g, '-') + '-ui'
 
-  // ── DNA bundle — the only files that change when DNA changes ────────────────
-  write(outputDir, 'src/dna.json', JSON.stringify(ui, null, 2) + '\n')
-  write(outputDir, 'src/stubs.json', operational ? generateStubs(operational) : '{}\n')
+  // ── DNA — served as static assets, fetched at runtime (not bundled) ─────────
+  write(outputDir, 'public/dna.json', JSON.stringify(ui, null, 2) + '\n')
+  write(outputDir, 'public/stubs.json', operational ? generateStubs(operational) : '{}\n')
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
   write(outputDir, 'package.json', generatePackageJson(appName))
@@ -49,8 +51,9 @@ export const generate: UiCellAdapter['generate'] = (
   write(outputDir, 'index.html', generateIndexHtml(ui.layout.name))
   write(outputDir, 'src/main.tsx', generateMain())
 
-  // ── Renderer — generic, reads dna.json at runtime ───────────────────────────
+  // ── Renderer — generic, fetches dna.json + stubs.json at runtime ───────────
   write(outputDir, 'src/renderer/types.ts',                     rendererTypes())
+  write(outputDir, 'src/renderer/context.ts',                   rendererContext())
   write(outputDir, 'src/renderer/App.tsx',                      rendererApp())
   write(outputDir, 'src/renderer/Layout.tsx',                   rendererLayout())
   write(outputDir, 'src/renderer/Page.tsx',                     rendererPage())
