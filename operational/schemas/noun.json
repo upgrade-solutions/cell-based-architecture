@@ -29,6 +29,11 @@
       "type": "array",
       "description": "The verbs (actions) that can be performed on this noun.",
       "items": { "$ref": "https://dna.local/operational/verb" }
+    },
+    "examples": {
+      "type": "array",
+      "description": "Representative example records for this noun. Used as stub data when the API is unavailable.",
+      "items": { "type": "object" }
     }
   },
   "examples": [

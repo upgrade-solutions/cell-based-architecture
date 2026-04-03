@@ -55,6 +55,7 @@ export interface Noun {
   name: string
   description?: string
   attributes?: Attribute[]
+  examples?: Record<string, unknown>[]
 }
 
 export interface Domain {
