@@ -79,7 +79,7 @@ export const generate: ApiCellAdapter['generate'] = (
 
   // ── App shell ───────────────────────────────────────────────────────────────
   write(outputDir, 'src/app.module.ts', generateAppModule(resources))
-  write(outputDir, 'src/main.ts', generateMain())
+  write(outputDir, 'src/main.ts', generateMain(api.namespace))
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
   const appName = api.namespace.name.toLowerCase() + '-api'

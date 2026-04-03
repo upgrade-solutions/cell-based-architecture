@@ -78,8 +78,11 @@ export function generateController(
       ...(hasDtoBody ? ['dto'] : []),
     ]
 
+    const summary = ep.description ?? ep.operation
     const lines: string[] = [
       `  // ${ep.operation}${ep.description ? `: ${ep.description}` : ''}`,
+      `  @ApiOperation({ summary: '${summary.replace(/'/g, "\\'")}' })`,
+      `  @ApiBearerAuth()`,
       `  @UseGuards(AuthGuard)`,
       ...(roles.length ? [`  @Roles(${roles.map(r => `'${r}'`).join(', ')})`] : []),
       `  ${pathDec}`,
@@ -104,11 +107,13 @@ export function generateController(
 
   return [
     `import { ${nestImports.join(', ')} } from '@nestjs/common'`,
+    `import { ApiOperation, ApiBearerAuth, ApiTags } from '@nestjs/swagger'`,
     `import { AuthGuard } from '../auth/auth.guard'`,
     `import { Roles } from '../auth/roles.decorator'`,
     `import { ${serviceName} } from './${fileName}.service'`,
     ...dtoImports,
     '',
+    `@ApiTags('${resource.name}s')`,
     `@Controller('${basePath}')`,
     `export class ${className} {`,
     `  constructor(private readonly ${serviceVar}: ${serviceName}) {}`,
