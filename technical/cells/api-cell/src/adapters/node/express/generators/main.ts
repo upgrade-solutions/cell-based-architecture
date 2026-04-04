@@ -4,7 +4,8 @@ export function generateMain(namespace: Namespace): string {
   const title = namespace.name
   const description = namespace.description ?? ''
 
-  return `import express from 'express'
+  return `import 'dotenv/config'
+import express from 'express'
 import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
 import * as apiDNA from './dna/api.json'

@@ -211,6 +211,27 @@
       ]
     },
     {
+      "name": "api-cell-nestjs",
+      "description": "Reads Product API DNA and generates a NestJS API with static typed controllers, services, and DTOs.",
+      "dna": "lending/product.api",
+      "adapter": {
+        "type": "node/nestjs",
+        "config": {
+          "operational_dna": "lending/operational"
+        }
+      },
+      "constructs": ["primary-db", "session-cache", "auth-provider", "api-gateway", "api-server"],
+      "variables": [
+        { "name": "DATABASE_URL", "source": "secret", "required": true },
+        { "name": "REDIS_URL", "source": "secret", "required": true },
+        { "name": "AUTH0_DOMAIN", "source": "secret", "required": true },
+        { "name": "AUTH0_AUDIENCE", "source": "literal", "value": "https://api.acme.finance", "required": true },
+        { "name": "AUTH0_CLIENT_ID", "source": "secret", "required": true },
+        { "name": "AUTH0_CLIENT_SECRET", "source": "secret", "required": true },
+        { "name": "NODE_ENV", "source": "env", "required": false }
+      ]
+    },
+    {
       "name": "ui-cell",
       "description": "Reads Product UI DNA and produces the Vite + React loan dashboard.",
       "dna": "lending/product.ui",

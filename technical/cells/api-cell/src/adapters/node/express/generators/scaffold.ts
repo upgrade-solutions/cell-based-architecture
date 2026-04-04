@@ -10,6 +10,7 @@ export function generatePackageJson(appName: string): string {
       },
       dependencies: {
         cors: '^2.8.5',
+        dotenv: '^16.0.0',
         express: '^4.18.0',
         jsonwebtoken: '^9.0.0',
         'swagger-ui-express': '^5.0.0',
@@ -52,5 +53,5 @@ export function generateTsConfig(): string {
 }
 
 export function generateEnv(): string {
-  return `PORT=3000\n`
+  return `PORT=3001\n`
 }

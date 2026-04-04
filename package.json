@@ -7,6 +7,10 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "generate:lending": "npm run generate:lending --workspace=@cell/api-cell",
+    "generate:lending-nestjs": "npm run generate:lending-nestjs --workspace=@cell/api-cell",
+    "start:express": "cd output/lending-api && npx ts-node src/main.ts",
+    "start:nestjs": "cd output/lending-api-nestjs && npx ts-node -r tsconfig-paths/register src/main.ts"
   }
 }

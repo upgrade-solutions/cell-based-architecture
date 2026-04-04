@@ -9,6 +9,7 @@
     "test": "node --experimental-vm-modules ../../../node_modules/.bin/jest",
     "generate": "ts-node -r tsconfig-paths/register src/index.ts",
     "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json api-cell ../../../output/lending-api",
+    "generate:lending-nestjs": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json api-cell-nestjs ../../../output/lending-api-nestjs",
     "typecheck:lending": "npm run generate:lending && npm install --prefix ../../../output/lending-api && npx tsc --noEmit --project ../../../output/lending-api/tsconfig.json"
   },
   "dependencies": {

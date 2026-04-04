@@ -186,6 +186,33 @@ A cell is a **TypeScript package** that:
 | `auth-cell` | Technical | Policies, Constructs | Authorization middleware | Planned |
 | `workflow-cell` | Technical | Triggers, Flows, Effects, Constructs | Event-driven workflows | Planned |
 
+### `api-cell` adapters
+
+The `api-cell` supports two `node/` adapters that produce the same API surface from the same DNA:
+
+| Adapter | Approach | Port | Output |
+|---------|----------|------|--------|
+| `node/nestjs` | Static code generation — typed controllers, services, DTOs | 3000 | `output/lending-api-nestjs/` |
+| `node/express` | Dynamic runtime interpreter — reads DNA at startup, zero generated boilerplate | 3001 | `output/lending-api/` |
+
+Both expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON (`/api-json`).
+
+#### Generate and run
+
+```bash
+# Generate both outputs from DNA
+npm run generate:lending          # Express → output/lending-api/
+npm run generate:lending-nestjs   # NestJS  → output/lending-api-nestjs/
+
+# Install deps (first time or after regeneration)
+npm install --prefix output/lending-api
+npm install --prefix output/lending-api-nestjs
+
+# Run side-by-side (in separate terminals)
+npm run start:nestjs    # http://localhost:3000/api
+npm run start:express   # http://localhost:3001/api
+```
+
 There is no standalone `db-cell`. Database schema and migrations are owned by the ORM, which is a **sub-adapter** inside the `api-cell`. The api-cell adapter config specifies the ORM (e.g. `"orm": "drizzle"`) and receives Operational DNA as a secondary input to generate the schema alongside the API code.
 
 ```json
@@ -244,7 +271,7 @@ cell-based-architecture/
           adapters/
             node/                   # Shared Node.js adapter utilities (Dockerfile, .dockerignore)
               nestjs/               # NestJS adapter: controllers, services, modules, DTOs, Drizzle schema
-              express/              # (planned)
+              express/              # Express adapter: dynamic runtime interpreter, reads DNA at startup
           run.ts                    # Core orchestrator: loads DNA, validates, dispatches to adapter
           index.ts                  # CLI entry point
       ui-cell/                      # Consumes Product UI DNA → UI app (scaffolded)
