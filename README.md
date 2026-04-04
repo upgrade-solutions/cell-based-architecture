@@ -193,9 +193,11 @@ The `api-cell` supports two `node/` adapters that produce the same API surface f
 | Adapter | Approach | Port | Output |
 |---------|----------|------|--------|
 | `node/nestjs` | Static code generation — typed controllers, services, DTOs | 3000 | `output/lending-api-nestjs/` |
-| `node/express` | Dynamic runtime interpreter — reads DNA at startup, zero generated boilerplate | 3001 | `output/lending-api/` |
+| `node/express` | Dynamic runtime interpreter — reads DNA at startup, hot-reloads on DNA file changes | 3001 | `output/lending-api/` |
 
 Both expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON (`/api-json`).
+
+The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at runtime. When either file changes, routes and the OpenAPI spec are rebuilt in-process — no restart needed. Edit the DNA, the API updates immediately.
 
 #### Generate and run
 

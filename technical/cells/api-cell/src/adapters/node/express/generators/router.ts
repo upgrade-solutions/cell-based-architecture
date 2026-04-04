@@ -1,15 +1,17 @@
 export function generateRouter(): string {
-  return `import { Application } from 'express'
+  return `import { Router } from 'express'
 import { createAuthMiddleware } from './auth'
 import { createHandler } from './handler'
 
-export function registerRoutes(app: Application, api: any, operational: any): void {
+export function buildRouter(api: any, operational: any): Router {
+  const router = Router()
   for (const endpoint of api.endpoints ?? []) {
     const method = endpoint.method.toLowerCase() as 'get' | 'post' | 'patch' | 'put' | 'delete'
     const authMw = createAuthMiddleware(endpoint, api, operational)
     const handler = createHandler(endpoint, api, operational)
-    app[method](endpoint.path, authMw, handler)
+    router[method](endpoint.path, authMw, handler)
   }
+  return router
 }
 `
 }

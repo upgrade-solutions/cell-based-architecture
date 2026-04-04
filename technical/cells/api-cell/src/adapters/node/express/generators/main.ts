@@ -2,26 +2,49 @@ import { Namespace } from '../../../../types'
 
 export function generateMain(namespace: Namespace): string {
   const title = namespace.name
-  const description = namespace.description ?? ''
 
   return `import 'dotenv/config'
-import express from 'express'
+import * as fs from 'fs'
+import * as path from 'path'
+import express, { Router } from 'express'
 import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
-import * as apiDNA from './dna/api.json'
-import * as operationalDNA from './dna/operational.json'
-import { registerRoutes } from './interpreter/router'
+import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
 
+const DNA_API = path.resolve(__dirname, 'dna/api.json')
+const DNA_OPS = path.resolve(__dirname, 'dna/operational.json')
+
+function loadDNA() {
+  return {
+    api: JSON.parse(fs.readFileSync(DNA_API, 'utf-8')),
+    operational: JSON.parse(fs.readFileSync(DNA_OPS, 'utf-8')),
+  }
+}
+
+let currentSpec: object
+let currentRouter: Router
+
+function reload(label = 'loaded') {
+  try {
+    const { api, operational } = loadDNA()
+    currentSpec = buildOpenApiSpec(api, operational)
+    currentRouter = buildRouter(api, operational)
+    console.log(\`[dna] \${label}\`)
+  } catch (err: any) {
+    console.error(\`[dna] reload failed: \${err.message}\`)
+  }
+}
+
 async function bootstrap() {
+  reload('loaded')
+
   const app = express()
   app.use(express.json())
   app.use(cors())
 
-  const spec = buildOpenApiSpec(apiDNA, operationalDNA)
-
-  app.get('/api-json', (_req, res) => res.json(spec))
-  app.use('/api', swaggerUi.serve, swaggerUi.setup(spec as any))
+  app.get('/api-json', (_req, res) => res.json(currentSpec))
+  app.use('/api', swaggerUi.serve, swaggerUi.setup(null as any, { swaggerOptions: { url: '/api-json' } }))
 
   app.get('/docs', (_req, res) => {
     res.setHeader('Content-Type', 'text/html')
@@ -41,14 +64,27 @@ async function bootstrap() {
 </html>\`)
   })
 
-  registerRoutes(app, apiDNA, operationalDNA)
+  // Delegate to current router — swapped on each DNA reload
+  app.use((req, res, next) => currentRouter(req, res, next))
 
-  const port = process.env.PORT ?? 3000
+  // Watch DNA files and hot-reload on change
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null
+  function scheduleReload() {
+    if (reloadTimer) clearTimeout(reloadTimer)
+    reloadTimer = setTimeout(() => reload('reloaded'), 100)
+  }
+
+  fs.watch(DNA_API, scheduleReload)
+  fs.watch(DNA_OPS, scheduleReload)
+
+  const port = process.env.PORT ?? 3001
   app.listen(port, () => {
     console.log(\`Listening:  http://localhost:\${port}\`)
     console.log(\`Swagger UI: http://localhost:\${port}/api\`)
     console.log(\`Redoc:      http://localhost:\${port}/docs\`)
     console.log(\`OpenAPI:    http://localhost:\${port}/api-json\`)
+    console.log(\`[dna] watching \${DNA_API}\`)
+    console.log(\`[dna] watching \${DNA_OPS}\`)
   })
 }
 
