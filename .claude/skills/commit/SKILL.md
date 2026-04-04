@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Stage relevant modified files and create a git commit with a concise message
+description: Stage modified files and create a git commit with a concise message
 ---
 
 1. Run `git add .`
