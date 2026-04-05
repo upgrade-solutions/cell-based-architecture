@@ -232,6 +232,23 @@
       ]
     },
     {
+      "name": "db-cell",
+      "description": "Provisions the Postgres database, roles, and schema for the lending domain.",
+      "dna": "lending/operational",
+      "adapter": {
+        "type": "postgres",
+        "config": {
+          "construct": "primary-db",
+          "database": "lending",
+          "app_role": "lending_app"
+        }
+      },
+      "constructs": ["primary-db"],
+      "variables": [
+        { "name": "DATABASE_URL", "source": "secret", "required": true }
+      ]
+    },
+    {
       "name": "ui-cell",
       "description": "Reads Product UI DNA and produces the Vite + React loan dashboard.",
       "dna": "lending/product.ui",

@@ -19,7 +19,7 @@ function resolveEffectSet(
 ): unknown {
   if (typeof set === 'number' || typeof set === 'boolean') return set
   if (typeof set !== 'string') return undefined
-  if (set === 'now') return new Date().toISOString()
+  if (set === 'now') return new Date()
   if (set === 'actor.id') return 'mock-user'
   const addMatch = set.match(/^(\\w+)\\.(\\w+)\\s*\\+\\s*input\\.(\\w+)$/)
   if (addMatch) {
@@ -57,7 +57,7 @@ export function createHandler(endpoint: any, api: any, operational: any) {
   return async (req: Request, res: Response) => {
     try {
       if (kind === 'create') {
-        const now = new Date().toISOString()
+        const now = new Date()
         const entity: Record<string, any> = {
           id: crypto.randomUUID(),
           ...req.body,
@@ -95,7 +95,7 @@ export function createHandler(endpoint: any, api: any, operational: any) {
         if (!existing) {
           return res.status(404).json({ message: \`\${resource} \${req.params.id} not found\` })
         }
-        const now = new Date().toISOString()
+        const now = new Date()
         const merged = { ...existing, ...req.body, updated_at: now }
         applyEffects(merged, capability, operational, req.body)
         const updated = await store.update(resourceKey, req.params.id, merged)

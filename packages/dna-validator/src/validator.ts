@@ -9,6 +9,7 @@ import * as policySchema from '../../../operational/schemas/policy.json'
 import * as ruleSchema from '../../../operational/schemas/rule.json'
 import * as effectSchema from '../../../operational/schemas/effect.json'
 import * as flowSchema from '../../../operational/schemas/flow.json'
+import * as equationSchema from '../../../operational/schemas/equation.json'
 import * as fieldSchema from '../../../product/schemas/core/field.json'
 import * as actionSchema from '../../../product/schemas/core/action.json'
 import * as resourceSchema from '../../../product/schemas/core/resource.json'
@@ -27,6 +28,7 @@ import * as variableSchema from '../../../technical/schemas/variable.json'
 import * as outputSchema from '../../../technical/schemas/output.json'
 import * as environmentSchema from '../../../technical/schemas/environment.json'
 import * as cellSchema from '../../../technical/schemas/cell.json'
+import * as scriptSchema from '../../../technical/schemas/script.json'
 import * as operationalDnaSchema from '../../../operational/schemas/operational.json'
 import * as productApiDnaSchema from '../../../product/schemas/product.api.json'
 import * as productUiDnaSchema from '../../../product/schemas/product.ui.json'
@@ -58,6 +60,7 @@ export class DnaValidator {
       ruleSchema,
       effectSchema,
       flowSchema,
+      equationSchema,
       fieldSchema,
       actionSchema,
       resourceSchema,
@@ -76,6 +79,7 @@ export class DnaValidator {
       outputSchema,
       environmentSchema,
       cellSchema,
+      scriptSchema,
       operationalDnaSchema,
       productApiDnaSchema,
       productUiDnaSchema,

@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/operational/equation",
+  "title": "Equation",
+  "description": "An Equation is a named, technology-agnostic computation — a pure function defined at the business level. It declares named inputs (referencing Noun Attributes) and a named output. Equations are referenced by Rules and Effects; their concrete implementation is provided by a Script in Technical DNA.",
+  "type": "object",
+  "required": ["name", "input", "output"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The snake_case name of the equation, used as a reference key.",
+      "examples": ["calculate_apr", "score_credit_risk", "compute_repayment_schedule"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this equation computes."
+    },
+    "input": {
+      "type": "array",
+      "description": "The Attribute names this equation takes as inputs.",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "examples": [["loan_amount", "credit_score", "term_months"]]
+    },
+    "output": {
+      "type": "object",
+      "description": "The named result this equation produces.",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The snake_case name of the output value.",
+          "examples": ["apr_rate", "risk_score", "monthly_payment"]
+        },
+        "type": {
+          "type": "string",
+          "description": "The data type of the output value.",
+          "enum": ["string", "number", "boolean", "date", "datetime"],
+          "examples": ["number"]
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "name": "calculate_apr",
+      "description": "Computes the annual percentage rate from loan amount, credit score, and term.",
+      "input": ["loan_amount", "credit_score", "term_months"],
+      "output": { "name": "apr_rate", "type": "number" }
+    },
+    {
+      "name": "score_credit_risk",
+      "description": "Produces a normalized risk score between 0 and 1 based on applicant attributes.",
+      "input": ["credit_score", "debt_to_income_ratio", "employment_months"],
+      "output": { "name": "risk_score", "type": "number" }
+    }
+  ]
+}

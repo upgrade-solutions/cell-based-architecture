@@ -39,6 +39,11 @@
       "type": "array",
       "description": "Valid lifecycle sequences of capabilities across nouns.",
       "items": { "$ref": "https://dna.local/operational/flow" }
+    },
+    "equations": {
+      "type": "array",
+      "description": "Named, technology-agnostic computations that cannot be expressed as declarative Rules or Effects. Implemented concretely by Scripts in Technical DNA.",
+      "items": { "$ref": "https://dna.local/operational/equation" }
     }
   },
   "examples": [

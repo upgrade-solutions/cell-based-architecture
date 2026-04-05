@@ -1,0 +1,21 @@
+{
+  "name": "@cell/db-cell",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "generate": "ts-node -r tsconfig-paths/register src/index.ts",
+    "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json db-cell ../../../output/lending-db"
+  },
+  "dependencies": {
+    "@cell/dna-validator": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.4.0"
+  }
+}

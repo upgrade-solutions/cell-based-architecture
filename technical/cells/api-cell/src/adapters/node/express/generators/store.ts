@@ -75,12 +75,18 @@ export async function seedFromOperationalDna(operational: any): Promise<void> {
         const key = noun.name.toLowerCase() + 's'
 
         if (useDb) {
-          const now = new Date().toISOString()
-          const rows = noun.examples.map((ex: any) => ({
-            ...ex,
-            created_at: ex.created_at ?? now,
-            updated_at: ex.updated_at ?? now,
-          }))
+          const now = new Date()
+          const rows = noun.examples.map((ex: any) => {
+            const row: Record<string, any> = { ...ex }
+            for (const [key, val] of Object.entries(row)) {
+              if (typeof val === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(val)) {
+                row[key] = new Date(val)
+              }
+            }
+            row.created_at = row.created_at ? new Date(row.created_at) : now
+            row.updated_at = row.updated_at ? new Date(row.updated_at) : now
+            return row
+          })
           try {
             await dbSeed(key, rows)
           } catch (err: any) {

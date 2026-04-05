@@ -12,7 +12,6 @@ import { generateHandler } from './generators/handler'
 import { generateOpenApi } from './generators/openapi'
 import { generateRouter } from './generators/router'
 import { generateDbConnection, generateDrizzleStore } from './generators/db'
-import { generateDockerCompose } from './generators/docker-compose'
 import { generateSeed } from './generators/seed'
 
 function write(outputDir: string, relPath: string, content: string): void {
@@ -58,5 +57,4 @@ export const generate: ApiCellAdapter['generate'] = (
   // ── Docker ──────────────────────────────────────────────────────────────────
   write(outputDir, 'Dockerfile', generateDockerfile())
   write(outputDir, '.dockerignore', generateDockerIgnore())
-  write(outputDir, 'docker-compose.yml', generateDockerCompose(api.namespace))
 }

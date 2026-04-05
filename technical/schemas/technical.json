@@ -26,6 +26,11 @@
       "description": "Environment variables and secrets available to cells.",
       "items": { "$ref": "https://dna.local/technical/variable" }
     },
+    "scripts": {
+      "type": "array",
+      "description": "Concrete implementations of Operational Equations — each maps a named Equation to a deployed compute Construct.",
+      "items": { "$ref": "https://dna.local/technical/script" }
+    },
     "cells": {
       "type": "array",
       "description": "The deployed units that consume DNA and produce running software or infrastructure.",

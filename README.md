@@ -36,6 +36,7 @@ Trigger → Policy → Rule → [Capability executes] → Effect → Flow
 | `Rule` | Conditions that must be true before execution (business logic guards) |
 | `Effect` | State changes and side effects after execution |
 | `Flow` | The valid lifecycle sequence of Capabilities on a Noun |
+| `Equation` | A named, technology-agnostic computation — pure function with typed inputs and output. Implemented concretely by a Script in Technical DNA |
 
 Schemas live in `../dna/schemas/`. Reference: `../dna` or https://github.com/upgrade-solutions/dna
 
@@ -92,6 +93,7 @@ DNA is a JSON DSL with support for **adapters**. An adapter is a framework- or p
 | `Provider` | A named external platform that backs Constructs (aws, gcp, auth0, stripe, etc.) |
 | `Variable` | An environment variable or secret reference |
 | `Output` | An exported value from one Cell that other Cells can reference |
+| `Script` | The concrete implementation of an Operational Equation — maps it to a deployed compute Construct (e.g. a Lambda) with a runtime and handler |
 
 **Construct categories and types:**
 
@@ -121,9 +123,9 @@ Constructs are declared once and referenced by multiple Cells — e.g. a `databa
 
 | Layer | Primitives |
 |-------|-----------|
-| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Trigger`, `Policy`, `Rule`, `Effect`, `Flow` |
+| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Trigger`, `Policy`, `Rule`, `Effect`, `Flow`, `Equation` |
 | Product | `Resource`, `Action`, `Operation`, `Layout`, `Page`, `Route`, `Block`, `Field`, `Namespace`, `Endpoint`, `Schema`, `Param` |
-| Technical | `Environment`, `Cell`, `Construct`, `Provider`, `Variable`, `Output` |
+| Technical | `Environment`, `Cell`, `Construct`, `Provider`, `Variable`, `Output`, `Script` |
 
 No primitive name is shared across layers.
 
@@ -135,9 +137,9 @@ No primitive name is shared across layers.
 flowchart LR
     subgraph Layers["DNA — Source of Truth (JSON)"]
         direction TB
-        OP["Operational DNA\nNouns · Verbs · Capabilities\nTriggers · Policies · Rules · Effects · Flows"]
+        OP["Operational DNA\nNouns · Verbs · Capabilities\nTriggers · Policies · Rules · Effects · Flows · Equations"]
         PROD["Product DNA\nResources · Actions · Operations\nPages · Routes · Endpoints · Schemas"]
-        TECH["Technical DNA\nCells · Constructs · Providers\nEnvironments · Variables"]
+        TECH["Technical DNA\nCells · Constructs · Providers\nEnvironments · Variables · Scripts"]
         OP -->|"maps to"| PROD
         PROD -->|"configures"| TECH
     end
@@ -183,6 +185,7 @@ A cell is a **TypeScript package** that:
 |------|-----------|-------|--------|--------|
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
+| `db-cell` | Operational → Technical | Operational DNA + construct config | Database provisioning (Docker, schema, roles, seeds) | **Built** — `technical/cells/db-cell/` |
 | `auth-cell` | Technical | Policies, Constructs | Authorization middleware | Planned |
 | `workflow-cell` | Technical | Triggers, Flows, Effects, Constructs | Event-driven workflows | Planned |
 
@@ -217,21 +220,24 @@ npm run start:nestjs    # http://localhost:3000/api
 npm run start:express   # http://localhost:3001/api
 ```
 
-#### Using Postgres (Express adapter)
+#### Using Postgres (via db-cell)
+
+The `db-cell` provisions the database. The `api-cell` connects to it.
 
 ```bash
-cd output/lending-api
+# 1. Generate and start the database
+npm run generate:lending-db
+cd output/lending-db
+npm install
+docker compose up -d         # Postgres on port 5433, creates lending DB + lending_app role
+npm run db:generate          # Generate Drizzle migration SQL from schema
+npm run db:migrate           # Apply migrations
+npm run db:seed              # Seed from Operational DNA examples
 
-# Start Postgres
-docker compose up -d
-
-# Uncomment DATABASE_URL in .env, then:
-npm run db:generate    # Generate Drizzle migration SQL from schema
-npm run db:migrate     # Apply migrations to Postgres
-npm run start:dev      # Starts with [store] using postgres
-
-# Optional: seed independently
-npm run db:seed
+# 2. Run the API against Postgres
+cd ../lending-api
+DATABASE_URL=postgresql://lending_app:lending_app@localhost:5433/lending npm run start:dev
+# Starts with [store] using postgres — data persists across restarts
 ```
 
 ### `ui-cell` adapter
@@ -256,19 +262,24 @@ cd output/lending-ui && npx vite    # http://localhost:5173
 
 ---
 
-There is no standalone `db-cell`. Database schema and migrations are owned by the ORM, which is a **sub-adapter** inside the `api-cell`. The api-cell adapter config specifies the ORM (e.g. `"orm": "drizzle"`) and receives Operational DNA as a secondary input to generate the schema alongside the API code.
+### `db-cell` adapter
+
+| Adapter | Approach | Output |
+|---------|----------|--------|
+| `postgres` | Generates Docker Compose, init SQL (roles/permissions), Drizzle schema, migrations, and seed script | `output/lending-db/` |
+
+The `db-cell` reads Operational DNA (nouns → tables) and Technical DNA (database constructs → engine version, credentials). It generates everything needed to provision a database from scratch: Docker Compose, init scripts that create application roles and grant permissions, Drizzle schema from DNA attributes, and a seed script that populates tables from Operational DNA examples.
 
 ```json
 {
-  "name": "api-cell",
-  "dna": "lending/product.api",
+  "name": "db-cell",
+  "dna": "lending/operational",
   "adapter": {
-    "type": "node/nestjs",
-    "version": "10",
+    "type": "postgres",
     "config": {
-      "orm": "drizzle",
-      "orm_version": "0.30",
-      "operational_dna": "lending/operational"
+      "construct": "primary-db",
+      "database": "lending",
+      "app_role": "lending_app"
     }
   }
 }
@@ -315,8 +326,13 @@ cell-based-architecture/
             node/                   # Shared Node.js adapter utilities (Dockerfile, .dockerignore)
               nestjs/               # NestJS adapter: controllers, services, modules, DTOs, Drizzle schema
               express/              # Express adapter: dynamic runtime interpreter, reads DNA at startup
+              shared/               # Shared Drizzle schema generation
           run.ts                    # Core orchestrator: loads DNA, validates, dispatches to adapter
           index.ts                  # CLI entry point
+      db-cell/                      # Consumes Operational DNA → database provisioning
+        src/
+          adapters/
+            postgres/               # Postgres adapter: Docker, init SQL, schema, migrations, seed
       ui-cell/                      # Consumes Product UI DNA → UI app (scaffolded)
       auth-cell/                    # (planned) Consumes Technical DNA → auth layer
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
