@@ -9,9 +9,9 @@ This document outlines the implementation plan for cell-based architecture — f
 Establish the core architecture, DNA language, and a working reference cell.
 
 - [x] Define the three DNA layers (Operational, Product, Technical)
-- [x] Author JSON schemas for all Operational primitives (Noun, Verb, Capability, Attribute, Domain, Trigger, Policy, Rule, Effect, Flow)
+- [x] Author JSON schemas for all Operational primitives (Noun, Verb, Capability, Attribute, Domain, Cause, Rule, Outcome, Lifecycle, Equation)
 - [x] Author JSON schemas for all Product primitives (Resource, Action, Operation, Layout, Page, Route, Block, Field, Namespace, Endpoint, Schema, Param)
-- [x] Author JSON schemas for all Technical primitives (Environment, Cell, Construct, Provider, Variable, Output)
+- [x] Author JSON schemas for all Technical primitives (Environment, Cell, Construct, Provider, Variable, Output, Script)
 - [x] Build `dna-validator` package — validates DNA documents against schemas
 - [x] Write reference DNA for the Lending domain (`dna/lending/`)
 - [x] Build `api-cell` with `node/nestjs` adapter — static code generation (controllers, services, DTOs, Drizzle schema)
@@ -27,7 +27,7 @@ Flesh out existing cells and close gaps in the current implementation.
 
 - [x] **ui-cell: full generation** — move from scaffold to complete generation (routing, data fetching, form submission, error handling)
 - [x] **api-cell: real database integration** — wire Drizzle migrations and seed data into generated output; currently handlers use in-memory stores
-- [ ] **api-cell: auth middleware** — generate real JWT/Auth0 verification from Policy DNA (currently stubbed guards)
+- [ ] **api-cell: auth middleware** — generate real JWT/Auth0 verification from Rule (access) DNA (currently stubbed guards)
 - [x] **api-cell: validation** — generate request validation from Attribute constraints (required, type, enum values)
 - [ ] **dna-validator: cross-layer validation** — verify Product DNA references valid Operational Nouns/Verbs, Technical DNA references valid Product resources
 - [ ] **Testing** — add generation tests for both api-cell adapters; add runtime integration tests for generated output
@@ -38,8 +38,8 @@ Flesh out existing cells and close gaps in the current implementation.
 
 Build the planned cells that extend the architecture beyond API and UI.
 
-- [ ] **auth-cell** — reads Policies and Constructs from Technical DNA, generates authorization middleware (Auth0, Clerk, custom JWT)
-- [ ] **workflow-cell** — reads Triggers, Flows, and Effects from Operational DNA, generates event-driven workflows (queues, scheduled jobs, chained capabilities)
+- [ ] **auth-cell** — reads Rules (access) and Constructs from Technical DNA, generates authorization middleware (Auth0, Clerk, custom JWT)
+- [ ] **workflow-cell** — reads Causes, Lifecycles, and Outcomes from Operational DNA, generates event-driven workflows (queues, scheduled jobs, chained capabilities)
 - [ ] **infra-cell** — reads Technical DNA Constructs/Providers/Environments, generates IaC (Terraform, CDK, Pulumi) for the full deployment topology
 
 ---
