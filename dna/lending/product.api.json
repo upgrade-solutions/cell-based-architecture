@@ -4,7 +4,7 @@
     "path": "/lending",
     "domain": "acme.finance.lending",
     "description": "All resources and operations for the loan origination system.",
-    "resources": ["Borrower", "Loan"]
+    "resources": ["Borrower", "Loan", "Lender"]
   },
 
   "resources": [
@@ -34,6 +34,7 @@
       "fields": [
         { "name": "id", "label": "ID", "type": "string", "required": true },
         { "name": "borrower_id", "label": "Borrower ID", "type": "string", "required": true },
+        { "name": "lender_id", "label": "Lender ID", "type": "string", "required": true },
         { "name": "amount", "label": "Amount", "type": "number", "required": true },
         { "name": "interest_rate", "label": "Interest Rate", "type": "number" },
         { "name": "term_months", "label": "Term (months)", "type": "number", "required": true },
@@ -53,6 +54,29 @@
         { "name": "Reject", "verb": "Reject", "description": "Reject a loan under review." },
         { "name": "Repay", "verb": "Repay", "description": "Submit a repayment against an active loan." }
       ]
+    },
+    {
+      "name": "Lender",
+      "description": "A lending institution funding loans on the platform.",
+      "noun": "Lender",
+      "fields": [
+        { "name": "id", "label": "ID", "type": "string", "required": true },
+        { "name": "name", "label": "Name", "type": "string", "required": true },
+        { "name": "type", "label": "Type", "type": "enum", "required": true, "values": ["bank", "credit_union", "private_fund", "peer"] },
+        { "name": "license_number", "label": "License Number", "type": "string" },
+        { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+        { "name": "email", "label": "Email", "type": "string" },
+        { "name": "phone", "label": "Phone", "type": "string" },
+        { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" },
+        { "name": "status", "label": "Status", "type": "enum", "values": ["active", "inactive"] }
+      ],
+      "actions": [
+        { "name": "Onboard", "verb": "Onboard", "description": "Onboard a new lender." },
+        { "name": "View", "description": "Retrieve a single lender by ID." },
+        { "name": "List", "description": "List all lenders." },
+        { "name": "Activate", "verb": "Activate", "description": "Activate a lender." },
+        { "name": "Deactivate", "verb": "Deactivate", "description": "Deactivate a lender." }
+      ]
     }
   ],
 
@@ -65,7 +89,12 @@
     { "resource": "Loan", "action": "List", "name": "Loan.List", "description": "List loans with optional filters." },
     { "resource": "Loan", "action": "Approve", "name": "Loan.Approve", "capability": "Loan.Approve", "description": "Approve a loan application." },
     { "resource": "Loan", "action": "Reject", "name": "Loan.Reject", "capability": "Loan.Reject", "description": "Reject a loan application." },
-    { "resource": "Loan", "action": "Repay", "name": "Loan.Repay", "capability": "Loan.Repay", "description": "Submit a loan repayment." }
+    { "resource": "Loan", "action": "Repay", "name": "Loan.Repay", "capability": "Loan.Repay", "description": "Submit a loan repayment." },
+    { "resource": "Lender", "action": "Onboard", "name": "Lender.Onboard", "capability": "Lender.Onboard", "description": "Onboard a new lender." },
+    { "resource": "Lender", "action": "View", "name": "Lender.View", "description": "View a lender's profile." },
+    { "resource": "Lender", "action": "List", "name": "Lender.List", "description": "List all lenders." },
+    { "resource": "Lender", "action": "Activate", "name": "Lender.Activate", "capability": "Lender.Activate", "description": "Activate a lender." },
+    { "resource": "Lender", "action": "Deactivate", "name": "Lender.Deactivate", "capability": "Lender.Deactivate", "description": "Deactivate a lender." }
   ],
 
   "endpoints": [
@@ -144,6 +173,7 @@
         "name": "LoanApplicationRequest",
         "fields": [
           { "name": "borrower_id", "label": "Borrower ID", "type": "string", "required": true },
+          { "name": "lender_id", "label": "Lender ID", "type": "string", "required": true },
           { "name": "amount", "label": "Amount", "type": "number", "required": true },
           { "name": "term_months", "label": "Term (months)", "type": "number", "required": true },
           { "name": "purpose", "label": "Purpose", "type": "string" }
@@ -191,6 +221,7 @@
         "fields": [
           { "name": "id", "label": "ID", "type": "string" },
           { "name": "borrower_id", "label": "Borrower ID", "type": "string" },
+          { "name": "lender_id", "label": "Lender ID", "type": "string" },
           { "name": "amount", "label": "Amount", "type": "number" },
           { "name": "interest_rate", "label": "Interest Rate", "type": "number" },
           { "name": "term_months", "label": "Term (months)", "type": "number" },
@@ -262,6 +293,107 @@
         "fields": [
           { "name": "id", "label": "ID", "type": "string" },
           { "name": "amount_paid", "label": "Amount Paid", "type": "number" },
+          { "name": "status", "label": "Status", "type": "string" }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/lending/lenders",
+      "operation": "Lender.Onboard",
+      "description": "Onboard a new lender.",
+      "request": {
+        "name": "OnboardLenderRequest",
+        "fields": [
+          { "name": "name", "label": "Name", "type": "string", "required": true },
+          { "name": "type", "label": "Type", "type": "enum", "required": true, "values": ["bank", "credit_union", "private_fund", "peer"] },
+          { "name": "license_number", "label": "License Number", "type": "string" },
+          { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+          { "name": "email", "label": "Email", "type": "string" },
+          { "name": "phone", "label": "Phone", "type": "string" },
+          { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" }
+        ]
+      },
+      "response": {
+        "name": "LenderResponse",
+        "fields": [
+          { "name": "id", "label": "ID", "type": "string" },
+          { "name": "name", "label": "Name", "type": "string" },
+          { "name": "type", "label": "Type", "type": "string" },
+          { "name": "status", "label": "Status", "type": "string" }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/lending/lenders",
+      "operation": "Lender.List",
+      "description": "List all lenders.",
+      "params": [
+        { "name": "status", "in": "query", "type": "string", "required": false, "description": "Filter by lender status." },
+        { "name": "type", "in": "query", "type": "string", "required": false, "description": "Filter by lender type." },
+        { "name": "page", "in": "query", "type": "number", "required": false },
+        { "name": "limit", "in": "query", "type": "number", "required": false }
+      ],
+      "response": {
+        "name": "LenderListResponse",
+        "fields": [
+          { "name": "data", "label": "Lenders", "type": "reference" },
+          { "name": "total", "label": "Total", "type": "number" }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/lending/lenders/:id",
+      "operation": "Lender.View",
+      "description": "Retrieve a lender by ID.",
+      "params": [
+        { "name": "id", "in": "path", "type": "string", "required": true, "description": "The lender ID." }
+      ],
+      "response": {
+        "name": "LenderResponse",
+        "fields": [
+          { "name": "id", "label": "ID", "type": "string" },
+          { "name": "name", "label": "Name", "type": "string" },
+          { "name": "type", "label": "Type", "type": "string" },
+          { "name": "license_number", "label": "License Number", "type": "string" },
+          { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+          { "name": "email", "label": "Email", "type": "string" },
+          { "name": "phone", "label": "Phone", "type": "string" },
+          { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" },
+          { "name": "status", "label": "Status", "type": "string" }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/lending/lenders/:id/activate",
+      "operation": "Lender.Activate",
+      "description": "Activate a lender.",
+      "params": [
+        { "name": "id", "in": "path", "type": "string", "required": true, "description": "The lender ID." }
+      ],
+      "response": {
+        "name": "LenderResponse",
+        "fields": [
+          { "name": "id", "label": "ID", "type": "string" },
+          { "name": "status", "label": "Status", "type": "string" }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/lending/lenders/:id/deactivate",
+      "operation": "Lender.Deactivate",
+      "description": "Deactivate a lender.",
+      "params": [
+        { "name": "id", "in": "path", "type": "string", "required": true, "description": "The lender ID." }
+      ],
+      "response": {
+        "name": "LenderResponse",
+        "fields": [
+          { "name": "id", "label": "ID", "type": "string" },
           { "name": "status", "label": "Status", "type": "string" }
         ]
       }

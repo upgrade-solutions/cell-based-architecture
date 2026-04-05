@@ -28,6 +28,7 @@
           "fields": [
             { "name": "id", "label": "Loan ID", "type": "string" },
             { "name": "borrower_id", "label": "Borrower", "type": "string" },
+            { "name": "lender_id", "label": "Lender", "type": "string" },
             { "name": "amount", "label": "Amount", "type": "number" },
             { "name": "term_months", "label": "Term", "type": "number" },
             { "name": "status", "label": "Status", "type": "string" },
@@ -54,6 +55,7 @@
           "fields": [
             { "name": "id", "label": "Loan ID", "type": "string" },
             { "name": "borrower_id", "label": "Borrower", "type": "string" },
+            { "name": "lender_id", "label": "Lender", "type": "string" },
             { "name": "amount", "label": "Principal", "type": "number" },
             { "name": "interest_rate", "label": "Interest Rate", "type": "number" },
             { "name": "term_months", "label": "Term (months)", "type": "number" },
@@ -92,6 +94,7 @@
           "description": "Loan application form: amount, term, purpose.",
           "operation": "Loan.Apply",
           "fields": [
+            { "name": "lender_id", "label": "Lender", "type": "string", "required": true },
             { "name": "amount", "label": "Loan Amount", "type": "number", "required": true },
             { "name": "term_months", "label": "Repayment Term (months)", "type": "number", "required": true },
             { "name": "purpose", "label": "Loan Purpose", "type": "string" }
@@ -167,6 +170,93 @@
           ]
         }
       ]
+    },
+    {
+      "name": "LenderList",
+      "resource": "Lender",
+      "description": "Paginated list of lenders with filters by type and status.",
+      "blocks": [
+        {
+          "name": "LenderFilters",
+          "type": "form",
+          "description": "Filter controls for type and status.",
+          "operation": "Lender.List",
+          "fields": [
+            { "name": "type", "label": "Type", "type": "enum", "values": ["bank", "credit_union", "private_fund", "peer"] },
+            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "inactive"] }
+          ]
+        },
+        {
+          "name": "LenderTable",
+          "type": "table",
+          "description": "Tabular list of lenders.",
+          "operation": "Lender.List",
+          "fields": [
+            { "name": "id", "label": "Lender ID", "type": "string" },
+            { "name": "name", "label": "Name", "type": "string" },
+            { "name": "type", "label": "Type", "type": "string" },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+            { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "LenderListEmpty",
+          "type": "empty-state",
+          "description": "Shown when no lenders match the filters."
+        }
+      ]
+    },
+    {
+      "name": "LenderDetail",
+      "resource": "Lender",
+      "description": "Detail view for a single lender with activate/deactivate actions.",
+      "blocks": [
+        {
+          "name": "LenderSummary",
+          "type": "detail",
+          "description": "Core lender attributes.",
+          "operation": "Lender.View",
+          "fields": [
+            { "name": "id", "label": "Lender ID", "type": "string" },
+            { "name": "name", "label": "Name", "type": "string" },
+            { "name": "type", "label": "Type", "type": "string" },
+            { "name": "license_number", "label": "License Number", "type": "string" },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "phone", "label": "Phone", "type": "string" },
+            { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "LenderActions",
+          "type": "actions",
+          "description": "Activate or Deactivate buttons, visibility driven by current status."
+        }
+      ]
+    },
+    {
+      "name": "LenderOnboard",
+      "resource": "Lender",
+      "description": "Form to onboard a new lender to the platform.",
+      "blocks": [
+        {
+          "name": "OnboardForm",
+          "type": "form",
+          "description": "Lender onboarding form.",
+          "operation": "Lender.Onboard",
+          "fields": [
+            { "name": "name", "label": "Name", "type": "string", "required": true },
+            { "name": "type", "label": "Type", "type": "enum", "required": true, "values": ["bank", "credit_union", "private_fund", "peer"] },
+            { "name": "license_number", "label": "License Number", "type": "string" },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "phone", "label": "Phone", "type": "string" },
+            { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" }
+          ]
+        }
+      ]
     }
   ],
 
@@ -175,6 +265,9 @@
     { "path": "/loans/apply", "page": "LoanApply", "description": "New loan application form." },
     { "path": "/loans/:id", "page": "LoanDetail", "description": "Full loan detail with actions." },
     { "path": "/review", "page": "ReviewQueue", "description": "Underwriter review queue." },
-    { "path": "/borrowers/:id", "page": "BorrowerProfile", "description": "Borrower profile and loan history." }
+    { "path": "/borrowers/:id", "page": "BorrowerProfile", "description": "Borrower profile and loan history." },
+    { "path": "/lenders", "page": "LenderList", "description": "Lender list." },
+    { "path": "/lenders/onboard", "page": "LenderOnboard", "description": "New lender onboarding form." },
+    { "path": "/lenders/:id", "page": "LenderDetail", "description": "Lender detail with activate/deactivate." }
   ]
 }

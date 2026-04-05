@@ -43,6 +43,7 @@
                 "attributes": [
                   { "name": "id", "type": "string", "required": true },
                   { "name": "borrower_id", "type": "string", "required": true, "description": "Reference to the Borrower." },
+                  { "name": "lender_id", "type": "string", "required": true, "description": "Reference to the Lender that funds this Loan." },
                   { "name": "amount", "type": "number", "required": true, "description": "Requested principal in base currency." },
                   { "name": "interest_rate", "type": "number", "description": "Annual interest rate as a decimal, set on approval." },
                   { "name": "term_months", "type": "number", "required": true, "description": "Loan duration in months." },
@@ -55,9 +56,9 @@
                   { "name": "reviewed_by", "type": "string", "description": "ID of the underwriter who reviewed the application." }
                 ],
                 "examples": [
-                  { "id": "loan-1", "borrower_id": "borrower-2", "amount": 18500, "interest_rate": 0.082, "term_months": 24, "purpose": "Home renovation", "status": "active", "amount_paid": 3200, "due_date": "2026-08-01", "disbursed_at": "2024-08-01T09:00:00Z", "approved_at": "2024-07-28T14:30:00Z", "reviewed_by": "borrower-1" },
-                  { "id": "loan-2", "borrower_id": "borrower-1", "amount": 45000, "interest_rate": 0.071, "term_months": 36, "purpose": "Business expansion", "status": "under_review", "amount_paid": 0, "due_date": null, "disbursed_at": null, "approved_at": null, "reviewed_by": null },
-                  { "id": "loan-3", "borrower_id": "borrower-3", "amount": 9000, "interest_rate": 0.095, "term_months": 12, "purpose": "Medical expenses", "status": "repaid", "amount_paid": 9000, "due_date": "2025-01-15", "disbursed_at": "2024-01-15T11:00:00Z", "approved_at": "2024-01-12T16:00:00Z", "reviewed_by": "borrower-2" }
+                  { "id": "loan-1", "borrower_id": "borrower-2", "lender_id": "lender-1", "amount": 18500, "interest_rate": 0.082, "term_months": 24, "purpose": "Home renovation", "status": "active", "amount_paid": 3200, "due_date": "2026-08-01", "disbursed_at": "2024-08-01T09:00:00Z", "approved_at": "2024-07-28T14:30:00Z", "reviewed_by": "borrower-1" },
+                  { "id": "loan-2", "borrower_id": "borrower-1", "lender_id": "lender-2", "amount": 45000, "interest_rate": 0.071, "term_months": 36, "purpose": "Business expansion", "status": "under_review", "amount_paid": 0, "due_date": null, "disbursed_at": null, "approved_at": null, "reviewed_by": null },
+                  { "id": "loan-3", "borrower_id": "borrower-3", "lender_id": "lender-1", "amount": 9000, "interest_rate": 0.095, "term_months": 12, "purpose": "Medical expenses", "status": "repaid", "amount_paid": 9000, "due_date": "2025-01-15", "disbursed_at": "2024-01-15T11:00:00Z", "approved_at": "2024-01-12T16:00:00Z", "reviewed_by": "borrower-2" }
                 ],
                 "verbs": [
                   { "name": "Apply", "description": "A borrower submits a loan application." },
@@ -85,6 +86,34 @@
                   },
                   { "name": "Default", "description": "The loan is marked as defaulted after the due date passes without full repayment." }
                 ]
+              },
+              {
+                "name": "Lender",
+                "description": "An institution or entity that funds loans — e.g. a bank, credit union, private fund, or peer lender.",
+                "domain": "acme.finance.lending",
+                "attributes": [
+                  { "name": "id", "type": "string", "required": true, "description": "Unique identifier." },
+                  { "name": "name", "type": "string", "required": true, "description": "Legal or trading name of the lender." },
+                  { "name": "type", "type": "enum", "required": true, "values": ["bank", "credit_union", "private_fund", "peer"], "description": "Kind of lending institution." },
+                  { "name": "license_number", "type": "string", "description": "Regulatory license or registration number." },
+                  { "name": "jurisdiction", "type": "string", "description": "Primary regulatory jurisdiction (e.g. country or state code)." },
+                  { "name": "email", "type": "string", "description": "Primary contact email." },
+                  { "name": "phone", "type": "string", "description": "Primary contact phone number." },
+                  { "name": "funding_capacity", "type": "number", "description": "Maximum aggregate funding the lender can commit, in base currency." },
+                  { "name": "status", "type": "enum", "required": true, "values": ["active", "inactive"], "description": "Whether the lender is currently authorized to fund new loans." }
+                ],
+                "verbs": [
+                  { "name": "Onboard", "description": "Add a new lender to the platform." },
+                  { "name": "Activate", "description": "Authorize the lender to fund new loans." },
+                  { "name": "Deactivate", "description": "Pause the lender from funding new loans." },
+                  { "name": "UpdateRates", "description": "Update the lender's posted interest rate schedule." },
+                  { "name": "SetLimits", "description": "Set or update the lender's funding capacity and per-loan limits." }
+                ],
+                "examples": [
+                  { "id": "lender-1", "name": "First National Bank", "type": "bank", "license_number": "FNB-2011-44821", "jurisdiction": "US-NY", "email": "originations@fnb.example.com", "phone": "+1-212-555-0101", "funding_capacity": 50000000, "status": "active" },
+                  { "id": "lender-2", "name": "Riverside Credit Union", "type": "credit_union", "license_number": "NCUA-24871", "jurisdiction": "US-CA", "email": "loans@riversidecu.example.com", "phone": "+1-415-555-0142", "funding_capacity": 12000000, "status": "active" },
+                  { "id": "lender-3", "name": "Cedar Peak Capital", "type": "private_fund", "license_number": "SEC-IA-118204", "jurisdiction": "US-DE", "email": "deals@cedarpeak.example.com", "phone": "+1-302-555-0173", "funding_capacity": 8000000, "status": "inactive" }
+                ]
               }
             ]
           }
@@ -102,7 +131,12 @@
     { "noun": "Loan", "verb": "Reject", "name": "Loan.Reject", "description": "An underwriter rejects the loan application." },
     { "noun": "Loan", "verb": "Disburse", "name": "Loan.Disburse", "description": "Funds are disbursed to the borrower." },
     { "noun": "Loan", "verb": "Repay", "name": "Loan.Repay", "description": "A borrower submits a repayment." },
-    { "noun": "Loan", "verb": "Default", "name": "Loan.Default", "description": "The loan is marked as defaulted after passing its due date unpaid." }
+    { "noun": "Loan", "verb": "Default", "name": "Loan.Default", "description": "The loan is marked as defaulted after passing its due date unpaid." },
+    { "noun": "Lender", "verb": "Onboard", "name": "Lender.Onboard", "description": "A new lender is added to the platform." },
+    { "noun": "Lender", "verb": "Activate", "name": "Lender.Activate", "description": "A lender is authorized to fund new loans." },
+    { "noun": "Lender", "verb": "Deactivate", "name": "Lender.Deactivate", "description": "A lender is paused from funding new loans." },
+    { "noun": "Lender", "verb": "UpdateRates", "name": "Lender.UpdateRates", "description": "A lender updates their posted interest rate schedule." },
+    { "noun": "Lender", "verb": "SetLimits", "name": "Lender.SetLimits", "description": "A lender's funding capacity or per-loan limits are set." }
   ],
 
   "triggers": [
