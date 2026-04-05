@@ -48,6 +48,25 @@ export const generate: UiCellAdapter['generate'] = (
     apiBase: '',
   }, null, 2) + '\n')
 
+  // ── Copy DNA files into public/dna/ so they ship with the vite build ────────
+  // The vite dev server has a middleware that serves DNA from the source dir,
+  // but production builds (nginx in the container) have no such middleware —
+  // DNA must be shipped as static assets under the same /dna/... URL paths.
+  if (ctx) {
+    const fetchPaths = [ctx.uiFetchPath, ctx.apiFetchPath, ctx.operationalFetchPath].filter(
+      (p): p is string => typeof p === 'string' && p.startsWith('/dna/'),
+    )
+    for (const fetchPath of fetchPaths) {
+      const rel = fetchPath.replace(/^\/dna\//, '')
+      const src = path.join(ctx.dnaSourceDir, rel)
+      if (fs.existsSync(src)) {
+        const dest = path.join(outputDir, 'public/dna', rel)
+        fs.mkdirSync(path.dirname(dest), { recursive: true })
+        fs.copyFileSync(src, dest)
+      }
+    }
+  }
+
   // ── Scaffold ────────────────────────────────────────────────────────────────
   const relDnaPath = ctx
     ? path.relative(outputDir, ctx.dnaSourceDir).replace(/\\/g, '/')
