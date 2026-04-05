@@ -4,10 +4,12 @@
 
 export function rendererContext(): string {
   return `import { createContext, useContext } from 'react'
-import type { ProductUiDNA } from './types'
+import type { ProductUiDNA, ProductApiDNA } from './types'
 
 export interface DnaContextValue {
   dna: ProductUiDNA
+  api: ProductApiDNA | null
+  apiBase: string
   stubs: Record<string, Record<string, unknown>[]>
 }
 
@@ -62,20 +64,198 @@ export interface ProductUiDNA {
   pages: Page[]
   routes: Route[]
 }
+
+// ── API DNA types ────────────────────────────────────────────────────────────
+
+export interface ApiEndpoint {
+  method: string
+  path: string
+  operation: string
+  description?: string
+  params?: { name: string; in: string; type: string; required?: boolean }[]
+  request?: { name: string; fields: { name: string; type: string; required?: boolean }[] }
+  response?: { name: string; fields: { name: string; type: string }[] }
+}
+
+export interface ApiResource {
+  name: string
+  noun: string
+  actions: { name: string; verb?: string; description?: string }[]
+}
+
+export interface ProductApiDNA {
+  namespace: { name: string; path: string }
+  resources: ApiResource[]
+  endpoints: ApiEndpoint[]
+}
+`
+}
+
+export function rendererDnaLoader(): string {
+  return `import type { ProductUiDNA, ProductApiDNA } from './types'
+
+// ── DnaLoader interface — the seam for future API/SSE loaders ────────────────
+
+export interface DnaLoader {
+  loadUi(): Promise<ProductUiDNA>
+  loadApi(): Promise<ProductApiDNA | null>
+  loadOperational(): Promise<unknown | null>
+}
+
+// ── StaticFetchLoader — loads DNA from static URLs (current implementation) ──
+
+export class StaticFetchLoader implements DnaLoader {
+  constructor(
+    private uiUrl: string,
+    private apiUrl: string | null,
+    private operationalUrl: string | null,
+  ) {}
+
+  async loadUi(): Promise<ProductUiDNA> {
+    const res = await fetch(this.uiUrl)
+    if (!res.ok) throw new Error(\`Failed to load UI DNA: \${res.status}\`)
+    return res.json()
+  }
+
+  async loadApi(): Promise<ProductApiDNA | null> {
+    if (!this.apiUrl) return null
+    const res = await fetch(this.apiUrl)
+    if (!res.ok) throw new Error(\`Failed to load API DNA: \${res.status}\`)
+    return res.json()
+  }
+
+  async loadOperational(): Promise<unknown | null> {
+    if (!this.operationalUrl) return null
+    const res = await fetch(this.operationalUrl)
+    if (!res.ok) throw new Error(\`Failed to load Operational DNA: \${res.status}\`)
+    return res.json()
+  }
+}
+`
+}
+
+export function rendererApiHook(): string {
+  return `import { useState, useEffect, useCallback } from 'react'
+import { useDna } from './context'
+import type { ApiEndpoint } from './types'
+
+function resolvePath(template: string, params: Record<string, string>): string {
+  return template.replace(/:([a-zA-Z_]+)/g, (_, key) => params[key] ?? \`:\${key}\`)
+}
+
+export function useApi(operation: string | undefined) {
+  const { api, apiBase } = useDna()
+
+  const endpoint: ApiEndpoint | undefined = operation
+    ? api?.endpoints.find(e => e.operation === operation)
+    : undefined
+
+  const fetchList = useCallback(
+    async (queryParams?: Record<string, string>) => {
+      if (!endpoint) return null
+      const url = new URL(apiBase + endpoint.path)
+      if (queryParams) {
+        for (const [k, v] of Object.entries(queryParams)) {
+          if (v) url.searchParams.set(k, v)
+        }
+      }
+      const res = await fetch(url.toString())
+      if (!res.ok) throw new Error(\`\${res.status} \${res.statusText}\`)
+      return res.json()
+    },
+    [endpoint, apiBase],
+  )
+
+  const fetchOne = useCallback(
+    async (pathParams: Record<string, string>) => {
+      if (!endpoint) return null
+      const resolved = resolvePath(endpoint.path, pathParams)
+      const res = await fetch(apiBase + resolved)
+      if (!res.ok) throw new Error(\`\${res.status} \${res.statusText}\`)
+      return res.json()
+    },
+    [endpoint, apiBase],
+  )
+
+  const submit = useCallback(
+    async (body: Record<string, unknown>, pathParams?: Record<string, string>) => {
+      if (!endpoint) return null
+      const resolved = pathParams ? resolvePath(endpoint.path, pathParams) : endpoint.path
+      const res = await fetch(apiBase + resolved, {
+        method: endpoint.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null)
+        const msg = errBody?.message ?? \`\${res.status} \${res.statusText}\`
+        throw new Error(msg)
+      }
+      return res.json()
+    },
+    [endpoint, apiBase],
+  )
+
+  return { endpoint, fetchList, fetchOne, submit }
+}
+
+export function useApiFetch(
+  operation: string | undefined,
+  params?: Record<string, string>,
+  pathParams?: Record<string, string>,
+) {
+  const { endpoint, fetchList, fetchOne } = useApi(operation)
+  const [data, setData] = useState<unknown>(null)
+  const [loading, setLoading] = useState(!!endpoint)
+  const [error, setError] = useState<string | null>(null)
+
+  const paramsKey = params ? JSON.stringify(params) : ''
+  const pathKey = pathParams ? JSON.stringify(pathParams) : ''
+
+  useEffect(() => {
+    if (!endpoint) return
+    setLoading(true)
+    setError(null)
+    const isDetail = endpoint.params?.some(p => p.in === 'path' && p.name === 'id')
+    const promise = isDetail && pathParams
+      ? fetchOne(pathParams)
+      : fetchList(params)
+    promise
+      .then(result => setData(result))
+      .catch(err => setError(String(err)))
+      .finally(() => setLoading(false))
+  }, [endpoint, paramsKey, pathKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { data, loading, error, refetch: () => {
+    if (!endpoint) return
+    setLoading(true)
+    const isDetail = endpoint.params?.some(p => p.in === 'path' && p.name === 'id')
+    const promise = isDetail && pathParams
+      ? fetchOne(pathParams)
+      : fetchList(params)
+    promise
+      .then(result => setData(result))
+      .catch(err => setError(String(err)))
+      .finally(() => setLoading(false))
+  }}
+}
 `
 }
 
 export function rendererApp(): string {
   return `import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import type { ProductUiDNA } from './types'
+import type { ProductUiDNA, ProductApiDNA } from './types'
 import { DnaContext } from './context'
+import { StaticFetchLoader } from './dna-loader'
 import Layout from './Layout'
 import Page from './Page'
 
 interface Config {
   ui: string
+  api?: string | null
   operational?: string | null
+  apiBase?: string
 }
 
 function collectStubs(op: unknown): Record<string, Record<string, unknown>[]> {
@@ -93,22 +273,28 @@ function collectStubs(op: unknown): Record<string, Record<string, unknown>[]> {
 
 export default function App() {
   const [dna, setDna] = useState<ProductUiDNA | null>(null)
+  const [api, setApi] = useState<ProductApiDNA | null>(null)
+  const [apiBase, setApiBase] = useState('')
   const [stubs, setStubs] = useState<Record<string, Record<string, unknown>[]>>({})
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/config.json')
       .then(r => r.json() as Promise<Config>)
-      .then(config =>
-        Promise.all([
-          fetch(config.ui).then(r => r.json()),
-          config.operational
-            ? fetch(config.operational).then(r => r.json())
-            : Promise.resolve(null),
+      .then(async config => {
+        setApiBase(config.apiBase ?? '')
+        const loader = new StaticFetchLoader(
+          config.ui,
+          config.api ?? null,
+          config.operational ?? null,
+        )
+        const [uiDna, apiDna, operationalDna] = await Promise.all([
+          loader.loadUi(),
+          loader.loadApi(),
+          loader.loadOperational(),
         ])
-      )
-      .then(([uiDna, operationalDna]) => {
-        setDna(uiDna as ProductUiDNA)
+        setDna(uiDna)
+        setApi(apiDna)
         setStubs(collectStubs(operationalDna))
       })
       .catch(err => setError(String(err)))
@@ -131,7 +317,7 @@ export default function App() {
   }
 
   return (
-    <DnaContext.Provider value={{ dna, stubs }}>
+    <DnaContext.Provider value={{ dna, api, apiBase, stubs }}>
       <BrowserRouter>
         <Routes>
           <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
@@ -274,7 +460,7 @@ export default function Block({ block, resource }: Props) {
     case 'form':        return <FormBlock block={block} />
     case 'table':       return <TableBlock block={block} resource={resource} />
     case 'detail':      return <DetailBlock block={block} resource={resource} />
-    case 'actions':     return <ActionsBlock block={block} />
+    case 'actions':     return <ActionsBlock block={block} resource={resource} />
     case 'empty-state': return <EmptyStateBlock block={block} />
     default:
       return (
@@ -289,6 +475,8 @@ export default function Block({ block, resource }: Props) {
 
 export function rendererFormBlock(): string {
   return `import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useApi } from '../useApi'
 import type { Block } from '../types'
 
 function fieldTypeToHtml(type: string): React.HTMLInputTypeAttribute {
@@ -302,17 +490,66 @@ function fieldTypeToHtml(type: string): React.HTMLInputTypeAttribute {
   }
 }
 
+function coerceValue(value: string, type: string): unknown {
+  if (value === '') return undefined
+  if (type === 'number') return Number(value)
+  return value
+}
+
 export default function FormBlock({ block }: { block: Block }) {
   const fields = block.fields ?? []
+  const { endpoint, submit } = useApi(block.operation)
+  const routeParams = useParams<Record<string, string>>()
+  const navigate = useNavigate()
+
   const [state, setState] = useState<Record<string, string>>(
     () => Object.fromEntries(fields.map(f => [f.name, '']))
   )
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const isFilterForm = endpoint?.method === 'GET'
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!endpoint) return
+
+    if (isFilterForm) return
+
+    setSubmitting(true)
+    setError(null)
+    setSuccess(false)
+    try {
+      const body: Record<string, unknown> = {}
+      for (const f of fields) {
+        const val = coerceValue(state[f.name], f.type)
+        if (val !== undefined) body[f.name] = val
+      }
+      const pathParams = routeParams.id ? { id: routeParams.id } : undefined
+      await submit(body, pathParams)
+      setSuccess(true)
+      setState(Object.fromEntries(fields.map(f => [f.name, ''])))
+      setTimeout(() => navigate(-1), 800)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
-    <form
-      onSubmit={e => { e.preventDefault() /* TODO: wire to API */ }}
-      style={{ marginBottom: '1.5rem' }}
-    >
+    <form onSubmit={handleSubmit} style={{ marginBottom: '1.5rem' }}>
+      {error && (
+        <div style={{ padding: '0.75rem 1rem', color: '#dc2626', background: '#fef2f2', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+          {error}
+        </div>
+      )}
+      {success && (
+        <div style={{ padding: '0.75rem 1rem', color: '#16a34a', background: '#f0fdf4', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+          Success!
+        </div>
+      )}
       {fields.map(field => (
         <div key={field.name} style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>
@@ -333,17 +570,28 @@ export default function FormBlock({ block }: { block: Block }) {
               value={state[field.name] ?? ''}
               onChange={e => setState(s => ({ ...s, [field.name]: e.target.value }))}
               required={field.required}
+              disabled={submitting}
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', boxSizing: 'border-box' }}
             />
           )}
         </div>
       ))}
-      <button
-        type="submit"
-        style={{ padding: '0.5rem 1rem', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-      >
-        Submit
-      </button>
+      {!isFilterForm && (
+        <button
+          type="submit"
+          disabled={submitting}
+          style={{
+            padding: '0.5rem 1rem',
+            background: submitting ? '#93c5fd' : '#1d4ed8',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: submitting ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {submitting ? 'Submitting...' : 'Submit'}
+        </button>
+      )}
     </form>
   )
 }
@@ -352,6 +600,7 @@ export default function FormBlock({ block }: { block: Block }) {
 
 export function rendererTableBlock(): string {
   return `import { useDna } from '../context'
+import { useApiFetch } from '../useApi'
 import type { Block } from '../types'
 
 interface Props {
@@ -362,7 +611,29 @@ interface Props {
 export default function TableBlock({ block, resource }: Props) {
   const { stubs } = useDna()
   const fields = block.fields ?? []
-  const rows = stubs[resource] ?? []
+  const { data, loading, error } = useApiFetch(block.operation)
+
+  const apiRows = data
+    ? (Array.isArray(data) ? data : (data as Record<string, unknown>).data ?? []) as Record<string, unknown>[]
+    : null
+  const rows = apiRows ?? stubs[resource] ?? []
+
+  if (loading) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', marginBottom: '1.5rem' }}>
+        Loading...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '1rem', color: '#dc2626', background: '#fef2f2', borderRadius: '0.375rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+        Failed to load data: {error}
+      </div>
+    )
+  }
+
   return (
     <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -409,7 +680,9 @@ export default function TableBlock({ block, resource }: Props) {
 }
 
 export function rendererDetailBlock(): string {
-  return `import { useDna } from '../context'
+  return `import { useParams } from 'react-router-dom'
+import { useDna } from '../context'
+import { useApiFetch } from '../useApi'
 import type { Block } from '../types'
 
 interface Props {
@@ -419,8 +692,30 @@ interface Props {
 
 export default function DetailBlock({ block, resource }: Props) {
   const { stubs } = useDna()
+  const routeParams = useParams<Record<string, string>>()
   const fields = block.fields ?? []
-  const record = (stubs[resource] ?? [])[0] ?? {}
+
+  const pathParams = routeParams.id ? { id: routeParams.id } : undefined
+  const { data, loading, error } = useApiFetch(block.operation, undefined, pathParams)
+
+  const record = (data as Record<string, unknown>) ?? (stubs[resource] ?? [])[0] ?? {}
+
+  if (loading) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', marginBottom: '1.5rem' }}>
+        Loading...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '1rem', color: '#dc2626', background: '#fef2f2', borderRadius: '0.375rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+        Failed to load record: {error}
+      </div>
+    )
+  }
+
   return (
     <dl
       style={{
@@ -446,26 +741,84 @@ export default function DetailBlock({ block, resource }: Props) {
 }
 
 export function rendererActionsBlock(): string {
-  return `import type { Block } from '../types'
+  return `import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useDna } from '../context'
+import { useApi } from '../useApi'
+import type { Block, ApiResource } from '../types'
 
-export default function ActionsBlock({ block: _block }: { block: Block }) {
+const ACTION_COLORS: Record<string, string> = {
+  Approve: '#16a34a',
+  Reject: '#dc2626',
+  Delete: '#dc2626',
+  Cancel: '#6b7280',
+}
+
+interface Props {
+  block: Block
+  resource: string
+}
+
+function ActionButton({ resource, actionName }: { resource: string; actionName: string }) {
+  const operation = \`\${resource}.\${actionName}\`
+  const { submit } = useApi(operation)
+  const routeParams = useParams<Record<string, string>>()
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleClick = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const pathParams = routeParams.id ? { id: routeParams.id } : undefined
+      await submit({}, pathParams)
+      navigate(-1)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const bg = ACTION_COLORS[actionName] ?? '#1d4ed8'
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={loading}
+        style={{
+          padding: '0.5rem 1rem',
+          background: loading ? '#9ca3af' : bg,
+          color: '#fff',
+          border: 'none',
+          borderRadius: '0.375rem',
+          cursor: loading ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {loading ? \`\${actionName}...\` : actionName}
+      </button>
+      {error && (
+        <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{error}</div>
+      )}
+    </div>
+  )
+}
+
+export default function ActionsBlock({ block: _block, resource }: Props) {
+  const { api } = useDna()
+  const apiResource: ApiResource | undefined = api?.resources.find(r => r.name === resource)
+  const actions = apiResource?.actions.filter(a => a.verb) ?? []
+
+  if (actions.length === 0) return null
+
   return (
     <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-      {/* TODO: render contextual actions based on resource state and actor role */}
-      <button
-        type="button"
-        onClick={() => { /* TODO */ }}
-        style={{ padding: '0.5rem 1rem', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-      >
-        Approve
-      </button>
-      <button
-        type="button"
-        onClick={() => { /* TODO */ }}
-        style={{ padding: '0.5rem 1rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-      >
-        Reject
-      </button>
+      {actions.map(action => (
+        <ActionButton key={action.name} resource={resource} actionName={action.name} />
+      ))}
     </div>
   )
 }

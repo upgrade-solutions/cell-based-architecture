@@ -79,10 +79,17 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     operationalRaw = opRaw as OperationalDNA
   }
 
+  // ── Resolve API DNA reference (sibling product.api alongside product.ui) ────
+  const apiRef = cell.adapter.config?.api_dna as string | undefined
+  const apiFetchPath = apiRef ? `/dna/${apiRef}.json` : undefined
+  const apiBase = (cell.adapter.config?.api_base as string) ?? ''
+
   // ── Build cell context ──────────────────────────────────────────────────────
   const ctx: UiCellContext = {
     uiFetchPath: `/dna/${cell.dna}.json`,
+    apiFetchPath,
     operationalFetchPath: operationalRef ? `/dna/${operationalRef}.json` : undefined,
+    apiBase,
     dnaSourceDir: dnaBase,
   }
 

@@ -13,6 +13,8 @@ import {
 import {
   rendererTypes,
   rendererContext,
+  rendererDnaLoader,
+  rendererApiHook,
   rendererApp,
   rendererLayout,
   rendererPage,
@@ -41,7 +43,9 @@ export const generate: UiCellAdapter['generate'] = (
   // ── config.json — tells the renderer where to fetch DNA at runtime ───────────
   write(outputDir, 'public/config.json', JSON.stringify({
     ui: ctx?.uiFetchPath ?? '/dna.json',
+    api: ctx?.apiFetchPath ?? null,
     operational: ctx?.operationalFetchPath ?? null,
+    apiBase: ctx?.apiBase ?? '',
   }, null, 2) + '\n')
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
@@ -59,6 +63,8 @@ export const generate: UiCellAdapter['generate'] = (
   // ── Renderer — fetches DNA at runtime, no DNA bundled in the build ──────────
   write(outputDir, 'src/renderer/types.ts',                     rendererTypes())
   write(outputDir, 'src/renderer/context.ts',                   rendererContext())
+  write(outputDir, 'src/renderer/dna-loader.ts',                rendererDnaLoader())
+  write(outputDir, 'src/renderer/useApi.ts',                    rendererApiHook())
   write(outputDir, 'src/renderer/App.tsx',                      rendererApp())
   write(outputDir, 'src/renderer/Layout.tsx',                   rendererLayout())
   write(outputDir, 'src/renderer/Page.tsx',                     rendererPage())

@@ -70,11 +70,37 @@ export interface OperationalDNA {
   domain: Domain
 }
 
+// ── Product API DNA (minimal — used for operation→endpoint resolution) ───────
+
+export interface ApiEndpoint {
+  method: string
+  path: string
+  operation: string
+  description?: string
+  params?: { name: string; in: string; type: string; required?: boolean }[]
+  request?: { name: string; fields: { name: string; type: string; required?: boolean }[] }
+  response?: { name: string; fields: { name: string; type: string }[] }
+}
+
+export interface ApiResource {
+  name: string
+  noun: string
+  actions: { name: string; verb?: string; description?: string }[]
+}
+
+export interface ProductApiDNA {
+  namespace: { name: string; path: string }
+  resources: ApiResource[]
+  endpoints: ApiEndpoint[]
+}
+
 // ── Cell context — passed from run.ts to the adapter ─────────────────────────
 
 export interface UiCellContext {
   uiFetchPath: string           // e.g. /dna/lending/product.ui.json
+  apiFetchPath?: string         // e.g. /dna/lending/product.api.json
   operationalFetchPath?: string // e.g. /dna/lending/operational.json
+  apiBase?: string              // e.g. http://localhost:3001
   dnaSourceDir: string          // absolute path to the dna/ directory
 }
 
