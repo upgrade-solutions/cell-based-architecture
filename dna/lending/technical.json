@@ -239,7 +239,9 @@
         "type": "vite/react",
         "version": "5",
         "config": {
-          "operational_dna": "lending/operational"
+          "operational_dna": "lending/operational",
+          "api_dna": "lending/product.api",
+          "api_base": "http://localhost:3001"
         }
       },
       "constructs": ["auth-provider", "ui-server"],

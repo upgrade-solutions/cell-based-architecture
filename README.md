@@ -182,7 +182,7 @@ A cell is a **TypeScript package** that:
 | Cell | DNA Layer | Input | Output | Status |
 |------|-----------|-------|--------|--------|
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
-| `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | Scaffolded — `technical/cells/ui-cell/` |
+| `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
 | `auth-cell` | Technical | Policies, Constructs | Authorization middleware | Planned |
 | `workflow-cell` | Technical | Triggers, Flows, Effects, Constructs | Event-driven workflows | Planned |
 
@@ -214,6 +214,28 @@ npm install --prefix output/lending-api-nestjs
 npm run start:nestjs    # http://localhost:3000/api
 npm run start:express   # http://localhost:3001/api
 ```
+
+### `ui-cell` adapter
+
+| Adapter | Approach | Port | Output |
+|---------|----------|------|--------|
+| `vite/react` | DNA-driven React app — loads UI, API, and Operational DNA at runtime | 5173 | `output/lending-ui/` |
+
+The UI renderer fetches all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from the Product API DNA and the `useApi` hook handles data fetching, form submission, and action dispatch.
+
+#### Generate and run
+
+```bash
+# Generate UI from DNA
+cd technical/cells/ui-cell && npx ts-node -r tsconfig-paths/register src/index.ts \
+  ../../../dna/lending/technical.json ui-cell ../../../output/lending-ui
+
+# Install deps and run (requires Express API on port 3001)
+npm install --prefix output/lending-ui
+cd output/lending-ui && npx vite    # http://localhost:5173
+```
+
+---
 
 There is no standalone `db-cell`. Database schema and migrations are owned by the ORM, which is a **sub-adapter** inside the `api-cell`. The api-cell adapter config specifies the ORM (e.g. `"orm": "drizzle"`) and receives Operational DNA as a secondary input to generate the schema alongside the API code.
 
