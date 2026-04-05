@@ -110,15 +110,24 @@ function resolveCell(cell: any, domain: string, root: string, environment: strin
 
 /**
  * Verify that every cell in the plan has been developed (output dir exists
- * with at least a package.json). Returns a list of missing cells.
+ * with a canonical artifact). Returns a list of missing cells.
+ *
+ * Canonical artifact per adapter family:
+ *   node/*, vite/*, next/*  → package.json (node project)
+ *   postgres                 → docker-compose.yml (infra-only, no node deps)
  */
 export function checkArtifacts(plan: EnvironmentPlan): string[] {
   const missing: string[] = []
   for (const cell of plan.cells) {
-    const pkgJson = path.join(cell.outputDir, 'package.json')
-    if (!fs.existsSync(pkgJson)) {
+    const marker = canonicalArtifactFor(cell.adapterType)
+    if (!fs.existsSync(path.join(cell.outputDir, marker))) {
       missing.push(cell.name)
     }
   }
   return missing
+}
+
+function canonicalArtifactFor(adapterType: string): string {
+  if (adapterType === 'postgres') return 'docker-compose.yml'
+  return 'package.json'
 }

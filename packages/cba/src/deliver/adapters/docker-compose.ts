@@ -29,7 +29,7 @@ export function generateDockerCompose(plan: EnvironmentPlan): ComposeResult {
 
   // Storage constructs → compose services
   for (const c of plan.constructs) {
-    const svc = buildConstructService(c, volumes)
+    const svc = buildConstructService(c, volumes, plan)
     if (svc) {
       services[c.name] = svc.definition
     } else {
@@ -79,11 +79,21 @@ export function generateDockerCompose(plan: EnvironmentPlan): ComposeResult {
 function buildConstructService(
   c: ResolvedConstruct,
   volumes: Record<string, any>,
+  plan?: EnvironmentPlan,
 ): { definition: any } | null {
   if (c.category !== 'storage') return null
   if (c.type === 'database' && c.config?.engine === 'postgres') {
     const volName = `${c.name}-data`.replace(/[^a-z0-9_-]/gi, '_')
     volumes[volName] = null
+    const dbCellCfg = plan ? findDbCellConfig(plan) : undefined
+    const dbName = dbCellCfg?.database ?? 'postgres'
+    const volumeMounts: string[] = [`${volName}:/var/lib/postgresql/data`]
+    // Mount db-cell's init scripts (role/permission bootstrap) into the postgres
+    // init directory. Postgres runs these on first DB init, creating app_role
+    // before api-cell's migrations connect.
+    if (dbCellCfg?.initScriptsDir) {
+      volumeMounts.push(`${dbCellCfg.initScriptsDir}:/docker-entrypoint-initdb.d:ro`)
+    }
     return {
       definition: {
         image: `postgres:${c.config.version ?? '16'}-alpine`,
@@ -91,10 +101,16 @@ function buildConstructService(
         environment: {
           POSTGRES_USER: 'postgres',
           POSTGRES_PASSWORD: 'postgres',
-          POSTGRES_DB: 'postgres',
+          POSTGRES_DB: dbName,
         },
         ports: [`${c.config.port ?? 5432}:5432`],
-        volumes: [`${volName}:/var/lib/postgresql/data`],
+        volumes: volumeMounts,
+        healthcheck: {
+          test: ['CMD-SHELL', `pg_isready -U postgres -d ${dbName}`],
+          interval: '2s',
+          timeout: '3s',
+          retries: 10,
+        },
       },
     }
   }
@@ -104,6 +120,12 @@ function buildConstructService(
         image: `redis:${c.config.version ?? '7'}-alpine`,
         restart: 'unless-stopped',
         ports: [`${c.config.port ?? 6379}:6379`],
+        healthcheck: {
+          test: ['CMD', 'redis-cli', 'ping'],
+          interval: '2s',
+          timeout: '3s',
+          retries: 5,
+        },
       },
     }
   }
@@ -138,31 +160,29 @@ function buildCellService(cell: ResolvedCell, plan: EnvironmentPlan): CellServic
     const port = guessApiPort(cell, plan)
     const env = resolveEnv(cell, plan, port)
     env.PORT = String(port)
-    return {
-      name: svcName,
-      definition: {
-        build: { context: relBuildContext },
-        restart: 'unless-stopped',
-        ports: [`${port}:${port}`],
-        environment: env,
-        depends_on: dependsOn(cell, plan),
-      },
+    const def: any = {
+      build: { context: relBuildContext },
+      restart: 'unless-stopped',
+      ports: [`${port}:${port}`],
+      environment: env,
     }
+    const deps = dependsOn(cell, plan)
+    if (Object.keys(deps).length) def.depends_on = deps
+    return { name: svcName, definition: def }
   }
 
   if (cell.adapterType.startsWith('vite/')) {
     const port = 80 // nginx in vite Dockerfile serves on 80
     const exposed = 5173
-    return {
-      name: svcName,
-      definition: {
-        build: { context: relBuildContext },
-        restart: 'unless-stopped',
-        ports: [`${exposed}:${port}`],
-        environment: resolveEnv(cell, plan, exposed),
-        depends_on: dependsOn(cell, plan),
-      },
+    const def: any = {
+      build: { context: relBuildContext },
+      restart: 'unless-stopped',
+      ports: [`${exposed}:${port}`],
+      environment: resolveEnv(cell, plan, exposed),
     }
+    const deps = dependsOn(cell, plan)
+    if (Object.keys(deps).length) def.depends_on = deps
+    return { name: svcName, definition: def }
   }
 
   // db-cell is init/migration logic, not a runtime service — skip
@@ -222,8 +242,11 @@ function devSecretDefault(name: string, plan: EnvironmentPlan): string {
       (c) => c.category === 'storage' && c.type === 'database' && c.config?.engine === 'postgres',
     )
     if (dbConstruct) {
-      const dbName = findDbCellDatabase(plan) ?? 'postgres'
-      return `postgresql://postgres:postgres@${dbConstruct.name}:5432/${dbName}`
+      const cfg = findDbCellConfig(plan)
+      const dbName = cfg?.database ?? 'postgres'
+      const role = cfg?.appRole ?? 'postgres'
+      const password = cfg?.appPassword ?? 'postgres'
+      return `postgresql://${role}:${password}@${dbConstruct.name}:5432/${dbName}`
     }
   }
   if (name === 'REDIS_URL') {
@@ -236,9 +259,37 @@ function devSecretDefault(name: string, plan: EnvironmentPlan): string {
   return `\${${name}:-}`
 }
 
-function findDbCellDatabase(plan: EnvironmentPlan): string | undefined {
+interface DbCellConfig {
+  database: string
+  appRole: string
+  appPassword: string
+  initScriptsDir?: string
+}
+
+/**
+ * Resolve db-cell config from the plan — returns the database name, the app
+ * role/password the api connects as, and the path to init scripts that should
+ * be mounted into the postgres service. db-cell owns role/permission
+ * bootstrap; api-cell owns schema and data.
+ */
+function findDbCellConfig(plan: EnvironmentPlan): DbCellConfig | undefined {
   const dbCell = plan.cells.find((c) => c.adapterType === 'postgres')
-  return dbCell?.adapterConfig?.database
+  if (!dbCell) return undefined
+  const cfg = dbCell.adapterConfig ?? {}
+  const database = cfg.database as string | undefined
+  if (!database) return undefined
+  const appRole = (cfg.app_role as string | undefined) ?? `${database}_app`
+  const appPassword = (cfg.app_password as string | undefined) ?? appRole
+  // db-cell emits init scripts at <outputDir>/docker/scripts/. The compose
+  // file lives in <deployDir>/, so we need a relative path.
+  const absoluteInit = path.join(dbCell.outputDir, 'docker/scripts')
+  const rel = path.relative(plan.deployDir, absoluteInit)
+  const initScriptsDir = rel.startsWith('.') ? rel : './' + rel
+  return { database, appRole, appPassword, initScriptsDir }
+}
+
+function findDbCellDatabase(plan: EnvironmentPlan): string | undefined {
+  return findDbCellConfig(plan)?.database
 }
 
 /**
@@ -256,25 +307,27 @@ function resolveOutputRef(ref: string, plan: EnvironmentPlan): string {
 
 // ──────────────── depends_on ────────────────
 
-function dependsOn(cell: ResolvedCell, plan: EnvironmentPlan): string[] {
-  const deps: string[] = []
-  // Depend on any storage construct the cell references that we emit as a service
+function dependsOn(cell: ResolvedCell, plan: EnvironmentPlan): Record<string, { condition: string }> {
+  const deps: Record<string, { condition: string }> = {}
+  // Depend on any storage construct the cell references — wait until healthy
+  // so migrations/seed on startup don't race the postgres init.
   for (const cName of cell.constructs) {
     const c = plan.constructs.find((x) => x.name === cName)
     if (!c) continue
     if (c.category !== 'storage') continue
     const isPostgres = c.type === 'database' && c.config?.engine === 'postgres'
     const isRedis = c.type === 'cache' && c.config?.engine === 'redis'
-    if (isPostgres || isRedis) deps.push(c.name)
+    if (isPostgres || isRedis) deps[c.name] = { condition: 'service_healthy' }
   }
-  // Depend on producer cells of any `output`-sourced variable
+  // Depend on producer cells of any `output`-sourced variable — only need
+  // them started, not healthy (no healthcheck defined for app containers).
   for (const v of cell.variables) {
     if (v.source === 'output' && v.value) {
       const [producerName] = v.value.split('.')
       const producer = plan.cells.find((c) => c.name === producerName && c.name !== cell.name)
       if (producer) {
         const svc = serviceNameForCell(producer.name)
-        if (!deps.includes(svc)) deps.push(svc)
+        if (!deps[svc]) deps[svc] = { condition: 'service_started' }
       }
     }
   }

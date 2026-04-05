@@ -184,7 +184,7 @@ A cell is a **TypeScript package** that:
 |------|-----------|-------|--------|--------|
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
-| `db-cell` | Operational → Technical | Operational DNA + construct config | Database provisioning (Docker, schema, roles, seeds) | **Built** — `technical/cells/db-cell/` |
+| `db-cell` | Technical | Construct config (infra-only — no application schema) | Database provisioning (Docker, roles, permissions) | **Built** — `technical/cells/db-cell/` |
 | `auth-cell` | Technical | Rules (access), Constructs | Authorization middleware | Planned |
 | `workflow-cell` | Technical | Causes, Lifecycles, Outcomes, Constructs | Event-driven workflows | Planned |
 
@@ -221,23 +221,27 @@ npm run start:express   # http://localhost:3001/api
 
 #### Using Postgres (via db-cell)
 
-The `db-cell` provisions the database. The `api-cell` connects to it.
+The `db-cell` provisions the database + app role. The `api-cell` owns migrations, seeds, and queries via drizzle, connecting as the app role.
 
 ```bash
-# 1. Generate and start the database
-npm run generate:lending-db
+# 1. Generate and start the database (provisioning only — no app tables yet)
+npx cba develop lending --cell db-cell
 cd output/lending-db
-npm install
 docker compose up -d         # Postgres on port 5433, creates lending DB + lending_app role
-npm run db:generate          # Generate Drizzle migration SQL from schema
-npm run db:migrate           # Apply migrations
-npm run db:seed              # Seed from Operational DNA examples
 
-# 2. Run the API against Postgres
+# 2. Generate drizzle migrations from api-cell's schema, apply, and seed
 cd ../lending-api
+npm install
+npm run db:generate          # Generate drizzle migration SQL from DNA-derived schema
+DATABASE_URL=postgresql://lending_app:lending_app@localhost:5433/lending npm run db:migrate
+DATABASE_URL=postgresql://lending_app:lending_app@localhost:5433/lending npm run db:seed
+
+# 3. Run the API against Postgres
 DATABASE_URL=postgresql://lending_app:lending_app@localhost:5433/lending npm run start:dev
 # Starts with [store] using postgres — data persists across restarts
 ```
+
+Or — use `cba deliver` to run the whole stack as one compose file (see Delivery section below). In that flow, db-cell's init.sql is mounted into the postgres service and api-cell's migrations run automatically on startup.
 
 ### `ui-cell` adapter
 
@@ -265,9 +269,11 @@ cd output/lending-ui && npx vite    # http://localhost:5173
 
 | Adapter | Approach | Output |
 |---------|----------|--------|
-| `postgres` | Generates Docker Compose, init SQL (roles/permissions), Drizzle schema, migrations, and seed script | `output/lending-db/` |
+| `postgres` | Generates Docker Compose + init SQL (DB, roles, permissions) | `output/lending-db/` |
 
-The `db-cell` reads Operational DNA (nouns → tables) and Technical DNA (database constructs → engine version, credentials). It generates everything needed to provision a database from scratch: Docker Compose, init scripts that create application roles and grant permissions, Drizzle schema from DNA attributes, and a seed script that populates tables from Operational DNA examples.
+The `db-cell` is **infrastructure-only** — it provisions the database itself: the Postgres instance, the application role, and permissions. It does *not* own application tables. Schema migrations, seeds, and queries are owned by `api-cell` via drizzle, connecting as the app role created by db-cell.
+
+This keeps superuser operations (role creation, grants) separate from application-level schema evolution, and lets multiple consumers share a single db-cell-provisioned database.
 
 ```json
 {

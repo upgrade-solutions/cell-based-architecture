@@ -1,33 +1,10 @@
-// ── Operational DNA (for schema generation) ─────────────────────────────────
+// ── Operational DNA ─────────────────────────────────────────────────────────
+// db-cell is infrastructure-only — it validates Operational DNA but does not
+// read from it. Schema and seed are owned by api-cell.
 
-export interface Attribute {
-  name: string
-  type: string
-  required?: boolean
-  values?: string[]
-  description?: string
-}
+export type OperationalDNA = unknown
 
-export interface Noun {
-  name: string
-  description?: string
-  attributes?: Attribute[]
-  examples?: Record<string, unknown>[]
-}
-
-export interface Domain {
-  name: string
-  path?: string
-  description?: string
-  domains?: Domain[]
-  nouns?: Noun[]
-}
-
-export interface OperationalDNA {
-  domain: Domain
-}
-
-// ── Database construct config ────────────────────────────────────────��──────
+// ── Database construct config ───────────────────────────────────────────────
 
 export interface DbConstructConfig {
   engine: string
