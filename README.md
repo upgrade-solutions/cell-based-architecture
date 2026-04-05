@@ -310,7 +310,7 @@ npx cba domains                                     # list domains under dna/
 | **Discover** | `cba discover <domain>` | Launches or resumes an agent-driven conversation → proposes DNA. Outputs land in `.cba/sessions/` and `.cba/drafts/`. |
 | **Design** | `cba design <layer> <cmd> <domain>` | Authors DNA: `list`, `show`, `add`, `remove`, `schema`, `validate`. Scoped per-layer. |
 | **Develop** | `cba develop <domain> [--cell X]` | Reads technical DNA, invokes each declared cell's generator. |
-| **Deliver** | `cba deliver <domain> --env <env>` | Deploys to an environment via infra-cell (Phase 3 stub). |
+| **Deliver** | `cba deliver <domain> --env <env> [--adapter X]` | Composes generated cells into a deployable topology via a delivery adapter (default: `docker-compose`). |
 
 Plus utilities: `cba run <domain> --adapter <x>` (start generated output), `cba validate <domain>` (all-layer + cross-layer validation).
 
@@ -335,6 +335,11 @@ npx cba develop lending --dry-run                   # preview all cells
 npx cba develop lending --cell api-cell             # run one cell
 npx cba run lending --adapter express               # start generated API
 
+# Deliver — compose generated cells into a deployable topology
+npx cba deliver lending --env dev --plan            # preview services + skipped constructs
+npx cba deliver lending --env dev                   # writes output/lending-deploy/docker-compose.yml
+cd output/lending-deploy && docker compose up -d    # run the full stack locally
+
 # Validate
 npx cba validate lending                            # all layers
 npx cba validate lending --json                     # structured JSON errors
@@ -352,6 +357,38 @@ Every command supports `--json` for machine-parseable output. An agent's typical
 6. `cba develop lending` — ship it
 
 See `packages/cba/README.md` for full command reference and flags.
+
+---
+
+# Delivery
+
+`cba deliver` reads Technical DNA for a target Environment and composes the generated cell artifacts into a deployable topology via a **delivery adapter**. Infrastructure is not a cell — it's configuration consumed by the delivery step.
+
+| Adapter | Status | Output |
+|---------|--------|--------|
+| `docker-compose` | **Built** | `output/<domain>-deploy/docker-compose.yml` — multi-service local stack |
+| `terraform/aws` | Planned | AWS IaC from Constructs + Providers |
+| `aws-sam` | Planned | AWS serverless deployment for function-category Constructs |
+
+## `docker-compose` adapter
+
+Composes the full lending stack (Postgres, Redis, Express API, NestJS API, Vite UI) into one compose file, wiring environment variables from Technical DNA:
+
+- Storage `Construct`s → first-class compose services (`primary-db`, `session-cache`)
+- `Cell`s with `node/*` or `vite/*` adapters → services built from each cell's output dir
+- `secret`-sourced variables → dev defaults that reference other compose services (e.g. `DATABASE_URL=postgresql://postgres:postgres@primary-db:5432/lending`)
+- `output`-sourced variables → resolved to internal service URLs (e.g. `api-cell.api_url` → `http://api:3001`)
+- External providers (`auth0`, etc.) and network Constructs are skipped — reported under `skipped` in the delivery result
+
+```bash
+npx cba develop lending                      # generate all cells first
+npx cba deliver lending --env dev --plan     # preview
+npx cba deliver lending --env dev            # write output/lending-deploy/
+cd output/lending-deploy
+docker compose up -d                         # run the full stack
+```
+
+Delivery is **not regenerative** — it fails loudly if cell artifacts are missing, telling you to run `cba develop` first.
 
 ---
 

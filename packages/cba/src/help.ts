@@ -124,23 +124,33 @@ FLAGS
 export const DELIVER_HELP = `cba deliver — deploy generated cells to an environment
 
 USAGE
-  cba deliver <domain> --env <environment> [--plan]
+  cba deliver <domain> --env <environment> [--adapter <name>] [--plan]
 
-Reads technical DNA for Environments, Providers, and Constructs, then
-(via infra-cell) provisions and deploys.
+Reads technical DNA for the target Environment (Constructs, Cells, Variables),
+wires each cell's generated artifact to its declared Constructs, and writes
+a deployable topology via the selected delivery adapter.
+
+Requires that \`cba develop <domain>\` has been run — delivery composes
+existing artifacts; it does not regenerate them.
+
+DELIVERY ADAPTERS
+  docker-compose    Local multi-cell orchestration (default)
+  terraform/aws     AWS IaC — planned
+  aws-sam           AWS serverless — planned
 
 EXAMPLES
-  cba deliver lending --env staging --plan   # preview (like terraform plan)
-  cba deliver lending --env staging
-  cba deliver lending --env prod
+  cba deliver lending --env dev                      # default: docker-compose
+  cba deliver lending --env dev --plan               # preview without writing
+  cba deliver lending --env dev --adapter docker-compose
 
 FLAGS
   --env <name>      Target environment (must exist in technical DNA)
-  --plan            Preview changes without applying
+  --adapter <name>  Delivery adapter (default: docker-compose)
+  --plan            Preview changes without writing files
   --json            Machine-readable output
 
-STATUS
-  v1 stub — requires infra-cell (Phase 3 roadmap item).
+OUTPUT
+  output/<domain>-deploy/    # compose file, README, delivery manifests
 `
 
 export const RUN_HELP = `cba run — run generated output locally

@@ -83,9 +83,31 @@ name with `-cell` stripped (`api-cell` → `<domain>-api`, `api-cell-nestjs`
 → `<domain>-api-nestjs`, `db-cell` → `<domain>-db`, `ui-cell` →
 `<domain>-ui`).
 
-### `cba deliver <domain> --env <env>` — deploy (stub)
+### `cba deliver <domain> --env <env> [--adapter <name>]` — compose cells into a deployable topology
 
-Requires infra-cell (Phase 3 roadmap). v1 is a stub.
+Reads Technical DNA for the target Environment, wires each Cell's generated
+artifact to its declared Constructs, and writes delivery files via the
+selected adapter. Fails loudly if `cba develop` hasn't been run first.
+
+```bash
+cba deliver lending --env dev                          # default: docker-compose
+cba deliver lending --env dev --plan                   # preview without writing
+cba deliver lending --env dev --adapter docker-compose
+```
+
+**Supported adapters:**
+
+| Adapter | Status | Output |
+|---------|--------|--------|
+| `docker-compose` | built | `output/<domain>-deploy/docker-compose.yml` + README |
+| `terraform/aws` | planned | AWS IaC |
+| `aws-sam` | planned | AWS serverless |
+
+The `docker-compose` adapter maps storage Constructs (postgres, redis) to
+standard images, builds node/vite cells from their output dirs, and wires
+`DATABASE_URL`/`REDIS_URL`/output-reference env vars to compose-internal
+service URLs. External providers and network Constructs are reported under
+`skipped`.
 
 ### `cba run <domain> --adapter <name>` — run generated output locally
 
@@ -149,7 +171,7 @@ packages/cba/
 │   ├── design.ts      # list / show / add / remove / schema / validate
 │   ├── develop.ts     # cell generation dispatch
 │   ├── run.ts         # start generated output
-│   ├── deliver.ts     # deployment (stub)
+│   ├── deliver/       # delivery: plan + adapters (docker-compose, ...)
 │   ├── discover.ts    # session scaffolding
 │   └── validate.ts    # cross-layer validation
 └── tsconfig.json

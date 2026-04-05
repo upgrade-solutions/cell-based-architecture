@@ -40,7 +40,8 @@ Build the planned cells that extend the architecture beyond API and UI.
 
 - [ ] **auth-cell** — reads Rules (access) and Constructs from Technical DNA, generates authorization middleware (Auth0, Clerk, custom JWT)
 - [ ] **workflow-cell** — reads Causes, Lifecycles, and Outcomes from Operational DNA, generates event-driven workflows (queues, scheduled jobs, chained capabilities)
-- [ ] **infra-cell** — reads Technical DNA Constructs/Providers/Environments, generates IaC (Terraform, CDK, Pulumi) for the full deployment topology
+
+> **Note:** Infrastructure is not a cell. Cells produce deployable artifacts (API, UI, DB schema). The deployment topology (Constructs, Providers, Environments) lives in Technical DNA and is consumed by `cba deliver` via delivery adapters — see Phase 5.
 
 ---
 
@@ -61,6 +62,11 @@ Broaden the adapter ecosystem so the same DNA can target different stacks.
 Make the system easy to adopt, extend, and operate.
 
 - [x] **CLI** — unified `cba` CLI organized around the D-D-D-D lifecycle (`cba discover`, `cba design`, `cba develop`, `cba deliver`, plus `cba run` / `cba validate`). Every command supports `--json` for agents. Lives in `packages/cba/`.
+- [ ] **`cba deliver`: delivery adapters** — replace the Phase 3 stub with real deployment. `cba deliver` reads Technical DNA (Constructs, Providers, Environments) + each Cell's generated artifacts and provisions/deploys via a delivery adapter:
+  - [x] `docker-compose` — local multi-cell orchestration (built)
+  - [ ] `terraform/aws` — AWS IaC (RDS, Lambda, API Gateway, etc.) from Constructs + Providers
+  - [ ] `aws-sam` — serverless-first AWS deployment for function-category Constructs
+  - [ ] Future: `cdk`, `pulumi`, `terraform/gcp`
 - [ ] **DNA editor / visual designer** — browser-based tool for authoring DNA without writing JSON by hand
 - [ ] **Diff and preview** — show what will change in generated output before regenerating (like `terraform plan`)
 - [ ] **Live dev mode** — run all cells locally with hot-reload across DNA changes (extend the Express adapter's watch pattern to all cells)
