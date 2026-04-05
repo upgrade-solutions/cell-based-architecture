@@ -293,3 +293,9 @@ cell-based-architecture/
 - **Adapters bridge DNA and frameworks.** The cell engine is generic; the adapter carries all framework-specific knowledge.
 - **DNA is the source of truth at every layer.** Cells must not encode domain, product, or framework logic beyond what is needed to interpret their layer's DNA.
 - **JSON in, infrastructure out.** The full path from business concept to deployed software is driven by JSON documents and TypeScript engines.
+
+---
+
+# Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the full implementation plan — from the current proof-of-concept through multi-adapter expansion, new cells, tooling, and production readiness.
