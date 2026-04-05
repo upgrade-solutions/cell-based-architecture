@@ -138,6 +138,42 @@
       ]
     },
     {
+      "name": "BorrowerList",
+      "resource": "Borrower",
+      "description": "Paginated list of borrowers with filter by status.",
+      "blocks": [
+        {
+          "name": "BorrowerFilters",
+          "type": "form",
+          "description": "Filter controls for borrower status.",
+          "operation": "Borrower.List",
+          "fields": [
+            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "suspended"] }
+          ]
+        },
+        {
+          "name": "BorrowerTable",
+          "type": "table",
+          "description": "Tabular list of borrowers.",
+          "operation": "Borrower.List",
+          "fields": [
+            { "name": "id", "label": "Borrower ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "annual_income", "label": "Annual Income", "type": "number" },
+            { "name": "credit_score", "label": "Credit Score", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "BorrowerListEmpty",
+          "type": "empty-state",
+          "description": "Shown when no borrowers match the filters."
+        }
+      ]
+    },
+    {
       "name": "BorrowerProfile",
       "resource": "Borrower",
       "description": "Profile page showing borrower details and their loan history.",
@@ -265,6 +301,7 @@
     { "path": "/loans/apply", "page": "LoanApply", "description": "New loan application form." },
     { "path": "/loans/:id", "page": "LoanDetail", "description": "Full loan detail with actions." },
     { "path": "/review", "page": "ReviewQueue", "description": "Underwriter review queue." },
+    { "path": "/borrowers", "page": "BorrowerList", "description": "Borrower list." },
     { "path": "/borrowers/:id", "page": "BorrowerProfile", "description": "Borrower profile and loan history." },
     { "path": "/lenders", "page": "LenderList", "description": "Lender list." },
     { "path": "/lenders/onboard", "page": "LenderOnboard", "description": "New lender onboarding form." },
