@@ -11,6 +11,7 @@ import { generateStore } from './generators/store'
 import { generateHandler } from './generators/handler'
 import { generateOpenApi } from './generators/openapi'
 import { generateRouter } from './generators/router'
+import { generateValidators } from './generators/validators'
 import { generateDbConnection, generateDrizzleStore } from './generators/db'
 import { generateSeed } from './generators/seed'
 
@@ -40,6 +41,7 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/interpreter/auth.ts', generateAuth())
   write(outputDir, 'src/interpreter/store.ts', generateStore())
   write(outputDir, 'src/interpreter/drizzle-store.ts', generateDrizzleStore())
+  write(outputDir, 'src/interpreter/validators.ts', generateValidators())
   write(outputDir, 'src/interpreter/handler.ts', generateHandler())
   write(outputDir, 'src/interpreter/openapi.ts', generateOpenApi())
   write(outputDir, 'src/interpreter/router.ts', generateRouter())

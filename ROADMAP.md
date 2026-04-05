@@ -28,7 +28,7 @@ Flesh out existing cells and close gaps in the current implementation.
 - [x] **ui-cell: full generation** — move from scaffold to complete generation (routing, data fetching, form submission, error handling)
 - [x] **api-cell: real database integration** — wire Drizzle migrations and seed data into generated output; currently handlers use in-memory stores
 - [ ] **api-cell: auth middleware** — generate real JWT/Auth0 verification from Policy DNA (currently stubbed guards)
-- [ ] **api-cell: validation** — generate request validation from Attribute constraints (required, type, enum values)
+- [x] **api-cell: validation** — generate request validation from Attribute constraints (required, type, enum values)
 - [ ] **dna-validator: cross-layer validation** — verify Product DNA references valid Operational Nouns/Verbs, Technical DNA references valid Product resources
 - [ ] **Testing** — add generation tests for both api-cell adapters; add runtime integration tests for generated output
 
