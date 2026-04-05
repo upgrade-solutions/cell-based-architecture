@@ -45,7 +45,7 @@ export const generate: UiCellAdapter['generate'] = (
     ui: ctx?.uiFetchPath ?? '/dna.json',
     api: ctx?.apiFetchPath ?? null,
     operational: ctx?.operationalFetchPath ?? null,
-    apiBase: ctx?.apiBase ?? '',
+    apiBase: '',
   }, null, 2) + '\n')
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export const generate: UiCellAdapter['generate'] = (
   write(outputDir, 'package.json', generatePackageJson(appName))
   write(outputDir, 'tsconfig.json', generateTsConfig())
   write(outputDir, 'tsconfig.node.json', generateTsConfigNode())
-  write(outputDir, 'vite.config.ts', generateViteConfig(appName, relDnaPath))
+  write(outputDir, 'vite.config.ts', generateViteConfig(appName, relDnaPath, ctx?.apiBase))
   write(outputDir, 'index.html', generateIndexHtml(ui.layout.name))
   write(outputDir, 'src/main.tsx', generateMain())
 

@@ -73,7 +73,17 @@ export function generateTsConfigNode(): string {
   ) + '\n'
 }
 
-export function generateViteConfig(appName: string, dnaRelPath = '../../dna'): string {
+export function generateViteConfig(appName: string, dnaRelPath = '../../dna', apiProxyTarget?: string): string {
+  const proxyBlock = apiProxyTarget
+    ? `
+    proxy: {
+      '/lending': {
+        target: '${apiProxyTarget}',
+        changeOrigin: true,
+      },
+    },`
+    : ''
+
   return `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -100,7 +110,10 @@ export default defineConfig({
     },
   ],
   build: { outDir: 'dist' },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    allowedHosts: true,${proxyBlock}
+  },
   define: { __APP_NAME__: JSON.stringify('${appName}') },
 })
 `
@@ -114,6 +127,7 @@ export function generateIndexHtml(appName: string): string {
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${appName}</title>
+    <style>*, *::before, *::after { box-sizing: border-box; } body { margin: 0; }</style>
   </head>
   <body>
     <div id="root"></div>

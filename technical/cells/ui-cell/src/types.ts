@@ -14,6 +14,7 @@ export interface Block {
   description?: string
   operation?: string
   fields?: Field[]
+  rowLink?: string
 }
 
 export interface Page {

@@ -9,8 +9,10 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
   const requiredRoles: string[] = policy?.allow?.map((a: any) => a.role) ?? []
 
   return (req: Request, res: Response, next: NextFunction) => {
+    // Skip auth in development when no token is provided
     const authHeader = req.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
+      if (process.env.NODE_ENV !== 'production') return next()
       return res.status(401).json({ message: 'Unauthorized' })
     }
 

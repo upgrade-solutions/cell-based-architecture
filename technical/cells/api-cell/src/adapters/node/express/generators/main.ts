@@ -11,6 +11,7 @@ import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
 import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
+import { seedFromOperationalDna } from './interpreter/store'
 
 const DNA_API = path.resolve(__dirname, 'dna/api.json')
 const DNA_OPS = path.resolve(__dirname, 'dna/operational.json')
@@ -38,6 +39,10 @@ function reload(label = 'loaded') {
 
 async function bootstrap() {
   reload('loaded')
+
+  // Seed in-memory store with examples from Operational DNA
+  const { operational } = loadDNA()
+  seedFromOperationalDna(operational)
 
   const app = express()
   app.use(express.json())

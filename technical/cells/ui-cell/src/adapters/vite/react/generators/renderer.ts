@@ -6,11 +6,15 @@ export function rendererContext(): string {
   return `import { createContext, useContext } from 'react'
 import type { ProductUiDNA, ProductApiDNA } from './types'
 
+export type Theme = 'light' | 'dark'
+
 export interface DnaContextValue {
   dna: ProductUiDNA
   api: ProductApiDNA | null
   apiBase: string
   stubs: Record<string, Record<string, unknown>[]>
+  theme: Theme
+  toggleTheme: () => void
 }
 
 export const DnaContext = createContext<DnaContextValue | null>(null)
@@ -19,6 +23,52 @@ export function useDna(): DnaContextValue {
   const ctx = useContext(DnaContext)
   if (!ctx) throw new Error('useDna must be used within a DnaContext.Provider')
   return ctx
+}
+
+// ── Theme color tokens ───────────────────────────────────────────────────────
+
+export const tokens = {
+  light: {
+    bg: '#ffffff',
+    bgAlt: '#f9fafb',
+    bgHover: '#f3f4f6',
+    text: '#111827',
+    textSecondary: '#6b7280',
+    textMuted: '#9ca3af',
+    border: '#e5e7eb',
+    borderStrong: '#d1d5db',
+    primary: '#1d4ed8',
+    primaryBg: '#eff6ff',
+    success: '#16a34a',
+    successBg: '#f0fdf4',
+    danger: '#dc2626',
+    dangerBg: '#fef2f2',
+    inputBg: '#ffffff',
+    rowStripe: '#f9fafb',
+  },
+  dark: {
+    bg: '#111827',
+    bgAlt: '#1f2937',
+    bgHover: '#374151',
+    text: '#f9fafb',
+    textSecondary: '#9ca3af',
+    textMuted: '#6b7280',
+    border: '#374151',
+    borderStrong: '#4b5563',
+    primary: '#60a5fa',
+    primaryBg: '#1e3a5f',
+    success: '#4ade80',
+    successBg: '#14532d',
+    danger: '#f87171',
+    dangerBg: '#7f1d1d',
+    inputBg: '#1f2937',
+    rowStripe: '#1f2937',
+  },
+}
+
+export function useThemeTokens() {
+  const { theme } = useDna()
+  return tokens[theme]
 }
 `
 }
@@ -38,6 +88,7 @@ export interface Block {
   description?: string
   operation?: string
   fields?: Field[]
+  rowLink?: string
 }
 
 export interface Page {
@@ -153,13 +204,16 @@ export function useApi(operation: string | undefined) {
   const fetchList = useCallback(
     async (queryParams?: Record<string, string>) => {
       if (!endpoint) return null
-      const url = new URL(apiBase + endpoint.path)
+      let url = apiBase + endpoint.path
       if (queryParams) {
+        const params = new URLSearchParams()
         for (const [k, v] of Object.entries(queryParams)) {
-          if (v) url.searchParams.set(k, v)
+          if (v) params.set(k, v)
         }
+        const qs = params.toString()
+        if (qs) url += '?' + qs
       }
-      const res = await fetch(url.toString())
+      const res = await fetch(url)
       if (!res.ok) throw new Error(\`\${res.status} \${res.statusText}\`)
       return res.json()
     },
@@ -271,12 +325,24 @@ function collectStubs(op: unknown): Record<string, Record<string, unknown>[]> {
   return stubs
 }
 
+function getInitialTheme(): 'light' | 'dark' {
+  const stored = localStorage.getItem('theme')
+  if (stored === 'light' || stored === 'dark') return stored
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 export default function App() {
   const [dna, setDna] = useState<ProductUiDNA | null>(null)
   const [api, setApi] = useState<ProductApiDNA | null>(null)
   const [apiBase, setApiBase] = useState('')
   const [stubs, setStubs] = useState<Record<string, Record<string, unknown>[]>>({})
   const [error, setError] = useState<string | null>(null)
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
+  const toggleTheme = () => setTheme(t => {
+    const next = t === 'light' ? 'dark' : 'light'
+    localStorage.setItem('theme', next)
+    return next
+  })
 
   useEffect(() => {
     fetch('/config.json')
@@ -300,9 +366,12 @@ export default function App() {
       .catch(err => setError(String(err)))
   }, [])
 
+  const bg = theme === 'dark' ? '#111827' : '#ffffff'
+  const fg = theme === 'dark' ? '#f9fafb' : '#111827'
+
   if (error) {
     return (
-      <div style={{ padding: '2rem', color: '#dc2626', fontFamily: 'system-ui' }}>
+      <div style={{ padding: '2rem', color: '#dc2626', fontFamily: 'system-ui', background: bg, minHeight: '100vh' }}>
         Failed to load DNA: {error}
       </div>
     )
@@ -310,14 +379,14 @@ export default function App() {
 
   if (!dna) {
     return (
-      <div style={{ padding: '2rem', color: '#6b7280', fontFamily: 'system-ui' }}>
+      <div style={{ padding: '2rem', color: '#6b7280', fontFamily: 'system-ui', background: bg, minHeight: '100vh' }}>
         Loading...
       </div>
     )
   }
 
   return (
-    <DnaContext.Provider value={{ dna, api, apiBase, stubs }}>
+    <DnaContext.Provider value={{ dna, api, apiBase, stubs, theme, toggleTheme }}>
       <BrowserRouter>
         <Routes>
           <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
@@ -343,8 +412,10 @@ export default function App() {
 }
 
 export function rendererLayout(): string {
-  return `import { NavLink, Outlet } from 'react-router-dom'
+  return `import { useState, useEffect } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
 import type { Layout as LayoutDNA, Route } from './types'
+import { useDna, useThemeTokens } from './context'
 
 interface Props {
   layout: LayoutDNA
@@ -357,39 +428,107 @@ function toLabel(pageName: string): string {
   )
 }
 
+function useIsMobile(breakpoint = 768) {
+  const [mobile, setMobile] = useState(window.innerWidth < breakpoint)
+  useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < breakpoint)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [breakpoint])
+  return mobile
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useDna()
+  const t = useThemeTokens()
+  return (
+    <button
+      onClick={toggleTheme}
+      aria-label="Toggle theme"
+      style={{
+        background: 'none', border: \`1px solid \${t.borderStrong}\`, borderRadius: '0.375rem',
+        padding: '0.375rem 0.625rem', cursor: 'pointer', fontSize: '1rem', lineHeight: 1,
+        color: t.text,
+      }}
+    >
+      {theme === 'light' ? '\\u263E' : '\\u2600'}
+    </button>
+  )
+}
+
 export default function Layout({ layout, routes }: Props) {
   if (layout.type === 'sidebar') return <SidebarLayout routes={routes} />
   return <FullWidthLayout routes={routes} />
 }
 
-function navLinkStyle({ isActive }: { isActive: boolean }): React.CSSProperties {
-  return {
+function SidebarLayout({ routes }: { routes: Route[] }) {
+  const isMobile = useIsMobile()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const t = useThemeTokens()
+
+  const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
     display: 'block',
     padding: '0.5rem 0.75rem',
     borderRadius: '0.375rem',
     textDecoration: 'none',
     fontSize: '0.875rem',
-    color: isActive ? '#1d4ed8' : '#374151',
-    background: isActive ? '#eff6ff' : 'transparent',
+    color: isActive ? t.primary : t.text,
+    background: isActive ? t.primaryBg : 'transparent',
     fontWeight: isActive ? 600 : 400,
-  }
-}
+  })
 
-function SidebarLayout({ routes }: { routes: Route[] }) {
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      <nav style={{ width: 240, borderRight: '1px solid #e5e7eb', padding: '1.5rem 1rem', background: '#f9fafb', flexShrink: 0 }}>
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {routes.map(route => (
-            <li key={route.path}>
-              <NavLink to={route.path} style={navLinkStyle}>
-                {toLabel(route.page)}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <main style={{ flex: 1, padding: '2rem', overflow: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', background: t.bg, color: t.text }}>
+      {/* Mobile header */}
+      {isMobile && (
+        <header style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.75rem 1rem', borderBottom: \`1px solid \${t.border}\`, background: t.bgAlt,
+          position: 'sticky', top: 0, zIndex: 20,
+        }}>
+          <span style={{ fontWeight: 600, fontSize: '1rem' }}>Menu</span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <ThemeToggle />
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              style={{ background: 'none', border: \`1px solid \${t.borderStrong}\`, borderRadius: '0.375rem', padding: '0.375rem 0.625rem', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1, color: t.text }}
+              aria-label="Toggle navigation"
+            >
+              {menuOpen ? '\\u2715' : '\\u2630'}
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* Sidebar / mobile dropdown */}
+      {(!isMobile || menuOpen) && (
+        <nav style={{
+          width: isMobile ? '100%' : 240,
+          borderRight: isMobile ? 'none' : \`1px solid \${t.border}\`,
+          borderBottom: isMobile ? \`1px solid \${t.border}\` : 'none',
+          padding: isMobile ? '0.5rem 1rem' : '1.5rem 1rem',
+          background: t.bgAlt,
+          flexShrink: 0,
+          ...(isMobile ? {} : { position: 'sticky' as const, top: 0, height: '100vh', overflowY: 'auto' as const }),
+        }}>
+          {!isMobile && (
+            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <ThemeToggle />
+            </div>
+          )}
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            {routes.map(route => (
+              <li key={route.path}>
+                <NavLink to={route.path} style={navLinkStyle} onClick={() => setMenuOpen(false)}>
+                  {toLabel(route.page)}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
+      <main style={{ flex: 1, padding: isMobile ? '1rem' : '2rem', overflow: 'auto' }}>
         <Outlet />
       </main>
     </div>
@@ -397,18 +536,33 @@ function SidebarLayout({ routes }: { routes: Route[] }) {
 }
 
 function FullWidthLayout({ routes }: { routes: Route[] }) {
+  const isMobile = useIsMobile()
+  const t = useThemeTokens()
+
+  const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
+    display: 'block',
+    padding: '0.5rem 0.75rem',
+    borderRadius: '0.375rem',
+    textDecoration: 'none',
+    fontSize: '0.875rem',
+    color: isActive ? t.primary : t.text,
+    background: isActive ? t.primaryBg : 'transparent',
+    fontWeight: isActive ? 600 : 400,
+  })
+
   return (
-    <div style={{ minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ borderBottom: '1px solid #e5e7eb', background: '#fff', padding: '0 2rem' }}>
-        <nav style={{ display: 'flex', gap: '0.25rem', height: 56, alignItems: 'center' }}>
+    <div style={{ minHeight: '100vh', fontFamily: 'system-ui, sans-serif', background: t.bg, color: t.text }}>
+      <header style={{ borderBottom: \`1px solid \${t.border}\`, background: t.bgAlt, padding: isMobile ? '0 1rem' : '0 2rem' }}>
+        <nav style={{ display: 'flex', gap: '0.25rem', height: 56, alignItems: 'center', overflowX: 'auto' }}>
           {routes.map(route => (
             <NavLink key={route.path} to={route.path} style={navLinkStyle}>
               {toLabel(route.page)}
             </NavLink>
           ))}
+          <div style={{ marginLeft: 'auto' }}><ThemeToggle /></div>
         </nav>
       </header>
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem' }}>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '1rem' : '2rem' }}>
         <Outlet />
       </main>
     </div>
@@ -419,6 +573,7 @@ function FullWidthLayout({ routes }: { routes: Route[] }) {
 
 export function rendererPage(): string {
   return `import type { Page as PageDNA } from './types'
+import { useThemeTokens } from './context'
 import Block from './Block'
 
 function toTitle(name: string): string {
@@ -428,11 +583,17 @@ function toTitle(name: string): string {
 }
 
 export default function Page({ page }: { page: PageDNA }) {
+  const t = useThemeTokens()
   return (
-    <div>
-      <h1 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 700 }}>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <h1 style={{ marginBottom: '0.25rem', fontSize: 'clamp(1.125rem, 4vw, 1.5rem)', fontWeight: 700, color: t.text }}>
         {toTitle(page.name)}
       </h1>
+      {page.description && (
+        <p style={{ marginTop: 0, marginBottom: '1.5rem', color: t.textSecondary, fontSize: '0.875rem' }}>
+          {page.description}
+        </p>
+      )}
       {page.blocks.map(block => (
         <Block key={block.name} block={block} resource={page.resource} />
       ))}
@@ -444,6 +605,7 @@ export default function Page({ page }: { page: PageDNA }) {
 
 export function rendererBlock(): string {
   return `import type { Block as BlockDNA } from './types'
+import { useThemeTokens } from './context'
 import FormBlock from './blocks/FormBlock'
 import TableBlock from './blocks/TableBlock'
 import DetailBlock from './blocks/DetailBlock'
@@ -455,7 +617,13 @@ interface Props {
   resource: string
 }
 
-export default function Block({ block, resource }: Props) {
+function toLabel(name: string): string {
+  return name.replace(/([A-Z])/g, (c, _match, offset: number) =>
+    (offset === 0 ? '' : ' ') + c
+  )
+}
+
+function BlockContent({ block, resource }: Props) {
   switch (block.type) {
     case 'form':        return <FormBlock block={block} />
     case 'table':       return <TableBlock block={block} resource={resource} />
@@ -470,12 +638,35 @@ export default function Block({ block, resource }: Props) {
       )
   }
 }
+
+export default function Block({ block, resource }: Props) {
+  const t = useThemeTokens()
+  const showHeader = block.type !== 'actions' && block.type !== 'empty-state'
+  return (
+    <section style={{ marginBottom: '1.5rem' }}>
+      {showHeader && (
+        <div style={{ marginBottom: '0.75rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: t.text }}>
+            {toLabel(block.name)}
+          </h2>
+          {block.description && (
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: t.textMuted }}>
+              {block.description}
+            </p>
+          )}
+        </div>
+      )}
+      <BlockContent block={block} resource={resource} />
+    </section>
+  )
+}
 `
 }
 
 export function rendererFormBlock(): string {
   return `import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useThemeTokens } from '../context'
 import { useApi } from '../useApi'
 import type { Block } from '../types'
 
@@ -498,6 +689,7 @@ function coerceValue(value: string, type: string): unknown {
 
 export default function FormBlock({ block }: { block: Block }) {
   const fields = block.fields ?? []
+  const t = useThemeTokens()
   const { endpoint, submit } = useApi(block.operation)
   const routeParams = useParams<Record<string, string>>()
   const navigate = useNavigate()
@@ -510,6 +702,7 @@ export default function FormBlock({ block }: { block: Block }) {
   const [success, setSuccess] = useState(false)
 
   const isFilterForm = endpoint?.method === 'GET'
+  const actionLabel = block.operation?.split('.').pop() ?? 'Submit'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -541,25 +734,25 @@ export default function FormBlock({ block }: { block: Block }) {
   return (
     <form onSubmit={handleSubmit} style={{ marginBottom: '1.5rem' }}>
       {error && (
-        <div style={{ padding: '0.75rem 1rem', color: '#dc2626', background: '#fef2f2', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+        <div style={{ padding: '0.75rem 1rem', color: t.danger, background: t.dangerBg, borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
           {error}
         </div>
       )}
       {success && (
-        <div style={{ padding: '0.75rem 1rem', color: '#16a34a', background: '#f0fdf4', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+        <div style={{ padding: '0.75rem 1rem', color: t.success, background: t.successBg, borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
           Success!
         </div>
       )}
       {fields.map(field => (
         <div key={field.name} style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>
+          <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500, color: t.text }}>
             {field.label}{field.required ? ' *' : ''}
           </label>
           {field.type === 'enum' && field.values ? (
             <select
               value={state[field.name] ?? ''}
               onChange={e => setState(s => ({ ...s, [field.name]: e.target.value }))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+              style={{ width: '100%', padding: '0.5rem', border: \`1px solid \${t.borderStrong}\`, borderRadius: '0.375rem', background: t.inputBg, color: t.text }}
             >
               <option value="">All</option>
               {field.values.map(v => <option key={v} value={v}>{v}</option>)}
@@ -571,7 +764,7 @@ export default function FormBlock({ block }: { block: Block }) {
               onChange={e => setState(s => ({ ...s, [field.name]: e.target.value }))}
               required={field.required}
               disabled={submitting}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '0.5rem', border: \`1px solid \${t.borderStrong}\`, borderRadius: '0.375rem', boxSizing: 'border-box', background: t.inputBg, color: t.text }}
             />
           )}
         </div>
@@ -582,14 +775,14 @@ export default function FormBlock({ block }: { block: Block }) {
           disabled={submitting}
           style={{
             padding: '0.5rem 1rem',
-            background: submitting ? '#93c5fd' : '#1d4ed8',
+            background: submitting ? t.textMuted : t.primary,
             color: '#fff',
             border: 'none',
             borderRadius: '0.375rem',
             cursor: submitting ? 'not-allowed' : 'pointer',
           }}
         >
-          {submitting ? 'Submitting...' : 'Submit'}
+          {submitting ? \`\${actionLabel}ing...\` : actionLabel}
         </button>
       )}
     </form>
@@ -599,7 +792,8 @@ export default function FormBlock({ block }: { block: Block }) {
 }
 
 export function rendererTableBlock(): string {
-  return `import { useDna } from '../context'
+  return `import { useNavigate } from 'react-router-dom'
+import { useDna, useThemeTokens } from '../context'
 import { useApiFetch } from '../useApi'
 import type { Block } from '../types'
 
@@ -608,8 +802,14 @@ interface Props {
   resource: string
 }
 
+function resolveRowLink(template: string, row: Record<string, unknown>): string {
+  return template.replace(/:([a-zA-Z_]+)/g, (_, key) => String(row[key] ?? ''))
+}
+
 export default function TableBlock({ block, resource }: Props) {
-  const { stubs } = useDna()
+  const { dna, stubs } = useDna()
+  const t = useThemeTokens()
+  const navigate = useNavigate()
   const fields = block.fields ?? []
   const { data, loading, error } = useApiFetch(block.operation)
 
@@ -618,9 +818,14 @@ export default function TableBlock({ block, resource }: Props) {
     : null
   const rows = apiRows ?? stubs[resource] ?? []
 
+  // Resolve row link: explicit rowLink on block, or infer from routes
+  const rowLink = block.rowLink
+    ?? dna.routes.find(r => r.path.includes(':id') && dna.pages.find(p => p.name === r.page && p.resource === resource))?.path
+    ?? null
+
   if (loading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', marginBottom: '1.5rem' }}>
+      <div style={{ padding: '2rem', textAlign: 'center', color: t.textSecondary, marginBottom: '1.5rem' }}>
         Loading...
       </div>
     )
@@ -628,7 +833,7 @@ export default function TableBlock({ block, resource }: Props) {
 
   if (error) {
     return (
-      <div style={{ padding: '1rem', color: '#dc2626', background: '#fef2f2', borderRadius: '0.375rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+      <div style={{ padding: '1rem', color: t.danger, background: t.dangerBg, borderRadius: '0.375rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
         Failed to load data: {error}
       </div>
     )
@@ -642,7 +847,7 @@ export default function TableBlock({ block, resource }: Props) {
             {fields.map(f => (
               <th
                 key={f.name}
-                style={{ padding: '0.75rem 1rem', textAlign: 'left', borderBottom: '2px solid #e5e7eb', fontWeight: 600, whiteSpace: 'nowrap' }}
+                style={{ padding: '0.75rem 1rem', textAlign: 'left', borderBottom: \`2px solid \${t.border}\`, fontWeight: 600, whiteSpace: 'nowrap', color: t.text }}
               >
                 {f.label}
               </th>
@@ -651,11 +856,18 @@ export default function TableBlock({ block, resource }: Props) {
         </thead>
         <tbody>
           {rows.length > 0 ? rows.map((row, i) => (
-            <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
+            <tr
+              key={i}
+              onClick={rowLink ? () => navigate(resolveRowLink(rowLink, row)) : undefined}
+              style={{
+                background: i % 2 === 0 ? 'transparent' : t.rowStripe,
+                cursor: rowLink ? 'pointer' : 'default',
+              }}
+            >
               {fields.map(f => (
                 <td
                   key={f.name}
-                  style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e5e7eb' }}
+                  style={{ padding: '0.75rem 1rem', borderBottom: \`1px solid \${t.border}\`, color: t.text }}
                 >
                   {String(row[f.name] ?? '—')}
                 </td>
@@ -665,7 +877,7 @@ export default function TableBlock({ block, resource }: Props) {
             <tr>
               <td
                 colSpan={fields.length}
-                style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}
+                style={{ padding: '2rem', textAlign: 'center', color: t.textMuted }}
               >
                 No data
               </td>
@@ -681,7 +893,7 @@ export default function TableBlock({ block, resource }: Props) {
 
 export function rendererDetailBlock(): string {
   return `import { useParams } from 'react-router-dom'
-import { useDna } from '../context'
+import { useDna, useThemeTokens } from '../context'
 import { useApiFetch } from '../useApi'
 import type { Block } from '../types'
 
@@ -692,6 +904,7 @@ interface Props {
 
 export default function DetailBlock({ block, resource }: Props) {
   const { stubs } = useDna()
+  const t = useThemeTokens()
   const routeParams = useParams<Record<string, string>>()
   const fields = block.fields ?? []
 
@@ -702,7 +915,7 @@ export default function DetailBlock({ block, resource }: Props) {
 
   if (loading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', marginBottom: '1.5rem' }}>
+      <div style={{ padding: '2rem', textAlign: 'center', color: t.textSecondary, marginBottom: '1.5rem' }}>
         Loading...
       </div>
     )
@@ -710,7 +923,7 @@ export default function DetailBlock({ block, resource }: Props) {
 
   if (error) {
     return (
-      <div style={{ padding: '1rem', color: '#dc2626', background: '#fef2f2', borderRadius: '0.375rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+      <div style={{ padding: '1rem', color: t.danger, background: t.dangerBg, borderRadius: '0.375rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
         Failed to load record: {error}
       </div>
     )
@@ -720,18 +933,19 @@ export default function DetailBlock({ block, resource }: Props) {
     <dl
       style={{
         display: 'grid',
-        gridTemplateColumns: '200px 1fr',
-        gap: '0.75rem 1.5rem',
+        gridTemplateColumns: 'minmax(0, 200px) 1fr',
+        gap: '0.5rem 1rem',
         marginBottom: '1.5rem',
-        padding: '1.5rem',
-        border: '1px solid #e5e7eb',
+        padding: '1rem',
+        border: \`1px solid \${t.border}\`,
         borderRadius: '0.5rem',
+        background: t.bgAlt,
       }}
     >
       {fields.map(f => (
         <div key={f.name} style={{ display: 'contents' }}>
-          <dt style={{ fontWeight: 500, color: '#6b7280', fontSize: '0.875rem' }}>{f.label}</dt>
-          <dd style={{ margin: 0 }}>{String(record[f.name] ?? '—')}</dd>
+          <dt style={{ fontWeight: 500, color: t.textSecondary, fontSize: '0.875rem', wordBreak: 'break-word' }}>{f.label}</dt>
+          <dd style={{ margin: 0, wordBreak: 'break-word', color: t.text }}>{String(record[f.name] ?? '—')}</dd>
         </div>
       ))}
     </dl>
@@ -743,16 +957,9 @@ export default function DetailBlock({ block, resource }: Props) {
 export function rendererActionsBlock(): string {
   return `import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useDna } from '../context'
+import { useDna, useThemeTokens } from '../context'
 import { useApi } from '../useApi'
 import type { Block, ApiResource } from '../types'
-
-const ACTION_COLORS: Record<string, string> = {
-  Approve: '#16a34a',
-  Reject: '#dc2626',
-  Delete: '#dc2626',
-  Cancel: '#6b7280',
-}
 
 interface Props {
   block: Block
@@ -762,6 +969,7 @@ interface Props {
 function ActionButton({ resource, actionName }: { resource: string; actionName: string }) {
   const operation = \`\${resource}.\${actionName}\`
   const { submit } = useApi(operation)
+  const t = useThemeTokens()
   const routeParams = useParams<Record<string, string>>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -781,7 +989,8 @@ function ActionButton({ resource, actionName }: { resource: string; actionName: 
     }
   }
 
-  const bg = ACTION_COLORS[actionName] ?? '#1d4ed8'
+  const isDanger = /reject|delete|cancel/i.test(actionName)
+  const bg = isDanger ? t.danger : t.success
 
   return (
     <div>
@@ -791,7 +1000,7 @@ function ActionButton({ resource, actionName }: { resource: string; actionName: 
         disabled={loading}
         style={{
           padding: '0.5rem 1rem',
-          background: loading ? '#9ca3af' : bg,
+          background: loading ? t.textMuted : bg,
           color: '#fff',
           border: 'none',
           borderRadius: '0.375rem',
@@ -801,7 +1010,7 @@ function ActionButton({ resource, actionName }: { resource: string; actionName: 
         {loading ? \`\${actionName}...\` : actionName}
       </button>
       {error && (
-        <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{error}</div>
+        <div style={{ color: t.danger, fontSize: '0.75rem', marginTop: '0.25rem' }}>{error}</div>
       )}
     </div>
   )
@@ -827,20 +1036,22 @@ export default function ActionsBlock({ block: _block, resource }: Props) {
 
 export function rendererEmptyStateBlock(): string {
   return `import type { Block } from '../types'
+import { useThemeTokens } from '../context'
 
-export default function EmptyStateBlock({ block: _block }: { block: Block }) {
+export default function EmptyStateBlock({ block }: { block: Block }) {
+  const t = useThemeTokens()
   return (
     <div
       style={{
         textAlign: 'center',
         padding: '3rem',
-        color: '#9ca3af',
-        border: '2px dashed #e5e7eb',
+        color: t.textMuted,
+        border: \`2px dashed \${t.border}\`,
         borderRadius: '0.5rem',
         marginBottom: '1.5rem',
       }}
     >
-      <p style={{ margin: 0 }}>No results found.</p>
+      <p style={{ margin: 0 }}>{block.description ?? 'No results found.'}</p>
     </div>
   )
 }
