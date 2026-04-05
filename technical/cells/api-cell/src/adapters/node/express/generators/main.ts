@@ -11,7 +11,7 @@ import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
 import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
-import { seedFromOperationalDna } from './interpreter/store'
+import { seedFromOperationalDna, getStoreMode } from './interpreter/store'
 
 const DNA_API = path.resolve(__dirname, 'dna/api.json')
 const DNA_OPS = path.resolve(__dirname, 'dna/operational.json')
@@ -37,12 +37,30 @@ function reload(label = 'loaded') {
   }
 }
 
+async function runMigrations() {
+  if (!process.env.DATABASE_URL) return
+  try {
+    const { migrate } = await import('drizzle-orm/node-postgres/migrator')
+    const { db } = await import('./db')
+    const migrationsFolder = path.resolve(__dirname, '..', 'drizzle')
+    await migrate(db, { migrationsFolder })
+    console.log('[db] migrations applied')
+  } catch (err: any) {
+    console.error(\`[db] migration failed: \${err.message}\`)
+  }
+}
+
 async function bootstrap() {
+  console.log(\`[store] using \${getStoreMode()}\`)
+
+  // Run migrations if using Postgres
+  await runMigrations()
+
   reload('loaded')
 
-  // Seed in-memory store with examples from Operational DNA
+  // Seed store with examples from Operational DNA
   const { operational } = loadDNA()
-  seedFromOperationalDna(operational)
+  await seedFromOperationalDna(operational)
 
   const app = express()
   app.use(express.json())

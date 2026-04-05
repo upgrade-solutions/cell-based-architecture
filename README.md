@@ -199,6 +199,8 @@ Both expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON
 
 The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at runtime. When either file changes, routes and the OpenAPI spec are rebuilt in-process — no restart needed. Edit the DNA, the API updates immediately.
 
+**Dual-mode storage**: The Express adapter supports both in-memory and PostgreSQL (Drizzle ORM) storage. Without `DATABASE_URL`, it runs with in-memory Maps seeded from Operational DNA examples. With `DATABASE_URL`, it connects to Postgres, runs migrations on startup, and seeds from DNA.
+
 #### Generate and run
 
 ```bash
@@ -213,6 +215,23 @@ npm install --prefix output/lending-api-nestjs
 # Run side-by-side (in separate terminals)
 npm run start:nestjs    # http://localhost:3000/api
 npm run start:express   # http://localhost:3001/api
+```
+
+#### Using Postgres (Express adapter)
+
+```bash
+cd output/lending-api
+
+# Start Postgres
+docker compose up -d
+
+# Uncomment DATABASE_URL in .env, then:
+npm run db:generate    # Generate Drizzle migration SQL from schema
+npm run db:migrate     # Apply migrations to Postgres
+npm run start:dev      # Starts with [store] using postgres
+
+# Optional: seed independently
+npm run db:seed
 ```
 
 ### `ui-cell` adapter

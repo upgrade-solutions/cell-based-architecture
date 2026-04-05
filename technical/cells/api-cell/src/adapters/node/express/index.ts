@@ -1,7 +1,9 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { ProductApiDNA, OperationalDNA, ApiCellAdapter } from '../../../types'
+import { collectNouns } from '../../../utils'
 import { generateDockerfile, generateDockerIgnore } from '../docker'
+import { generateDrizzleSchema, generateDrizzleConfig } from '../shared/drizzle'
 import { generatePackageJson, generateTsConfig, generateEnv } from './generators/scaffold'
 import { generateMain } from './generators/main'
 import { generateAuth } from './generators/auth'
@@ -9,6 +11,9 @@ import { generateStore } from './generators/store'
 import { generateHandler } from './generators/handler'
 import { generateOpenApi } from './generators/openapi'
 import { generateRouter } from './generators/router'
+import { generateDbConnection, generateDrizzleStore } from './generators/db'
+import { generateDockerCompose } from './generators/docker-compose'
+import { generateSeed } from './generators/seed'
 
 function write(outputDir: string, relPath: string, content: string): void {
   const fullPath = path.join(outputDir, relPath)
@@ -22,27 +27,36 @@ export const generate: ApiCellAdapter['generate'] = (
   outputDir: string,
 ): void => {
   const appName = api.namespace.name.toLowerCase() + '-api'
+  const nouns = collectNouns(operational.domain)
 
   // ── DNA — loaded at runtime ─────────────────────────────────────────────────
   write(outputDir, 'src/dna/api.json', JSON.stringify(api, null, 2) + '\n')
   write(outputDir, 'src/dna/operational.json', JSON.stringify(operational, null, 2) + '\n')
 
+  // ── Database — Drizzle schema + connection ──────────────────────────────────
+  write(outputDir, 'src/db/schema.ts', generateDrizzleSchema(nouns))
+  write(outputDir, 'src/db/index.ts', generateDbConnection())
+
   // ── Runtime interpreter — generic, reads DNA at startup ─────────────────────
   write(outputDir, 'src/interpreter/auth.ts', generateAuth())
   write(outputDir, 'src/interpreter/store.ts', generateStore())
+  write(outputDir, 'src/interpreter/drizzle-store.ts', generateDrizzleStore())
   write(outputDir, 'src/interpreter/handler.ts', generateHandler())
   write(outputDir, 'src/interpreter/openapi.ts', generateOpenApi())
   write(outputDir, 'src/interpreter/router.ts', generateRouter())
 
-  // ── Entry point ─────────────────────────────────────────────────────────────
+  // ── Entry point + seed ──────────────────────────────────────────────────────
   write(outputDir, 'src/main.ts', generateMain(api.namespace))
+  write(outputDir, 'src/seed.ts', generateSeed())
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
   write(outputDir, 'package.json', generatePackageJson(appName))
   write(outputDir, 'tsconfig.json', generateTsConfig())
   write(outputDir, '.env', generateEnv())
+  write(outputDir, 'drizzle.config.ts', generateDrizzleConfig())
 
-  // ── Containerization ────────────────────────────────────────────────────────
+  // ── Docker ──────────────────────────────────────────────────────────────────
   write(outputDir, 'Dockerfile', generateDockerfile())
   write(outputDir, '.dockerignore', generateDockerIgnore())
+  write(outputDir, 'docker-compose.yml', generateDockerCompose(api.namespace))
 }

@@ -1,6 +1,6 @@
 export function generateHandler(): string {
   return `import { Request, Response } from 'express'
-import { getStore } from './store'
+import { getDataStore } from './store'
 
 type OpKind = 'create' | 'view' | 'list' | 'update'
 
@@ -52,10 +52,9 @@ export function createHandler(endpoint: any, api: any, operational: any) {
   const capability = operation?.capability ?? endpoint.operation
   const kind = classifyEndpoint(endpoint)
   const queryParams = (endpoint.params ?? []).filter((p: any) => p.in === 'query')
+  const store = getDataStore()
 
   return async (req: Request, res: Response) => {
-    const store = getStore(resourceKey)
-
     try {
       if (kind === 'create') {
         const now = new Date().toISOString()
@@ -66,12 +65,12 @@ export function createHandler(endpoint: any, api: any, operational: any) {
           updated_at: now,
         }
         applyEffects(entity, capability, operational, req.body)
-        store.set(entity.id, entity)
-        return res.status(201).json(entity)
+        const created = await store.create(resourceKey, entity)
+        return res.status(201).json(created)
       }
 
       if (kind === 'view') {
-        const entity = store.get(req.params.id)
+        const entity = await store.findById(resourceKey, req.params.id)
         if (!entity) {
           return res.status(404).json({ message: \`\${resource} \${req.params.id} not found\` })
         }
@@ -79,27 +78,27 @@ export function createHandler(endpoint: any, api: any, operational: any) {
       }
 
       if (kind === 'list') {
-        let items = Array.from(store.values())
+        const filters: Record<string, string> = {}
         for (const qp of queryParams) {
           if (qp.name === 'page' || qp.name === 'limit') continue
           const val = req.query[qp.name] as string | undefined
-          if (val) items = items.filter((r: any) => String(r[qp.name]) === val)
+          if (val) filters[qp.name] = val
         }
         const page = parseInt((req.query.page as string) ?? '1', 10)
         const limit = parseInt((req.query.limit as string) ?? '20', 10)
-        const start = (page - 1) * limit
-        return res.json({ data: items.slice(start, start + limit), total: items.length })
+        const result = await store.findAll(resourceKey, filters, page, limit)
+        return res.json(result)
       }
 
       if (kind === 'update') {
-        const entity = store.get(req.params.id)
-        if (!entity) {
+        const existing = await store.findById(resourceKey, req.params.id)
+        if (!existing) {
           return res.status(404).json({ message: \`\${resource} \${req.params.id} not found\` })
         }
         const now = new Date().toISOString()
-        const updated = { ...entity, ...req.body, updated_at: now }
-        applyEffects(updated, capability, operational, req.body)
-        store.set(req.params.id, updated)
+        const merged = { ...existing, ...req.body, updated_at: now }
+        applyEffects(merged, capability, operational, req.body)
+        const updated = await store.update(resourceKey, req.params.id, merged)
         return res.json(updated)
       }
     } catch (err: any) {

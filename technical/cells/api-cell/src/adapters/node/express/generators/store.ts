@@ -1,26 +1,105 @@
 export function generateStore(): string {
-  return `const stores = new Map<string, Map<string, any>>()
+  return `import { dbCreate, dbFindById, dbFindAll, dbUpdate, dbSeed } from './drizzle-store'
 
-export function getStore(resource: string): Map<string, any> {
+// ── DataStore interface ─────────────────────────────────────────────────────
+
+export interface DataStore {
+  create(resource: string, entity: Record<string, any>): Promise<Record<string, any>>
+  findById(resource: string, id: string): Promise<Record<string, any> | null>
+  findAll(resource: string, filters: Record<string, string>, page: number, limit: number): Promise<{ data: any[]; total: number }>
+  update(resource: string, id: string, updates: Record<string, any>): Promise<Record<string, any> | null>
+}
+
+// ── In-memory implementation ────────────────────────────────────────────────
+
+const stores = new Map<string, Map<string, any>>()
+
+function getMemStore(resource: string): Map<string, any> {
   if (!stores.has(resource)) stores.set(resource, new Map())
   return stores.get(resource)!
 }
 
-export function seedFromOperationalDna(operational: any): void {
-  function walk(domain: any) {
+const memoryStore: DataStore = {
+  async create(resource, entity) {
+    getMemStore(resource).set(entity.id, entity)
+    return entity
+  },
+  async findById(resource, id) {
+    return getMemStore(resource).get(id) ?? null
+  },
+  async findAll(resource, filters, page, limit) {
+    let items = Array.from(getMemStore(resource).values())
+    for (const [key, val] of Object.entries(filters)) {
+      items = items.filter((r: any) => String(r[key]) === val)
+    }
+    const start = (page - 1) * limit
+    return { data: items.slice(start, start + limit), total: items.length }
+  },
+  async update(resource, id, updates) {
+    const store = getMemStore(resource)
+    const existing = store.get(id)
+    if (!existing) return null
+    const updated = { ...existing, ...updates }
+    store.set(id, updated)
+    return updated
+  },
+}
+
+// ── Drizzle implementation ──────────────────────────────────────────────────
+
+const drizzleStore: DataStore = {
+  create: dbCreate,
+  findById: dbFindById,
+  findAll: dbFindAll,
+  update: dbUpdate,
+}
+
+// ── Mode selection ──────────────────────────────────────────────────────────
+
+const useDb = !!process.env.DATABASE_URL
+
+export function getDataStore(): DataStore {
+  return useDb ? drizzleStore : memoryStore
+}
+
+export function getStoreMode(): string {
+  return useDb ? 'postgres' : 'in-memory'
+}
+
+// ── Seeding ─────────────────────────────────────────────────────────────────
+
+export async function seedFromOperationalDna(operational: any): Promise<void> {
+  async function walk(domain: any) {
     for (const noun of domain.nouns ?? []) {
       if (noun.examples?.length) {
         const key = noun.name.toLowerCase() + 's'
-        const store = getStore(key)
-        for (const example of noun.examples) {
-          if (example.id) store.set(example.id, { ...example })
+
+        if (useDb) {
+          const now = new Date().toISOString()
+          const rows = noun.examples.map((ex: any) => ({
+            ...ex,
+            created_at: ex.created_at ?? now,
+            updated_at: ex.updated_at ?? now,
+          }))
+          try {
+            await dbSeed(key, rows)
+          } catch (err: any) {
+            console.error(\`[seed] \${noun.name} failed: \${err.message}\`)
+            return
+          }
+        } else {
+          const store = getMemStore(key)
+          for (const example of noun.examples) {
+            if (example.id) store.set(example.id, { ...example })
+          }
         }
+
         console.log(\`[seed] \${noun.name}: \${noun.examples.length} records\`)
       }
     }
-    for (const sub of domain.domains ?? []) walk(sub)
+    for (const sub of domain.domains ?? []) await walk(sub)
   }
-  if (operational?.domain) walk(operational.domain)
+  if (operational?.domain) await walk(operational.domain)
 }
 `
 }
