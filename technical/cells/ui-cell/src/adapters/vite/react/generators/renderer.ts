@@ -367,7 +367,6 @@ export default function App() {
   }, [])
 
   const bg = theme === 'dark' ? '#111827' : '#ffffff'
-  const fg = theme === 'dark' ? '#f9fafb' : '#111827'
 
   if (error) {
     return (
