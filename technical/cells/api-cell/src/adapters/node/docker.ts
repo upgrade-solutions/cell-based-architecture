@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN mkdir -p drizzle && npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -12,6 +12,7 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/drizzle ./drizzle
 EXPOSE ${port}
 CMD ["node", "dist/main"]
 `
@@ -22,6 +23,5 @@ export function generateDockerIgnore(): string {
 dist
 .env*
 *.log
-drizzle
 `
 }

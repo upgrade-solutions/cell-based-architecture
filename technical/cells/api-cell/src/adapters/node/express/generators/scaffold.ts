@@ -4,7 +4,7 @@ export function generatePackageJson(appName: string): string {
       name: appName,
       version: '0.0.1',
       scripts: {
-        build: 'tsc',
+        build: "tsc && node -e \"require('fs').cpSync('src/dna','dist/dna',{recursive:true})\"",
         start: 'node dist/main.js',
         'start:dev': 'ts-node src/main.ts',
         'db:generate': 'drizzle-kit generate',
@@ -52,6 +52,8 @@ export function generateTsConfig(): string {
           resolveJsonModule: true,
           skipLibCheck: true,
         },
+        include: ['src/**/*'],
+        exclude: ['node_modules', 'dist', 'drizzle', 'drizzle.config.ts'],
       },
       null,
       2,
