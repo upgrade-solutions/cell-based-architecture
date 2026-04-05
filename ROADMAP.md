@@ -60,7 +60,7 @@ Broaden the adapter ecosystem so the same DNA can target different stacks.
 
 Make the system easy to adopt, extend, and operate.
 
-- [ ] **CLI** — unified `cell` CLI for generating, validating, running, and deploying (`cell generate`, `cell validate`, `cell run`, `cell deploy`)
+- [x] **CLI** — unified `cba` CLI organized around the D-D-D-D lifecycle (`cba discover`, `cba design`, `cba develop`, `cba deliver`, plus `cba run` / `cba validate`). Every command supports `--json` for agents. Lives in `packages/cba/`.
 - [ ] **DNA editor / visual designer** — browser-based tool for authoring DNA without writing JSON by hand
 - [ ] **Diff and preview** — show what will change in generated output before regenerating (like `terraform plan`)
 - [ ] **Live dev mode** — run all cells locally with hot-reload across DNA changes (extend the Express adapter's watch pattern to all cells)

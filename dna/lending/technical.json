@@ -9,7 +9,6 @@
       "description": "Production environment serving live traffic."
     }
   ],
-
   "providers": [
     {
       "name": "aws",
@@ -30,7 +29,6 @@
       }
     }
   ],
-
   "constructs": [
     {
       "name": "primary-db",
@@ -123,7 +121,6 @@
       }
     }
   ],
-
   "variables": [
     {
       "name": "DATABASE_URL",
@@ -184,7 +181,6 @@
       "required": false
     }
   ],
-
   "cells": [
     {
       "name": "api-cell",
@@ -196,18 +192,57 @@
           "operational_dna": "lending/operational"
         }
       },
-      "constructs": ["primary-db", "session-cache", "auth-provider", "api-gateway", "api-server"],
+      "constructs": [
+        "primary-db",
+        "session-cache",
+        "auth-provider",
+        "api-gateway",
+        "api-server"
+      ],
       "variables": [
-        { "name": "DATABASE_URL", "source": "secret", "required": true },
-        { "name": "REDIS_URL", "source": "secret", "required": true },
-        { "name": "AUTH0_DOMAIN", "source": "secret", "required": true },
-        { "name": "AUTH0_AUDIENCE", "source": "literal", "value": "https://api.acme.finance", "required": true },
-        { "name": "AUTH0_CLIENT_ID", "source": "secret", "required": true },
-        { "name": "AUTH0_CLIENT_SECRET", "source": "secret", "required": true },
-        { "name": "NODE_ENV", "source": "env", "required": false }
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "REDIS_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_DOMAIN",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_AUDIENCE",
+          "source": "literal",
+          "value": "https://api.acme.finance",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_ID",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_SECRET",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "NODE_ENV",
+          "source": "env",
+          "required": false
+        }
       ],
       "outputs": [
-        { "name": "api_url", "cell": "api-cell", "value": "api-gateway.url" }
+        {
+          "name": "api_url",
+          "cell": "api-cell",
+          "value": "api-gateway.url"
+        }
       ]
     },
     {
@@ -220,15 +255,50 @@
           "operational_dna": "lending/operational"
         }
       },
-      "constructs": ["primary-db", "session-cache", "auth-provider", "api-gateway", "api-server"],
+      "constructs": [
+        "primary-db",
+        "session-cache",
+        "auth-provider",
+        "api-gateway",
+        "api-server"
+      ],
       "variables": [
-        { "name": "DATABASE_URL", "source": "secret", "required": true },
-        { "name": "REDIS_URL", "source": "secret", "required": true },
-        { "name": "AUTH0_DOMAIN", "source": "secret", "required": true },
-        { "name": "AUTH0_AUDIENCE", "source": "literal", "value": "https://api.acme.finance", "required": true },
-        { "name": "AUTH0_CLIENT_ID", "source": "secret", "required": true },
-        { "name": "AUTH0_CLIENT_SECRET", "source": "secret", "required": true },
-        { "name": "NODE_ENV", "source": "env", "required": false }
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "REDIS_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_DOMAIN",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_AUDIENCE",
+          "source": "literal",
+          "value": "https://api.acme.finance",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_ID",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_SECRET",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "NODE_ENV",
+          "source": "env",
+          "required": false
+        }
       ]
     },
     {
@@ -243,9 +313,15 @@
           "app_role": "lending_app"
         }
       },
-      "constructs": ["primary-db"],
+      "constructs": [
+        "primary-db"
+      ],
       "variables": [
-        { "name": "DATABASE_URL", "source": "secret", "required": true }
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        }
       ]
     },
     {
@@ -261,13 +337,37 @@
           "api_base": "http://localhost:3001"
         }
       },
-      "constructs": ["auth-provider", "ui-server"],
+      "constructs": [
+        "auth-provider",
+        "ui-server"
+      ],
       "variables": [
-        { "name": "AUTH0_DOMAIN", "source": "secret", "required": true },
-        { "name": "AUTH0_CLIENT_ID", "source": "secret", "required": true },
-        { "name": "AUTH0_CLIENT_SECRET", "source": "secret", "required": true },
-        { "name": "NEXT_PUBLIC_API_URL", "source": "output", "value": "api-cell.api_url", "required": true },
-        { "name": "NODE_ENV", "source": "env", "required": false }
+        {
+          "name": "AUTH0_DOMAIN",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_ID",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_SECRET",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "NEXT_PUBLIC_API_URL",
+          "source": "output",
+          "value": "api-cell.api_url",
+          "required": true
+        },
+        {
+          "name": "NODE_ENV",
+          "source": "env",
+          "required": false
+        }
       ]
     }
   ]

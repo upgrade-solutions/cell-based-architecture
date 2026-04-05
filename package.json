@@ -6,6 +6,7 @@
     "technical/cells/*"
   ],
   "scripts": {
+    "cba": "cba",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces --if-present",
     "generate:lending": "npm run generate:lending --workspace=@cell/api-cell",

@@ -294,6 +294,68 @@ The `db-cell` reads Operational DNA (nouns → tables) and Technical DNA (databa
 
 ---
 
+# The `cba` CLI
+
+`cba` is the unified CLI for the cell-based architecture lifecycle, modeled on a four-phase flow — **Discover, Design, Develop, Deliver**. It ships as the `@cell/cba` workspace package and is the primary interface for both humans and agents operating on DNA and cells.
+
+```bash
+npx cba --help                                      # root help
+npx cba help design                                 # per-phase help
+npx cba domains                                     # list domains under dna/
+```
+
+## The lifecycle
+
+| Phase | Command | What it does |
+|-------|---------|--------------|
+| **Discover** | `cba discover <domain>` | Launches or resumes an agent-driven conversation → proposes DNA. Outputs land in `.cba/sessions/` and `.cba/drafts/`. |
+| **Design** | `cba design <layer> <cmd> <domain>` | Authors DNA: `list`, `show`, `add`, `remove`, `schema`, `validate`. Scoped per-layer. |
+| **Develop** | `cba develop <domain> [--cell X]` | Reads technical DNA, invokes each declared cell's generator. |
+| **Deliver** | `cba deliver <domain> --env <env>` | Deploys to an environment via infra-cell (Phase 3 stub). |
+
+Plus utilities: `cba run <domain> --adapter <x>` (start generated output), `cba validate <domain>` (all-layer + cross-layer validation).
+
+## Examples
+
+```bash
+# Inspect DNA
+npx cba design operational list lending
+npx cba design operational show lending --type Noun --name Loan
+npx cba design operational schema Noun              # prints JSON schema
+
+# Mutate DNA
+npx cba design technical add lending --type Variable --file new-var.json
+npx cba design operational add lending --type Noun \
+  --at acme.finance.lending --file loan.json
+npx cba design operational add lending --type Verb \
+  --at acme.finance.lending:Loan --file approve.json
+npx cba design technical remove lending --type Variable --name OLD_FLAG
+
+# Generate + run
+npx cba develop lending --dry-run                   # preview all cells
+npx cba develop lending --cell api-cell             # run one cell
+npx cba run lending --adapter express               # start generated API
+
+# Validate
+npx cba validate lending                            # all layers
+npx cba validate lending --json                     # structured JSON errors
+```
+
+## For agents
+
+Every command supports `--json` for machine-parseable output. An agent's typical loop during discovery:
+
+1. `cba design operational list lending --json` — ground itself in existing DNA
+2. `cba design operational schema Noun --json` — learn the primitive shape
+3. `cba design operational add lending --type Noun --at … --file draft.json --json` — draft
+4. `cba validate lending --json` — catch cross-layer errors, loop back to conversation
+5. `cba develop lending --dry-run --json` — show stakeholder the diff
+6. `cba develop lending` — ship it
+
+See `packages/cba/README.md` for full command reference and flags.
+
+---
+
 # Implementation Stack
 
 - **Description language**: JSON (all three DNA layers)
@@ -337,9 +399,8 @@ cell-based-architecture/
       auth-cell/                    # (planned) Consumes Technical DNA → auth layer
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
-    dna-loader/
+    cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)
     dna-validator/                  # Validates DNA documents against JSON schemas
-    schema-types/
 ```
 
 # Key Principles

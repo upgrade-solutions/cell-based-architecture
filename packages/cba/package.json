@@ -1,0 +1,23 @@
+{
+  "name": "@cell/cba",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Unified CLI for the cell-based architecture lifecycle: discover, design, develop, deliver.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "cba": "./bin/cba"
+  },
+  "scripts": {
+    "build": "tsc",
+    "cba": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@cell/dna-validator": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.4.0"
+  }
+}
