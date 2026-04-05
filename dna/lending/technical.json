@@ -303,14 +303,15 @@
     },
     {
       "name": "db-cell",
-      "description": "Provisions the Postgres database, roles, and schema for the lending domain.",
+      "description": "Provisions the Postgres database and lending_app role (infra-only — schema is owned by api-cell).",
       "dna": "lending/operational",
       "adapter": {
         "type": "postgres",
         "config": {
           "construct": "primary-db",
           "database": "lending",
-          "app_role": "lending_app"
+          "app_role": "lending_app",
+          "port": 5433
         }
       },
       "constructs": [

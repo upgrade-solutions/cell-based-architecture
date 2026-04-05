@@ -103,7 +103,7 @@ function buildConstructService(
           POSTGRES_PASSWORD: 'postgres',
           POSTGRES_DB: dbName,
         },
-        ports: [`${c.config.port ?? 5432}:5432`],
+        ports: [`${dbCellCfg?.hostPort ?? c.config.port ?? 5432}:5432`],
         volumes: volumeMounts,
         healthcheck: {
           test: ['CMD-SHELL', `pg_isready -U postgres -d ${dbName}`],
@@ -264,6 +264,7 @@ interface DbCellConfig {
   appRole: string
   appPassword: string
   initScriptsDir?: string
+  hostPort?: number
 }
 
 /**
@@ -280,12 +281,13 @@ function findDbCellConfig(plan: EnvironmentPlan): DbCellConfig | undefined {
   if (!database) return undefined
   const appRole = (cfg.app_role as string | undefined) ?? `${database}_app`
   const appPassword = (cfg.app_password as string | undefined) ?? appRole
+  const hostPort = cfg.port as number | undefined
   // db-cell emits init scripts at <outputDir>/docker/scripts/. The compose
   // file lives in <deployDir>/, so we need a relative path.
   const absoluteInit = path.join(dbCell.outputDir, 'docker/scripts')
   const rel = path.relative(plan.deployDir, absoluteInit)
   const initScriptsDir = rel.startsWith('.') ? rel : './' + rel
-  return { database, appRole, appPassword, initScriptsDir }
+  return { database, appRole, appPassword, initScriptsDir, hostPort }
 }
 
 function findDbCellDatabase(plan: EnvironmentPlan): string | undefined {
