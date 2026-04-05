@@ -1,4 +1,4 @@
-import { Resource, Endpoint, Operation, Policy, Namespace } from '../../../../types'
+import { Resource, Endpoint, Operation, Rule, Namespace } from '../../../../types'
 import { toFileName, toCamelCase, stripLeadingSlash, resolveCapability } from '../../../../utils'
 import { dtoClassName, dtoFileName } from './dto'
 
@@ -25,7 +25,7 @@ export function generateController(
   resource: Resource,
   endpoints: Endpoint[],
   operations: Operation[],
-  policies: Policy[],
+  rules: Rule[],
   namespace: Namespace,
 ): string {
   const basePath = resourceBasePath(namespace, resource.name)
@@ -50,8 +50,8 @@ export function generateController(
     const pathDec = relPath ? `@${httpDec}('${relPath}')` : `@${httpDec}()`
 
     const capability = resolveCapability(ep.operation, operations)
-    const policy = policies.find(p => p.capability === capability)
-    const roles = policy?.allow.map(a => a.role) ?? []
+    const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
+    const roles = accessRule?.allow?.map((a: { role: string }) => a.role) ?? []
 
     const pathParams = (ep.params ?? []).filter(p => p.in === 'path')
     const queryParams = (ep.params ?? []).filter(p => p.in === 'query')

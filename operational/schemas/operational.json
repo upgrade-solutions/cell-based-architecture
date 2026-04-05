@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dna.local/operational",
   "title": "OperationalDNA",
-  "description": "A complete Operational DNA document for an application instance. Composes a domain hierarchy with the full behavior stack: capabilities, triggers, policies, rules, effects, and flows.",
+  "description": "A complete Operational DNA document for an application instance. Composes a domain hierarchy with the full behavior stack: capabilities, causes, rules, outcomes, lifecycles, and equations.",
   "type": "object",
   "required": ["domain"],
   "properties": {
@@ -15,34 +15,29 @@
       "description": "All Noun:Verb capability pairs defined in this domain.",
       "items": { "$ref": "https://dna.local/operational/capability" }
     },
-    "triggers": {
+    "causes": {
       "type": "array",
       "description": "What initiates each capability — user actions, schedules, webhooks, or chained capabilities.",
-      "items": { "$ref": "https://dna.local/operational/trigger" }
-    },
-    "policies": {
-      "type": "array",
-      "description": "Who is permitted to perform each capability.",
-      "items": { "$ref": "https://dna.local/operational/policy" }
+      "items": { "$ref": "https://dna.local/operational/cause" }
     },
     "rules": {
       "type": "array",
-      "description": "Business conditions that must be satisfied before each capability executes.",
+      "description": "Constraints on capabilities — who may perform them (access rules) and what conditions must be satisfied (condition rules).",
       "items": { "$ref": "https://dna.local/operational/rule" }
     },
-    "effects": {
+    "outcomes": {
       "type": "array",
       "description": "State changes and side effects that result from each capability.",
-      "items": { "$ref": "https://dna.local/operational/effect" }
+      "items": { "$ref": "https://dna.local/operational/outcome" }
     },
-    "flows": {
+    "lifecycles": {
       "type": "array",
-      "description": "Valid lifecycle sequences of capabilities across nouns.",
-      "items": { "$ref": "https://dna.local/operational/flow" }
+      "description": "Valid sequences of capabilities across the life of each noun.",
+      "items": { "$ref": "https://dna.local/operational/lifecycle" }
     },
     "equations": {
       "type": "array",
-      "description": "Named, technology-agnostic computations that cannot be expressed as declarative Rules or Effects. Implemented concretely by Scripts in Technical DNA.",
+      "description": "Named, technology-agnostic computations that cannot be expressed as declarative Rules or Outcomes. Implemented concretely by Scripts in Technical DNA.",
       "items": { "$ref": "https://dna.local/operational/equation" }
     }
   },
@@ -81,22 +76,20 @@
         { "noun": "Loan", "verb": "Apply", "name": "Loan.Apply" },
         { "noun": "Loan", "verb": "Approve", "name": "Loan.Approve" }
       ],
-      "triggers": [
+      "causes": [
         { "capability": "Loan.Apply", "source": "user" },
         { "capability": "Loan.Approve", "source": "user" }
       ],
-      "policies": [
-        { "capability": "Loan.Apply", "allow": [{ "role": "borrower" }] },
-        { "capability": "Loan.Approve", "allow": [{ "role": "underwriter" }] }
-      ],
       "rules": [
-        { "capability": "Loan.Approve", "conditions": [{ "attribute": "loan.status", "operator": "eq", "value": "under_review" }] }
+        { "capability": "Loan.Apply", "type": "access", "allow": [{ "role": "borrower" }] },
+        { "capability": "Loan.Approve", "type": "access", "allow": [{ "role": "underwriter" }] },
+        { "capability": "Loan.Approve", "type": "condition", "conditions": [{ "attribute": "loan.status", "operator": "eq", "value": "under_review" }] }
       ],
-      "effects": [
+      "outcomes": [
         { "capability": "Loan.Apply", "changes": [{ "attribute": "loan.status", "set": "under_review" }] },
         { "capability": "Loan.Approve", "changes": [{ "attribute": "loan.status", "set": "active" }] }
       ],
-      "flows": [
+      "lifecycles": [
         { "noun": "Loan", "steps": ["Loan.Apply", "Loan.Approve"] }
       ]
     }

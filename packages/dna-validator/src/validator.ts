@@ -4,11 +4,10 @@ import * as verbSchema from '../../../operational/schemas/verb.json'
 import * as nounSchema from '../../../operational/schemas/noun.json'
 import * as capabilitySchema from '../../../operational/schemas/capability.json'
 import * as domainSchema from '../../../operational/schemas/domain.json'
-import * as triggerSchema from '../../../operational/schemas/trigger.json'
-import * as policySchema from '../../../operational/schemas/policy.json'
+import * as causeSchema from '../../../operational/schemas/cause.json'
 import * as ruleSchema from '../../../operational/schemas/rule.json'
-import * as effectSchema from '../../../operational/schemas/effect.json'
-import * as flowSchema from '../../../operational/schemas/flow.json'
+import * as outcomeSchema from '../../../operational/schemas/outcome.json'
+import * as lifecycleSchema from '../../../operational/schemas/lifecycle.json'
 import * as equationSchema from '../../../operational/schemas/equation.json'
 import * as fieldSchema from '../../../product/schemas/core/field.json'
 import * as actionSchema from '../../../product/schemas/core/action.json'
@@ -55,11 +54,10 @@ export class DnaValidator {
       nounSchema,
       capabilitySchema,
       domainSchema,
-      triggerSchema,
-      policySchema,
+      causeSchema,
       ruleSchema,
-      effectSchema,
-      flowSchema,
+      outcomeSchema,
+      lifecycleSchema,
       equationSchema,
       fieldSchema,
       actionSchema,

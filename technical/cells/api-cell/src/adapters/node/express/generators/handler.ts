@@ -36,9 +36,9 @@ function applyEffects(
   operational: any,
   body: Record<string, any>,
 ) {
-  const effect = operational.effects?.find((e: any) => e.capability === capability)
-  if (!effect) return
-  for (const change of effect.changes) {
+  const outcome = operational.outcomes?.find((o: any) => o.capability === capability)
+  if (!outcome) return
+  for (const change of outcome.changes) {
     const attr = change.attribute.split('.').pop()
     const val = resolveEffectSet(change.set, entity, body)
     if (val !== undefined) entity[attr] = val

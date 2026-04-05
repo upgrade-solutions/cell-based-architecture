@@ -26,16 +26,15 @@ Operational DNA captures pure business logic: domain concepts, processes, rules,
 
 **Behavior primitives** — evaluated in order:
 ```
-Trigger → Policy → Rule → [Capability executes] → Effect → Flow
+Cause → Rule → [Capability executes] → Outcome → Lifecycle
 ```
 
 | Primitive | Description |
 |-----------|-------------|
-| `Trigger` | What initiates a Capability (user action, webhook, schedule, chained Capability) |
-| `Policy` | Who is allowed to perform it (role/actor-based authorization) |
-| `Rule` | Conditions that must be true before execution (business logic guards) |
-| `Effect` | State changes and side effects after execution |
-| `Flow` | The valid lifecycle sequence of Capabilities on a Noun |
+| `Cause` | What initiates a Capability (user action, webhook, schedule, chained Capability) |
+| `Rule` | A constraint on a Capability — who may perform it (`type: access`) or what conditions must be met (`type: condition`) |
+| `Outcome` | State changes and side effects after execution |
+| `Lifecycle` | The valid sequence of Capabilities across the life of a Noun |
 | `Equation` | A named, technology-agnostic computation — pure function with typed inputs and output. Implemented concretely by a Script in Technical DNA |
 
 Schemas live in `../dna/schemas/`. Reference: `../dna` or https://github.com/upgrade-solutions/dna
@@ -123,7 +122,7 @@ Constructs are declared once and referenced by multiple Cells — e.g. a `databa
 
 | Layer | Primitives |
 |-------|-----------|
-| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Trigger`, `Policy`, `Rule`, `Effect`, `Flow`, `Equation` |
+| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Cause`, `Rule`, `Outcome`, `Lifecycle`, `Equation` |
 | Product | `Resource`, `Action`, `Operation`, `Layout`, `Page`, `Route`, `Block`, `Field`, `Namespace`, `Endpoint`, `Schema`, `Param` |
 | Technical | `Environment`, `Cell`, `Construct`, `Provider`, `Variable`, `Output`, `Script` |
 
@@ -137,7 +136,7 @@ No primitive name is shared across layers.
 flowchart LR
     subgraph Layers["DNA — Source of Truth (JSON)"]
         direction TB
-        OP["Operational DNA\nNouns · Verbs · Capabilities\nTriggers · Policies · Rules · Effects · Flows · Equations"]
+        OP["Operational DNA\nNouns · Verbs · Capabilities\nCauses · Rules · Outcomes · Lifecycles · Equations"]
         PROD["Product DNA\nResources · Actions · Operations\nPages · Routes · Endpoints · Schemas"]
         TECH["Technical DNA\nCells · Constructs · Providers\nEnvironments · Variables · Scripts"]
         OP -->|"maps to"| PROD
@@ -186,8 +185,8 @@ A cell is a **TypeScript package** that:
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
 | `db-cell` | Operational → Technical | Operational DNA + construct config | Database provisioning (Docker, schema, roles, seeds) | **Built** — `technical/cells/db-cell/` |
-| `auth-cell` | Technical | Policies, Constructs | Authorization middleware | Planned |
-| `workflow-cell` | Technical | Triggers, Flows, Effects, Constructs | Event-driven workflows | Planned |
+| `auth-cell` | Technical | Rules (access), Constructs | Authorization middleware | Planned |
+| `workflow-cell` | Technical | Causes, Lifecycles, Outcomes, Constructs | Event-driven workflows | Planned |
 
 ### `api-cell` adapters
 
@@ -371,7 +370,7 @@ See `packages/cba/README.md` for full command reference and flags.
 cell-based-architecture/
   dna/                              # DNA documents organized by application instance
     lending/
-      operational.json              # Full Operational DNA: domain, nouns, capabilities, triggers, policies, rules, effects, flows
+      operational.json              # Full Operational DNA: domain, nouns, capabilities, causes, rules, outcomes, lifecycles
       product.api.json              # Product API DNA: namespace, resources, operations, endpoints
       product.ui.json               # Product UI DNA: layout, pages, routes, blocks
       technical.json                # Technical DNA: providers, constructs, variables, cells, environments

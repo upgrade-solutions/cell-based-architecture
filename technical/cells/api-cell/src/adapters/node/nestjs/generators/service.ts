@@ -1,4 +1,4 @@
-import { Resource, Endpoint, Operation, Policy, Rule, Effect } from '../../../../types'
+import { Resource, Endpoint, Operation, Rule, Outcome } from '../../../../types'
 import { toCamelCase, resolveCapability } from '../../../../utils'
 import { dtoClassName, dtoFileName } from './dto'
 import { toFileName } from '../../../../utils'
@@ -53,33 +53,32 @@ function generateInterface(resource: Resource): string {
 function buildComment(
   operationName: string,
   capability: string,
-  policies: Policy[],
   rules: Rule[],
-  effects: Effect[],
+  outcomes: Outcome[],
 ): string[] {
   const lines: string[] = [`  // Operation: ${operationName}`]
-  const policy = policies.find(p => p.capability === capability)
-  const rule = rules.find(r => r.capability === capability)
-  const effect = effects.find(e => e.capability === capability)
-  if (!policy && !rule && !effect) return lines
-  if (policy) {
-    const roles = policy.allow.map(a => (a.ownership ? `${a.role} (owner)` : a.role)).join(', ')
-    lines.push(`  // Policy:     ${roles}`)
+  const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
+  const conditionRule = rules.find(r => r.capability === capability && r.type !== 'access')
+  const outcome = outcomes.find(o => o.capability === capability)
+  if (!accessRule && !conditionRule && !outcome) return lines
+  if (accessRule) {
+    const roles = (accessRule.allow ?? []).map(a => (a.ownership ? `${a.role} (owner)` : a.role)).join(', ')
+    lines.push(`  // Access:     ${roles}`)
   }
-  if (rule?.conditions.length) {
-    rule.conditions.forEach((c, i) => {
+  if (conditionRule?.conditions?.length) {
+    conditionRule.conditions.forEach((c, i) => {
       const val = c.value !== undefined ? ` ${JSON.stringify(c.value)}` : ''
       const line = `${c.attribute} ${c.operator}${val}`
       lines.push(i === 0 ? `  // Rules:      ${line}` : `  //             ${line}`)
     })
   }
-  if (effect?.changes.length) {
-    effect.changes.forEach((ch, i) => {
+  if (outcome?.changes.length) {
+    outcome.changes.forEach((ch, i) => {
       const line = `${ch.attribute} → ${JSON.stringify(ch.set)}`
-      lines.push(i === 0 ? `  // Effects:    ${line}` : `  //             ${line}`)
+      lines.push(i === 0 ? `  // Outcome:    ${line}` : `  //             ${line}`)
     })
-    if (effect.triggers?.length) {
-      lines.push(`  //             triggers: ${effect.triggers.join(', ')}`)
+    if (outcome.initiates?.length) {
+      lines.push(`  //             initiates: ${outcome.initiates.join(', ')}`)
     }
   }
   return lines
@@ -104,13 +103,13 @@ function methodSignature(ep: Endpoint, resource: string): string {
 function buildCreateBody(
   ep: Endpoint,
   resource: Resource,
-  effects: Effect[],
+  outcomes: Outcome[],
   capability: string,
 ): string[] {
   const varName = resource.name.toLowerCase()
   const entityFieldNames = new Set(resource.fields.map(f => f.name))
   const dtoFields = (ep.request?.fields ?? []).filter(f => entityFieldNames.has(f.name))
-  const effect = effects.find(e => e.capability === capability)
+  const outcome = outcomes.find(o => o.capability === capability)
 
   const lines: string[] = [
     '    const now = new Date().toISOString()',
@@ -119,8 +118,8 @@ function buildCreateBody(
     ...dtoFields.map(f => `      ${f.name}: dto.${f.name},`),
   ]
 
-  if (effect) {
-    for (const ch of effect.changes) {
+  if (outcome) {
+    for (const ch of outcome.changes) {
       const attr = ch.attribute.split('.').pop()!
       if (!entityFieldNames.has(attr)) continue
       const val = resolveEffectSet(ch.set, varName)
@@ -163,13 +162,13 @@ function buildListBody(ep: Endpoint, resource: Resource): string[] {
 function buildUpdateBody(
   ep: Endpoint,
   resource: Resource,
-  effects: Effect[],
+  outcomes: Outcome[],
   capability: string,
 ): string[] {
   const varName = resource.name.toLowerCase()
   const entityFieldNames = new Set(resource.fields.map(f => f.name))
   const dtoFields = (ep.request?.fields ?? []).filter(f => entityFieldNames.has(f.name))
-  const effect = effects.find(e => e.capability === capability)
+  const outcome = outcomes.find(o => o.capability === capability)
 
   const lines: string[] = [
     `    const ${varName} = store.get(id)`,
@@ -179,8 +178,8 @@ function buildUpdateBody(
     ...dtoFields.map(f => `    updates.${f.name} = dto.${f.name}`),
   ]
 
-  if (effect) {
-    for (const ch of effect.changes) {
+  if (outcome) {
+    for (const ch of outcome.changes) {
       const attr = ch.attribute.split('.').pop()!
       if (!entityFieldNames.has(attr)) continue
       const val = resolveEffectSet(ch.set, varName)
@@ -200,9 +199,8 @@ export function generateService(
   resource: Resource,
   endpoints: Endpoint[],
   operations: Operation[],
-  policies: Policy[],
   rules: Rule[],
-  effects: Effect[],
+  outcomes: Outcome[],
 ): string {
   const className = `${resource.name}sService`
   const dtosNeeded = endpoints
@@ -217,15 +215,15 @@ export function generateService(
   const methods: string[] = []
   for (const ep of endpoints) {
     const capability = resolveCapability(ep.operation, operations)
-    const comment = buildComment(ep.operation, capability, policies, rules, effects)
+    const comment = buildComment(ep.operation, capability, rules, outcomes)
     const sig = methodSignature(ep, resource.name)
     const kind = classifyEndpoint(ep)
 
     let body: string[]
-    if (kind === 'create') body = buildCreateBody(ep, resource, effects, capability)
+    if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability)
     else if (kind === 'view') body = buildViewBody(resource)
     else if (kind === 'list') body = buildListBody(ep, resource)
-    else body = buildUpdateBody(ep, resource, effects, capability)
+    else body = buildUpdateBody(ep, resource, outcomes, capability)
 
     methods.push([...comment, `${sig} {`, ...body, '  }'].join('\n'))
   }

@@ -35,9 +35,8 @@ export const generate: ApiCellAdapter['generate'] = (
 ): void => {
   const resources = api.resources ?? []
   const operations = api.operations ?? []
-  const policies = operational.policies ?? []
   const rules = operational.rules ?? []
-  const effects = operational.effects ?? []
+  const outcomes = operational.outcomes ?? []
   const nouns = collectNouns(operational.domain)
 
   // ── Per-resource files ──────────────────────────────────────────────────────
@@ -48,11 +47,11 @@ export const generate: ApiCellAdapter['generate'] = (
 
     // Controller
     write(outputDir, `${dir}/${fileName}.controller.ts`,
-      generateController(resource, endpoints, operations, policies, api.namespace))
+      generateController(resource, endpoints, operations, rules, api.namespace))
 
     // Service
     write(outputDir, `${dir}/${fileName}.service.ts`,
-      generateService(resource, endpoints, operations, policies, rules, effects))
+      generateService(resource, endpoints, operations, rules, outcomes))
 
     // Module
     write(outputDir, `${dir}/${fileName}.module.ts`,

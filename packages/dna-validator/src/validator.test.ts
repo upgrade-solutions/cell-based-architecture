@@ -52,13 +52,13 @@ describe('DnaValidator — operational/capability', () => {
   })
 })
 
-describe('DnaValidator — operational/flow', () => {
-  it('validates a valid Flow', () => {
+describe('DnaValidator — operational/lifecycle', () => {
+  it('validates a valid Lifecycle', () => {
     const result = validator.validate({
       noun: 'Loan',
       steps: ['Loan.Apply', 'Loan.Approve', 'Loan.Disburse', 'Loan.Repay'],
       branches: [{ from: 'Loan.Disburse', to: 'Loan.Default' }]
-    }, 'operational/flow')
+    }, 'operational/lifecycle')
     expect(result.valid).toBe(true)
   })
 })

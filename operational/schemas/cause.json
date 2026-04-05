@@ -1,45 +1,45 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dna.local/operational/trigger",
-  "title": "Trigger",
-  "description": "A Trigger is an event that initiates a Capability — either from a user, an external system, or the passage of time. Triggers are the entry point to all behavior.",
+  "$id": "https://dna.local/operational/cause",
+  "title": "Cause",
+  "description": "A Cause is what initiates a Capability — either from a user, an external system, or the passage of time. Causes are the entry point to all behavior.",
   "type": "object",
   "required": ["capability", "source"],
   "properties": {
     "capability": {
       "type": "string",
-      "description": "The Capability this trigger initiates, expressed as Noun.Verb.",
+      "description": "The Capability this cause initiates, expressed as Noun.Verb.",
       "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
       "examples": ["Loan.Apply", "Payment.Confirm", "Loan.Default"]
     },
     "description": {
       "type": "string",
-      "description": "A human-readable explanation of what initiates this trigger."
+      "description": "A human-readable explanation of what initiates this cause."
     },
     "source": {
       "type": "string",
-      "description": "The origin of the trigger.",
+      "description": "The origin of the cause.",
       "enum": ["user", "schedule", "webhook", "capability"]
     },
     "schedule": {
       "type": "string",
-      "description": "A cron expression defining when the trigger fires. Required when source is 'schedule'.",
+      "description": "A cron expression defining when the cause fires. Required when source is 'schedule'.",
       "examples": ["0 0 * * *", "0 9 * * 1-5"]
     },
     "event": {
       "type": "string",
-      "description": "The webhook event name that fires this trigger. Required when source is 'webhook'.",
+      "description": "The webhook event name that fires this cause. Required when source is 'webhook'.",
       "examples": ["payment.completed", "shipment.delivered"]
     },
     "after": {
       "type": "string",
-      "description": "The Capability whose completion fires this trigger. Required when source is 'capability'.",
+      "description": "The Capability whose completion fires this cause. Required when source is 'capability'.",
       "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
       "examples": ["Order.Fulfill", "Loan.Disburse"]
     },
     "condition": {
       "type": "object",
-      "description": "An optional condition that must be true at trigger time for the capability to be initiated.",
+      "description": "An optional condition that must be true at cause time for the capability to be initiated.",
       "required": ["attribute", "operator"],
       "properties": {
         "attribute": { "type": "string" },

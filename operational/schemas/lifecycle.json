@@ -1,14 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dna.local/operational/flow",
-  "title": "Flow",
-  "description": "A Flow describes the valid sequence of Capabilities across the lifecycle of a Noun — which states it can move through and in what order.",
+  "$id": "https://dna.local/operational/lifecycle",
+  "title": "Lifecycle",
+  "description": "A Lifecycle describes the valid sequence of Capabilities across the life of a Noun — which states it can move through and in what order.",
   "type": "object",
   "required": ["noun", "steps"],
   "properties": {
     "noun": {
       "type": "string",
-      "description": "The Noun whose lifecycle this flow describes.",
+      "description": "The Noun whose lifecycle this describes.",
       "examples": ["Loan", "Order", "Claim", "Employee"]
     },
     "description": {

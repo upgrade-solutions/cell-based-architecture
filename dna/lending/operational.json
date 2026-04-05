@@ -139,7 +139,7 @@
     { "noun": "Lender", "verb": "SetLimits", "name": "Lender.SetLimits", "description": "A lender's funding capacity or per-loan limits are set." }
   ],
 
-  "triggers": [
+  "causes": [
     {
       "capability": "Borrower.Register",
       "source": "user",
@@ -194,57 +194,64 @@
     }
   ],
 
-  "policies": [
+  "rules": [
     {
       "capability": "Borrower.Register",
+      "type": "access",
       "description": "Any unauthenticated user can register as a borrower.",
       "allow": [{ "role": "borrower" }]
     },
     {
       "capability": "Borrower.Suspend",
+      "type": "access",
       "description": "Only admins may suspend borrowers.",
       "allow": [{ "role": "admin" }]
     },
     {
       "capability": "Loan.Apply",
+      "type": "access",
       "description": "Only authenticated borrowers may apply for a loan.",
       "allow": [{ "role": "borrower" }]
     },
     {
       "capability": "Loan.Review",
+      "type": "access",
       "description": "Only underwriters may open an application for review.",
       "allow": [{ "role": "underwriter" }]
     },
     {
       "capability": "Loan.Approve",
+      "type": "access",
       "description": "Only underwriters may approve a loan.",
       "allow": [{ "role": "underwriter" }]
     },
     {
       "capability": "Loan.Reject",
+      "type": "access",
       "description": "Only underwriters may reject a loan.",
       "allow": [{ "role": "underwriter" }]
     },
     {
       "capability": "Loan.Disburse",
+      "type": "access",
       "description": "Disbursement is performed by the system only.",
       "allow": [{ "role": "system" }]
     },
     {
       "capability": "Loan.Repay",
+      "type": "access",
       "description": "Only the borrower who owns the loan may submit a repayment.",
       "allow": [{ "role": "borrower", "ownership": true }]
     },
     {
       "capability": "Loan.Default",
+      "type": "access",
       "description": "Defaulting is performed by the system scheduler only.",
       "allow": [{ "role": "system" }]
-    }
-  ],
-
-  "rules": [
+    },
     {
       "capability": "Loan.Apply",
+      "type": "condition",
       "description": "Borrower must have a complete financial profile before applying.",
       "conditions": [
         { "attribute": "borrower.credit_score", "operator": "present" },
@@ -256,6 +263,7 @@
     },
     {
       "capability": "Loan.Review",
+      "type": "condition",
       "description": "Only loans in under_review status can be picked up by an underwriter.",
       "conditions": [
         { "attribute": "loan.status", "operator": "eq", "value": "under_review" }
@@ -263,6 +271,7 @@
     },
     {
       "capability": "Loan.Approve",
+      "type": "condition",
       "description": "Loan must be under review and within the lender's maximum amount.",
       "conditions": [
         { "attribute": "loan.status", "operator": "eq", "value": "under_review" },
@@ -271,6 +280,7 @@
     },
     {
       "capability": "Loan.Reject",
+      "type": "condition",
       "description": "Only loans under review can be rejected.",
       "conditions": [
         { "attribute": "loan.status", "operator": "eq", "value": "under_review" }
@@ -278,6 +288,7 @@
     },
     {
       "capability": "Loan.Disburse",
+      "type": "condition",
       "description": "Only approved loans can be disbursed.",
       "conditions": [
         { "attribute": "loan.status", "operator": "eq", "value": "approved" }
@@ -285,6 +296,7 @@
     },
     {
       "capability": "Loan.Repay",
+      "type": "condition",
       "description": "Repayments can only be made on active loans.",
       "conditions": [
         { "attribute": "loan.status", "operator": "eq", "value": "active" },
@@ -293,6 +305,7 @@
     },
     {
       "capability": "Loan.Default",
+      "type": "condition",
       "description": "Only active loans past their due date are eligible for default.",
       "conditions": [
         { "attribute": "loan.status", "operator": "eq", "value": "active" },
@@ -301,7 +314,7 @@
     }
   ],
 
-  "effects": [
+  "outcomes": [
     {
       "capability": "Loan.Apply",
       "description": "Loan enters the underwriting queue.",
@@ -340,7 +353,7 @@
       "changes": [
         { "attribute": "loan.amount_paid", "set": "loan.amount_paid + input.payment_amount" }
       ],
-      "triggers": ["Loan.Default"]
+      "initiates": ["Loan.Default"]
     },
     {
       "capability": "Loan.Default",
@@ -358,7 +371,7 @@
     }
   ],
 
-  "flows": [
+  "lifecycles": [
     {
       "noun": "Loan",
       "description": "The full loan origination and repayment lifecycle.",

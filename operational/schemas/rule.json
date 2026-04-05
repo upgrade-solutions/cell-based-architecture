@@ -2,9 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dna.local/operational/rule",
   "title": "Rule",
-  "description": "A Rule defines the conditions under which a Capability is valid — the business logic that must be satisfied before a Capability can proceed. Rules are checked after Policy and before execution.",
+  "description": "A Rule defines a constraint on a Capability — either who is permitted to perform it (type: access) or what conditions must be satisfied before it executes (type: condition). Rules are checked before execution.",
   "type": "object",
-  "required": ["capability", "conditions"],
+  "required": ["capability"],
   "properties": {
     "capability": {
       "type": "string",
@@ -16,9 +16,33 @@
       "type": "string",
       "description": "A human-readable explanation of what this rule enforces."
     },
+    "type": {
+      "type": "string",
+      "description": "The kind of rule. 'access' controls who can perform the capability; 'condition' defines business conditions that must be satisfied.",
+      "enum": ["access", "condition"]
+    },
+    "allow": {
+      "type": "array",
+      "description": "The actors permitted to perform this capability. Used when type is 'access'. An actor matching any entry is allowed.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "A named role that is permitted.",
+            "examples": ["admin", "underwriter", "manager"]
+          },
+          "ownership": {
+            "type": "boolean",
+            "description": "When true, the actor must be the owner of the noun instance."
+          }
+        }
+      }
+    },
     "conditions": {
       "type": "array",
-      "description": "The conditions that must all be satisfied for the capability to proceed.",
+      "description": "The conditions that must all be satisfied for the capability to proceed. Used when type is 'condition'.",
       "minItems": 1,
       "items": {
         "type": "object",

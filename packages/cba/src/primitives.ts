@@ -23,11 +23,10 @@ export const PRIMITIVES: PrimitiveSpec[] = [
   { type: 'Attribute', layer: 'operational', location: 'domain.*.nouns.*.attributes', nested: true },
   // operational — top-level arrays
   { type: 'Capability', layer: 'operational', location: 'capabilities' },
-  { type: 'Trigger', layer: 'operational', location: 'triggers' },
-  { type: 'Policy', layer: 'operational', location: 'policies' },
+  { type: 'Cause', layer: 'operational', location: 'causes' },
   { type: 'Rule', layer: 'operational', location: 'rules' },
-  { type: 'Effect', layer: 'operational', location: 'effects' },
-  { type: 'Flow', layer: 'operational', location: 'flows' },
+  { type: 'Outcome', layer: 'operational', location: 'outcomes' },
+  { type: 'Lifecycle', layer: 'operational', location: 'lifecycles' },
   { type: 'Equation', layer: 'operational', location: 'equations' },
 
   // product.api

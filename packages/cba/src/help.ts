@@ -67,7 +67,7 @@ USAGE
   cba design <layer> <command> <domain> [args]
 
 LAYERS
-  operational       Nouns, Verbs, Rules, Policies, Flows, etc. (domain language)
+  operational       Nouns, Verbs, Capabilities, Causes, Rules, Outcomes, Lifecycles (domain language)
   product.api       Resources, Endpoints, Operations (API surface)
   product.ui        Layouts, Pages, Routes, Blocks (UI surface)
   technical         Environments, Constructs, Cells, Variables (deployment)

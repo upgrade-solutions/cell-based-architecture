@@ -196,7 +196,7 @@ function evaluateCondition(
 export function createRuleValidator(endpoint: any, api: any, operational: any) {
   const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
   const capability = operation?.capability ?? endpoint.operation
-  const rule = (operational.rules ?? []).find((r: any) => r.capability === capability)
+  const rule = (operational.rules ?? []).find((r: any) => r.capability === capability && r.type !== 'access')
   const [resourceName] = endpoint.operation.split('.')
   const resourceKey = resourceName.toLowerCase() + 's'
   const hasIdParam = (endpoint.params ?? []).some((p: any) => p.in === 'path' && p.name === 'id')

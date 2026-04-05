@@ -1,20 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dna.local/operational/effect",
-  "title": "Effect",
-  "description": "An Effect describes what changes when a Capability successfully executes — state transitions, derived updates, and side effects like notifications or downstream capabilities.",
+  "$id": "https://dna.local/operational/outcome",
+  "title": "Outcome",
+  "description": "An Outcome describes what changes when a Capability successfully executes — state transitions, derived updates, and side effects like notifications or downstream capabilities.",
   "type": "object",
   "required": ["capability", "changes"],
   "properties": {
     "capability": {
       "type": "string",
-      "description": "The Capability this effect applies to, expressed as Noun.Verb.",
+      "description": "The Capability this outcome applies to, expressed as Noun.Verb.",
       "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
       "examples": ["Loan.Approve", "Order.Cancel", "Employee.Terminate"]
     },
     "description": {
       "type": "string",
-      "description": "A human-readable explanation of what this effect does."
+      "description": "A human-readable explanation of what this outcome produces."
     },
     "changes": {
       "type": "array",
@@ -32,7 +32,7 @@
         }
       }
     },
-    "triggers": {
+    "initiates": {
       "type": "array",
       "description": "Downstream capabilities to initiate after this capability completes.",
       "items": {

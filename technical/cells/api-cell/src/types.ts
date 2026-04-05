@@ -104,12 +104,6 @@ export interface AllowEntry {
   ownership?: boolean
 }
 
-export interface Policy {
-  capability: string
-  description?: string
-  allow: AllowEntry[]
-}
-
 export interface Condition {
   attribute: string
   operator: string
@@ -119,7 +113,9 @@ export interface Condition {
 export interface Rule {
   capability: string
   description?: string
-  conditions: Condition[]
+  type?: 'access' | 'condition'
+  allow?: AllowEntry[]
+  conditions?: Condition[]
 }
 
 export interface Change {
@@ -127,21 +123,20 @@ export interface Change {
   set: unknown
 }
 
-export interface Effect {
+export interface Outcome {
   capability: string
   description?: string
   changes: Change[]
-  triggers?: string[]
+  initiates?: string[]
 }
 
 export interface OperationalDNA {
   domain: Domain
   capabilities?: unknown[]
-  triggers?: unknown[]
-  policies?: Policy[]
+  causes?: unknown[]
   rules?: Rule[]
-  effects?: Effect[]
-  flows?: unknown[]
+  outcomes?: Outcome[]
+  lifecycles?: unknown[]
 }
 
 // ── Adapter interface ─────────────────────────────────────────────────────────
