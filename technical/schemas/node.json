@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dna.local/architecture/node",
+  "$id": "https://dna.local/technical/node",
   "title": "Node",
   "description": "A visual element representing a system component in an architecture view. Nodes can reference DNA primitives from other layers via the `source` field.",
   "type": "object",

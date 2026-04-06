@@ -32,11 +32,10 @@ import * as operationalDnaSchema from '../../../operational/schemas/operational.
 import * as productApiDnaSchema from '../../../product/schemas/product.api.json'
 import * as productUiDnaSchema from '../../../product/schemas/product.ui.json'
 import * as technicalDnaSchema from '../../../technical/schemas/technical.json'
-import * as archNodeSchema from '../../../architecture/schemas/node.json'
-import * as archConnectionSchema from '../../../architecture/schemas/connection.json'
-import * as archZoneSchema from '../../../architecture/schemas/zone.json'
-import * as archViewSchema from '../../../architecture/schemas/view.json'
-import * as architectureDnaSchema from '../../../architecture/schemas/architecture.json'
+import * as nodeSchema from '../../../technical/schemas/node.json'
+import * as connectionSchema from '../../../technical/schemas/connection.json'
+import * as zoneSchema from '../../../technical/schemas/zone.json'
+import * as viewSchema from '../../../technical/schemas/view.json'
 
 export interface ValidationResult {
   valid: boolean
@@ -125,11 +124,10 @@ export class DnaValidator {
       productApiDnaSchema,
       productUiDnaSchema,
       technicalDnaSchema,
-      archNodeSchema,
-      archConnectionSchema,
-      archZoneSchema,
-      archViewSchema,
-      architectureDnaSchema,
+      nodeSchema,
+      connectionSchema,
+      zoneSchema,
+      viewSchema,
     ]
 
     for (const schema of schemas) {

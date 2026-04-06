@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dna.local/architecture/zone",
+  "$id": "https://dna.local/technical/zone",
   "title": "Zone",
   "description": "A visual container that groups related nodes. Zones represent logical boundaries such as tiers, security boundaries, environments, or domain boundaries.",
   "type": "object",

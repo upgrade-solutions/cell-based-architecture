@@ -9,7 +9,6 @@ const SCHEMA_IDS: Record<Layer, string> = {
   'product.api': 'product/api',
   'product.ui': 'product/ui',
   technical: 'technical',
-  architecture: 'architecture',
 }
 
 interface LayerResult {
@@ -50,14 +49,7 @@ export function runValidate(argv: string[], args: ParsedArgs): void {
   const validator = new DnaValidator()
   const results: LayerResult[] = []
   for (const layer of targetLayers) {
-    let doc
-    try {
-      doc = loadLayer(paths, layer)
-    } catch {
-      // Optional layers (e.g. architecture) may not exist yet
-      if (!layerFilter) continue
-      throw new Error(`Layer file missing for "${layer}"`)
-    }
+    const doc = loadLayer(paths, layer)
     const r = validator.validate(doc, SCHEMA_IDS[layer])
     results.push({
       layer,

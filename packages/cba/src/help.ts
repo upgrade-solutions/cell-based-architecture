@@ -6,8 +6,7 @@ USAGE
 DNA LAYERS
   operational    Nouns, Verbs, Capabilities, Causes, Rules, Outcomes, Lifecycles, discover
   product        Product surface — api (Resources, Endpoints) or ui (Pages, Routes, Blocks)
-  technical      Environments, Constructs, Cells, Variables, Providers
-  architecture   Views, Nodes, Connections, Zones — visual architecture diagrams
+  technical      Environments, Constructs, Cells, Variables, Providers, Views
 
 BUILD + DEPLOY
   develop        Run cells: DNA -> generated code                    (per domain, per cell)
@@ -34,7 +33,7 @@ EXAMPLES
   cba develop lending --cell api-cell            # run just the api-cell
   cba deploy lending --env dev                   # compose into docker-compose
   cba deploy lending --env dev --profile python-stack  # deploy a named profile
-  cba architecture list lending                      # list architecture views
+  cba technical list lending --type View              # list architecture views
 
 See 'cba help <command>' for details.
 `
@@ -135,14 +134,18 @@ COMMANDS
   validate        Validate the technical layer
 
 PRIMITIVES
-  Environment, Provider, Construct, Variable, Cell, Output, Script
+  Environment, Provider, Construct, Variable, Cell, Output, Script,
+  View, Node, Connection, Zone
 
 EXAMPLES
   cba technical list lending
   cba technical show lending --type Cell --name api-cell
+  cba technical list lending --type View
+  cba technical show lending --type View --name deployment
   cba technical add lending --type Variable --file new-var.json
   cba technical remove lending --type Variable --name OLD_FLAG
   cba technical schema Construct
+  cba technical schema Node
 
 FLAGS (vary by command)
   --type <T>        Primitive type (Cell, Construct, Variable, etc.)
@@ -284,41 +287,6 @@ NOTE
   Code) and uses the other cba commands as its tools.
 `
 
-export const ARCHITECTURE_HELP = `cba architecture — work with Architecture DNA
-
-USAGE
-  cba architecture <command> <domain> [args]
-
-Architecture DNA captures visual architecture diagrams as structured data.
-Each domain can have multiple named views (deployment topology, data flow,
-domain map, etc.) composed of nodes, connections, and zones.
-
-COMMANDS
-  list            List primitives (Views, Nodes, Connections, Zones)
-  show            Show a single primitive as JSON
-  add             Append a primitive (from a JSON file)
-  remove          Remove a primitive by name
-  schema          Show the JSON schema for a primitive type
-  validate        Validate the architecture layer
-
-PRIMITIVES
-  View, Node, Connection, Zone
-
-EXAMPLES
-  cba architecture list lending
-  cba architecture list lending --type View
-  cba architecture list lending --type Node
-  cba architecture show lending --type View --name deployment
-  cba architecture schema Node
-  cba architecture validate lending
-
-FLAGS (vary by command)
-  --type <T>        Primitive type (View, Node, Connection, Zone)
-  --name <N>        Primitive name
-  --file <path>     JSON file containing the primitive (for add)
-  --json            Machine-readable output
-`
-
 export function helpFor(command?: string): string {
   switch (command) {
     case 'operational':
@@ -327,8 +295,6 @@ export function helpFor(command?: string): string {
       return PRODUCT_HELP
     case 'technical':
       return TECHNICAL_HELP
-    case 'architecture':
-      return ARCHITECTURE_HELP
     case 'develop':
       return DEVELOP_HELP
     case 'deploy':

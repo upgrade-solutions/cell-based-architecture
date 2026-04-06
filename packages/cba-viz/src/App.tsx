@@ -2,22 +2,21 @@ import { useMemo, useState, useCallback } from 'react'
 import { observer } from 'mobx-react-lite'
 import { GraphModel } from './models/GraphModel.ts'
 import { parseArchitectureDNA } from './loaders/dna-loader.ts'
-import { graphToArchView } from './features/persistence.ts'
-import { saveArchitectureDNA } from './features/persistence.ts'
+import { graphToArchView, saveViews } from './features/persistence.ts'
 import { Canvas } from './components/Canvas.tsx'
 import { Toolbar } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
 
-// Import the lending architecture DNA at build time
-import lendingArchJson from '../../dna/lending/architecture.json'
+// Import the lending technical DNA at build time (views live in technical.json)
+import lendingTechJson from '../../dna/lending/technical.json'
 
 const App = observer(function App() {
   const graphModel = useMemo(() => new GraphModel(), [])
   const [saving, setSaving] = useState(false)
 
   // Parse the DNA
-  const dna = useMemo(() => parseArchitectureDNA(lendingArchJson), [])
+  const dna = useMemo(() => parseArchitectureDNA(lendingTechJson), [])
   const viewNames = dna.views.map(v => v.name)
   const [currentViewName, setCurrentViewName] = useState(viewNames[0] ?? 'deployment')
   const currentView = dna.views.find(v => v.name === currentViewName) ?? dna.views[0]
@@ -34,7 +33,7 @@ const App = observer(function App() {
         views: dna.views.map(v => v.name === currentViewName ? updatedView : v),
       }
 
-      await saveArchitectureDNA('lending', updatedDna)
+      await saveViews('lending', updatedDna)
       graphModel.setDirty(false)
     } catch (err) {
       console.error('Save failed:', err)

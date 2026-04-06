@@ -36,6 +36,11 @@
       "description": "The deployed units that consume DNA and produce running software or infrastructure.",
       "minItems": 1,
       "items": { "$ref": "https://dna.local/technical/cell" }
+    },
+    "views": {
+      "type": "array",
+      "description": "Architecture diagram views — named perspectives showing system topology as interactive node/connection/zone diagrams.",
+      "items": { "$ref": "https://dna.local/technical/view" }
     }
   },
   "examples": [

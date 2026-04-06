@@ -5,15 +5,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 /**
- * Vite plugin that provides a POST /api/save-dna/:domain endpoint
- * for writing architecture.json changes back to disk during dev.
+ * Vite plugin that provides a POST /api/save-views/:domain endpoint
+ * for merging updated views back into technical.json during dev.
  */
-function saveDnaPlugin() {
+function saveViewsPlugin() {
   return {
-    name: 'save-dna',
+    name: 'save-views',
     configureServer(server: { middlewares: { use: Function } }) {
       server.middlewares.use((req: any, res: any, next: any) => {
-        const match = req.url?.match(/^\/api\/save-dna\/(\w+)$/)
+        const match = req.url?.match(/^\/api\/save-views\/(\w+)$/)
         if (req.method === 'POST' && match) {
           const domain = match[1]
           let body = ''
@@ -21,13 +21,15 @@ function saveDnaPlugin() {
           req.on('end', () => {
             try {
               const dnaDir = path.resolve(__dirname, '../../dna', domain)
-              const filePath = path.join(dnaDir, 'architecture.json')
-              if (!fs.existsSync(dnaDir)) {
+              const filePath = path.join(dnaDir, 'technical.json')
+              if (!fs.existsSync(filePath)) {
                 res.statusCode = 404
-                res.end(JSON.stringify({ error: `Domain "${domain}" not found` }))
+                res.end(JSON.stringify({ error: `technical.json not found for domain "${domain}"` }))
                 return
               }
-              fs.writeFileSync(filePath, body + '\n', 'utf-8')
+              const technical = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+              technical.views = JSON.parse(body)
+              fs.writeFileSync(filePath, JSON.stringify(technical, null, 2) + '\n', 'utf-8')
               res.statusCode = 200
               res.setHeader('Content-Type', 'application/json')
               res.end(JSON.stringify({ ok: true }))
@@ -48,7 +50,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    saveDnaPlugin(),
+    saveViewsPlugin(),
   ],
   server: {
     port: 5174,

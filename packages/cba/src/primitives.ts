@@ -49,12 +49,10 @@ export const PRIMITIVES: PrimitiveSpec[] = [
   { type: 'Cell', layer: 'technical', location: 'cells' },
   { type: 'Output', layer: 'technical', location: 'outputs' },
   { type: 'Script', layer: 'technical', location: 'scripts' },
-
-  // architecture
-  { type: 'View', layer: 'architecture', location: 'views' },
-  { type: 'Node', layer: 'architecture', location: 'views.*.nodes', nested: true },
-  { type: 'Connection', layer: 'architecture', location: 'views.*.connections', nested: true },
-  { type: 'Zone', layer: 'architecture', location: 'views.*.zones', nested: true },
+  { type: 'View', layer: 'technical', location: 'views' },
+  { type: 'Node', layer: 'technical', location: 'views.*.nodes', nested: true },
+  { type: 'Connection', layer: 'technical', location: 'views.*.connections', nested: true },
+  { type: 'Zone', layer: 'technical', location: 'views.*.zones', nested: true },
 ]
 
 export function primitivesForLayer(layer: Layer): PrimitiveSpec[] {

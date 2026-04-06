@@ -67,7 +67,6 @@ function layerCliName(layer: Layer): string {
     case 'product.api': return 'product api'
     case 'product.ui': return 'product ui'
     case 'technical': return 'technical'
-    case 'architecture': return 'architecture'
   }
 }
 
@@ -197,8 +196,6 @@ function findSchemaFile(type: string, layer: Layer): string | undefined {
     )
   } else if (layer === 'technical') {
     candidates.push(path.join(root, 'technical/schemas', `${lowerType}.json`))
-  } else if (layer === 'architecture') {
-    candidates.push(path.join(root, 'architecture/schemas', `${lowerType}.json`))
   }
   return candidates.find((c) => fs.existsSync(c))
 }
@@ -367,7 +364,5 @@ function layerSchemaId(layer: Layer): string {
       return 'product/ui'
     case 'technical':
       return 'technical'
-    case 'architecture':
-      return 'architecture'
   }
 }

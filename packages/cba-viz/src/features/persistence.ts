@@ -85,16 +85,17 @@ export function graphToArchView(
 }
 
 /**
- * Save architecture DNA to the server (via Vite dev middleware).
+ * Save views back to technical.json (via Vite dev middleware).
+ * Merges updated views into the existing technical DNA document.
  */
-export async function saveArchitectureDNA(
+export async function saveViews(
   domain: string,
   dna: ArchitectureDNA,
 ): Promise<void> {
-  const response = await fetch(`/api/save-dna/${domain}`, {
+  const response = await fetch(`/api/save-views/${domain}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(dna, null, 2),
+    body: JSON.stringify(dna.views, null, 2),
   })
   if (!response.ok) {
     throw new Error(`Failed to save: ${response.statusText}`)
