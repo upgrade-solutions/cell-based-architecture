@@ -3,7 +3,7 @@ import * as path from 'path'
 import { ParsedArgs, flag, boolFlag } from '../args'
 import { emit, emitError, emitOk } from '../output'
 import { DEPLOY_HELP } from '../help'
-import { buildPlan, checkArtifacts, EnvironmentPlan } from './plan'
+import { buildPlan, checkArtifacts, resolveProfile, EnvironmentPlan } from './plan'
 import { generateDockerCompose } from './adapters/docker-compose'
 import { generateTerraformAws } from './adapters/terraform-aws'
 
@@ -39,6 +39,13 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
     process.exit(1)
   }
 
+  const cellsFlag = flag(args, 'cells')
+  const profileFlag = flag(args, 'profile')
+  if (cellsFlag && profileFlag) {
+    emitError('Cannot use both --cells and --profile. Pick one.', opts)
+    process.exit(1)
+  }
+
   const planOnly = boolFlag(args, 'plan')
 
   let plan: EnvironmentPlan
@@ -47,6 +54,36 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
   } catch (err) {
     emitError((err as Error).message, opts)
     process.exit(1)
+  }
+
+  // Filter cells by --cells or --profile
+  if (cellsFlag || profileFlag) {
+    let selectedCells: string[]
+    if (cellsFlag) {
+      selectedCells = cellsFlag.split(',').map((c) => c.trim())
+    } else {
+      const resolved = resolveProfile(domain, profileFlag!)
+      if (!resolved) {
+        emitError(
+          `Profile "${profileFlag}" not found in technical DNA. Use \`cba technical show ${domain} --type Profile\` to list available profiles.`,
+          opts,
+        )
+        process.exit(1)
+      }
+      selectedCells = resolved
+    }
+
+    const allCellNames = plan.cells.map((c) => c.name)
+    const unknown = selectedCells.filter((c) => !allCellNames.includes(c))
+    if (unknown.length) {
+      emitError(
+        `Unknown cell(s): ${unknown.join(', ')}. Available: ${allCellNames.join(', ')}`,
+        opts,
+      )
+      process.exit(1)
+    }
+
+    plan.cells = plan.cells.filter((c) => selectedCells.includes(c.name))
   }
 
   // Verify cell artifacts exist (fail loudly — don't auto-develop)

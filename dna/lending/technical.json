@@ -182,6 +182,16 @@
       "required": false
     }
   ],
+  "profiles": {
+    "express-stack": ["api-cell", "db-cell", "ui-cell"],
+    "nestjs-stack": ["api-cell-nestjs", "db-cell", "ui-cell"],
+    "rails-stack": ["api-cell-rails", "db-cell", "ui-cell"],
+    "python-stack": ["api-cell-fastapi", "db-cell", "ui-cell"],
+    "full": [
+      "api-cell", "api-cell-nestjs", "api-cell-rails", "api-cell-fastapi",
+      "db-cell", "ui-cell", "vue-ui-cell", "ui-cell-next"
+    ]
+  },
   "cells": [
     {
       "name": "api-cell",

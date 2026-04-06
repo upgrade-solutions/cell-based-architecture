@@ -154,6 +154,18 @@ export function checkArtifacts(plan: EnvironmentPlan): string[] {
   return missing
 }
 
+/**
+ * Look up a named profile from the technical DNA's `profiles` map.
+ * Returns the cell name list, or null if the profile doesn't exist.
+ */
+export function resolveProfile(domain: string, profileName: string): string[] | null {
+  const paths = resolveDomain(domain)
+  const technical = loadLayer(paths, 'technical')
+  const profiles = technical.profiles as Record<string, string[]> | undefined
+  if (!profiles || !(profileName in profiles)) return null
+  return profiles[profileName]
+}
+
 function canonicalArtifactFor(adapterType: string): string {
   if (adapterType === 'postgres') return 'docker-compose.yml'
   if (adapterType.startsWith('ruby/')) return 'Gemfile'

@@ -32,6 +32,7 @@ EXAMPLES
   cba validate lending                           # validate all layers
   cba develop lending --cell api-cell            # run just the api-cell
   cba deploy lending --env dev                   # compose into docker-compose
+  cba deploy lending --env dev --profile python-stack  # deploy a named profile
 
 See 'cba help <command>' for details.
 `
@@ -171,7 +172,7 @@ FLAGS
 export const DEPLOY_HELP = `cba deploy — compose generated cells into a deployable topology
 
 USAGE
-  cba deploy <domain> --env <environment> [--adapter <name>] [--plan]
+  cba deploy <domain> --env <environment> [--adapter <name>] [--cells <list>] [--profile <name>] [--plan]
 
 Reads technical DNA for the target Environment (Constructs, Cells, Variables),
 wires each cell's generated artifact to its declared Constructs, and writes
@@ -180,23 +181,35 @@ a deployable topology via the selected delivery adapter.
 Requires that \`cba develop <domain>\` has been run — deployment composes
 existing artifacts; it does not regenerate them.
 
+CELL TARGETING
+  By default all cells declared in technical DNA are included in the topology.
+  Use --cells or --profile to deploy a subset.
+
+  --cells     Comma-separated list of cell names to include
+  --profile   Named profile declared in the technical DNA "profiles" map
+
+  These flags are mutually exclusive.
+
 DEPLOYMENT ADAPTERS
   docker-compose    Local multi-cell orchestration (default)
   terraform/aws     AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront)
   aws-sam           AWS serverless — planned
 
 EXAMPLES
-  cba deploy lending --env dev                      # default: docker-compose
-  cba deploy lending --env dev --plan               # preview without writing
-  cba deploy lending --env dev --adapter docker-compose
+  cba deploy lending --env dev                                      # all cells, docker-compose
+  cba deploy lending --env dev --cells api-cell,db-cell,ui-cell     # specific cells
+  cba deploy lending --env dev --profile python-stack               # named profile
+  cba deploy lending --env dev --plan                               # preview without writing
   cba deploy lending --env prod --adapter terraform/aws
-  cba deploy lending --env prod --adapter terraform/aws --plan
+  cba deploy lending --env prod --adapter terraform/aws --profile node-stack
 
 FLAGS
-  --env <name>      Target environment (must exist in technical DNA)
-  --adapter <name>  Deployment adapter (default: docker-compose)
-  --plan            Preview changes without writing files
-  --json            Machine-readable output
+  --env <name>        Target environment (must exist in technical DNA)
+  --adapter <name>    Deployment adapter (default: docker-compose)
+  --cells <list>      Comma-separated cell names to include
+  --profile <name>    Named profile from technical DNA "profiles" section
+  --plan              Preview changes without writing files
+  --json              Machine-readable output
 
 OUTPUT
   output/<domain>-deploy/    # compose file, README, deployment manifests

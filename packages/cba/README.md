@@ -105,16 +105,21 @@ name with `-cell` stripped (`api-cell` → `<domain>-api`, `api-cell-nestjs`
 → `<domain>-api-nestjs`, `db-cell` → `<domain>-db`, `ui-cell` →
 `<domain>-ui`).
 
-### `cba deploy <domain> --env <env> [--adapter <name>]` — compose cells into a deployable topology
+### `cba deploy <domain> --env <env> [--adapter <name>] [--cells <list>] [--profile <name>]` — compose cells into a deployable topology
 
 Reads Technical DNA for the target Environment, wires each Cell's generated
 artifact to its declared Constructs, and writes deployment files via the
 selected adapter. Fails loudly if `cba develop` hasn't been run first.
 
+By default all Cells are included. Use `--cells` (comma-separated) or
+`--profile` (named set from DNA's `profiles` map) to deploy a subset.
+These flags are mutually exclusive.
+
 ```bash
 cba deploy lending --env dev                          # default: docker-compose
 cba deploy lending --env dev --plan                   # preview without writing
-cba deploy lending --env dev --adapter docker-compose
+cba deploy lending --env dev --cells api-cell,db-cell,ui-cell  # specific cells
+cba deploy lending --env dev --profile python-stack   # named profile
 cba deploy lending --env prod --adapter terraform/aws # AWS IaC
 ```
 

@@ -93,6 +93,7 @@ DNA is a JSON DSL with support for **adapters**. An adapter is a framework- or p
 | `Variable` | An environment variable or secret reference |
 | `Output` | An exported value from one Cell that other Cells can reference |
 | `Script` | The concrete implementation of an Operational Equation — maps it to a deployed compute Construct (e.g. a Lambda) with a runtime and handler |
+| `Profile` | A named subset of Cells for targeted deployment (e.g. `python-stack`, `node-stack`) |
 
 **Construct categories and types:**
 
@@ -463,8 +464,10 @@ npx cba run lending --adapter express               # start generated API
 # Deploy — compose generated cells into a deployable topology
 npx cba deploy lending --env dev --plan             # preview services + skipped constructs
 npx cba deploy lending --env dev                    # writes output/lending-deploy/docker-compose.yml
-npx cba deploy lending --env prod --adapter terraform/aws --plan  # preview AWS resources
-npx cba deploy lending --env prod --adapter terraform/aws         # writes output/lending-deploy/*.tf
+npx cba deploy lending --env dev --cells api-cell,db-cell,ui-cell  # specific cells only
+npx cba deploy lending --env dev --profile python-stack            # named profile from DNA
+npx cba deploy lending --env prod --adapter terraform/aws --plan   # preview AWS resources
+npx cba deploy lending --env prod --adapter terraform/aws          # writes output/lending-deploy/*.tf
 cd output/lending-deploy && docker compose up -d    # run the full stack locally
 
 # Validate
@@ -509,7 +512,8 @@ Composes the full lending stack (Postgres, Redis, Express API, NestJS API, Vite 
 
 ```bash
 npx cba develop lending                      # generate all cells first
-npx cba deploy lending --env dev --plan      # preview
+npx cba deploy lending --env dev --plan      # preview (all cells)
+npx cba deploy lending --env dev --profile express-stack  # deploy only express + db + ui
 npx cba deploy lending --env dev             # write output/lending-deploy/
 cd output/lending-deploy
 docker compose up -d                         # run the full stack
