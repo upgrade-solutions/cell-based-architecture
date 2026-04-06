@@ -303,6 +303,42 @@
       ]
     },
     {
+      "name": "api-cell-rails",
+      "description": "Reads Product API DNA and generates a Rails API-mode application with controllers, models, and migrations.",
+      "dna": "lending/product.api",
+      "adapter": {
+        "type": "ruby/rails",
+        "config": {
+          "operational_dna": "lending/operational"
+        }
+      },
+      "constructs": [
+        "primary-db",
+        "session-cache",
+        "auth-provider",
+        "api-gateway",
+        "api-server"
+      ],
+      "variables": [
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_DOMAIN",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_AUDIENCE",
+          "source": "literal",
+          "value": "https://api.acme.finance",
+          "required": true
+        }
+      ]
+    },
+    {
       "name": "db-cell",
       "description": "Provisions the Postgres database and lending_app role (infra-only — schema is owned by api-cell).",
       "dna": "lending/operational",
@@ -333,6 +369,52 @@
       "adapter": {
         "type": "vite/react",
         "version": "5",
+        "config": {
+          "operational_dna": "lending/operational",
+          "api_dna": "lending/product.api",
+          "api_base": "http://localhost:3001"
+        }
+      },
+      "constructs": [
+        "auth-provider",
+        "ui-server"
+      ],
+      "variables": [
+        {
+          "name": "AUTH0_DOMAIN",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_ID",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_SECRET",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "NEXT_PUBLIC_API_URL",
+          "source": "output",
+          "value": "api-cell.api_url",
+          "required": true
+        },
+        {
+          "name": "NODE_ENV",
+          "source": "env",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "ui-cell-next",
+      "description": "Reads Product UI DNA and produces a Next.js App Router loan dashboard with SSR.",
+      "dna": "lending/product.ui",
+      "adapter": {
+        "type": "next/react",
+        "version": "14",
         "config": {
           "operational_dna": "lending/operational",
           "api_dna": "lending/product.api",

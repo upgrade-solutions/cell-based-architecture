@@ -189,14 +189,15 @@ A cell is a **TypeScript package** that:
 
 ### `api-cell` adapters
 
-The `api-cell` supports two `node/` adapters that produce the same API surface from the same DNA:
+The `api-cell` supports multiple adapters that produce the same API surface from the same DNA:
 
 | Adapter | Approach | Port | Output |
 |---------|----------|------|--------|
 | `node/nestjs` | Static code generation — typed controllers, services, DTOs | 3000 | `output/lending-api-nestjs/` |
 | `node/express` | Dynamic runtime interpreter — reads DNA at startup, hot-reloads on DNA file changes | 3001 | `output/lending-api/` |
+| `ruby/rails` | Static code generation — Rails API-mode app with controllers, models, migrations | 3000 | `output/lending-api-rails/` |
 
-Both expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON (`/api-json`).
+The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON (`/api-json`).
 
 The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at runtime. When either file changes, routes and the OpenAPI spec are rebuilt in-process — no restart needed. Edit the DNA, the API updates immediately.
 
@@ -226,7 +227,7 @@ Auth config comes from the Technical DNA `auth` provider — `domain`, `audience
 #### Generate and run
 
 ```bash
-# Generate both outputs from DNA
+# Generate outputs from DNA
 npm run generate:lending          # Express → output/lending-api/
 npm run generate:lending-nestjs   # NestJS  → output/lending-api-nestjs/
 
@@ -238,6 +239,34 @@ npm install --prefix output/lending-api-nestjs
 npm run start:nestjs    # http://localhost:3000/api
 npm run start:express   # http://localhost:3001/api
 ```
+
+#### Rails adapter
+
+The `ruby/rails` adapter generates a complete Rails 7.1 API-mode application:
+
+```bash
+# Generate the Rails app from DNA
+cba develop lending --cell api-cell-rails
+
+# Or directly:
+cd technical/cells/api-cell
+npx ts-node -r tsconfig-paths/register src/index.ts \
+  ../../../dna/lending/technical.json api-cell-rails ../../../output/lending-api-rails
+
+# Run the Rails app
+cd output/lending-api-rails
+bundle install
+bin/rails db:create db:migrate db:seed
+bin/rails server
+```
+
+Generated structure:
+- **Controllers** — one per resource with role-based `authorize_roles!` and DNA Outcome effects applied inline
+- **Models** — one per Operational DNA Noun with validations (presence, enum inclusion)
+- **Migration** — single migration creating all tables from Noun attributes, UUID primary keys
+- **Auth** — `ApplicationController` with JWKS-based JWT verification (same IDP-agnostic pattern as Node adapters)
+- **Routes** — explicit route declarations matching every DNA endpoint
+- **Dockerfile** — multi-stage Ruby 3.3 build with Puma
 
 #### Using Postgres (via db-cell)
 
@@ -263,18 +292,21 @@ DATABASE_URL=postgresql://lending_app:lending_app@localhost:5433/lending npm run
 
 Or — use `cba deliver` to run the whole stack as one compose file (see Delivery section below). In that flow, db-cell's init.sql is mounted into the postgres service and api-cell's migrations run automatically on startup.
 
-### `ui-cell` adapter
+### `ui-cell` adapters
+
+The `ui-cell` supports multiple adapters that produce the same DNA-driven UI from the same Product UI DNA:
 
 | Adapter | Approach | Port | Output |
 |---------|----------|------|--------|
-| `vite/react` | DNA-driven React app — loads UI, API, and Operational DNA at runtime | 5173 | `output/lending-ui/` |
+| `vite/react` | DNA-driven React SPA — loads UI, API, and Operational DNA at runtime | 5173 | `output/lending-ui/` |
+| `next/react` | DNA-driven Next.js App Router app — client-side DNA loading with SSR-ready structure | 5174 | `output/lending-ui-next/` |
 
-The UI renderer fetches all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from the Product API DNA and the `useApi` hook handles data fetching, form submission, and action dispatch.
+Both adapters fetch all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from the Product API DNA and the `useApi` hook handles data fetching, form submission, and action dispatch.
 
 #### Generate and run
 
 ```bash
-# Generate UI from DNA
+# Generate Vite UI from DNA
 cd technical/cells/ui-cell && npx ts-node -r tsconfig-paths/register src/index.ts \
   ../../../dna/lending/technical.json ui-cell ../../../output/lending-ui
 
@@ -282,6 +314,28 @@ cd technical/cells/ui-cell && npx ts-node -r tsconfig-paths/register src/index.t
 npm install --prefix output/lending-ui
 cd output/lending-ui && npx vite    # http://localhost:5173
 ```
+
+#### Next.js adapter
+
+The `next/react` adapter generates a Next.js 14 App Router application with standalone output for Docker:
+
+```bash
+# Generate Next.js UI from DNA
+cd technical/cells/ui-cell && npx ts-node -r tsconfig-paths/register src/index.ts \
+  ../../../dna/lending/technical.json ui-cell-next ../../../output/lending-ui-next
+
+# Install deps and run (requires Express API on port 3001)
+npm install --prefix output/lending-ui-next
+cd output/lending-ui-next && npx next dev    # http://localhost:5174
+```
+
+Key differences from the Vite adapter:
+- **App Router** file-system routing via `src/app/` with a `[...slug]` catch-all that resolves DNA routes
+- **`next/link`** and **`usePathname()`** replace react-router-dom's `NavLink` and `useParams`
+- **`useRouteParams()`** custom hook matches pathname against DNA route patterns to extract named params (e.g. `:id`)
+- **SSR-safe** theme initialization with `typeof window` guard
+- **Standalone Docker output** using `output: 'standalone'` — Node.js runtime instead of nginx
+- **API rewrites** proxy `/api/:path*` to the Express API in dev
 
 ---
 
