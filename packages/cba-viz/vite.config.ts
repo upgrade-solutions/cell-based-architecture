@@ -13,6 +13,29 @@ function saveViewsPlugin() {
     name: 'save-views',
     configureServer(server: { middlewares: { use: Function } }) {
       server.middlewares.use((req: any, res: any, next: any) => {
+        // GET /api/load-views/:domain — read views from technical.json
+        const loadMatch = req.url?.match(/^\/api\/load-views\/(\w+)$/)
+        if (req.method === 'GET' && loadMatch) {
+          try {
+            const domain = loadMatch[1]
+            const filePath = path.resolve(__dirname, '../../dna', domain, 'technical.json')
+            if (!fs.existsSync(filePath)) {
+              res.statusCode = 404
+              res.end(JSON.stringify({ error: `technical.json not found for domain "${domain}"` }))
+              return
+            }
+            const technical = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ views: technical.views ?? [] }))
+          } catch (err) {
+            res.statusCode = 500
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+          return
+        }
+
+        // POST /api/save-views/:domain — merge views back into technical.json
         const match = req.url?.match(/^\/api\/save-views\/(\w+)$/)
         if (req.method === 'POST' && match) {
           const domain = match[1]
@@ -54,5 +77,11 @@ export default defineConfig({
   ],
   server: {
     port: 5174,
+    fs: {
+      allow: [
+        // Allow serving files from the repo root (for dna/ imports)
+        path.resolve(__dirname, '../..'),
+      ],
+    },
   },
 })

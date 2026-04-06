@@ -23,19 +23,24 @@ export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
   useEffect(() => {
     if (!containerRef.current) return
 
-    const namespace = shapes
-    const graph = new dia.Graph({}, { cellNamespace: namespace })
+    // Create a child element for JointJS so paper.remove() doesn't
+    // destroy our React-managed container div
+    const paperEl = document.createElement('div')
+    paperEl.style.width = '100%'
+    paperEl.style.height = '100%'
+    containerRef.current.appendChild(paperEl)
+
+    const graph = new dia.Graph({}, { cellNamespace: shapes })
     const paper = new dia.Paper({
-      el: containerRef.current,
+      el: paperEl,
       model: graph,
       width: '100%',
       height: '100%',
       background: { color: '#0f172a' },
       gridSize: 10,
       drawGrid: { name: 'dot', args: { color: '#1e293b' } },
-      async: true,
       sorting: dia.Paper.sorting.APPROX,
-      cellViewNamespace: namespace,
+      cellViewNamespace: shapes,
       interactive: {
         elementMove: true,
         linkMove: true,
@@ -100,7 +105,9 @@ export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
     containerRef.current.addEventListener('wheel', handleWheel, { passive: false })
 
     // Fit to content after initial render
-    setTimeout(() => zoomHandler.fitToContent(), 100)
+    requestAnimationFrame(() => {
+      try { zoomHandler.fitToContent() } catch (_) { /* paper may be removed */ }
+    })
 
     return () => {
       containerRef.current?.removeEventListener('wheel', handleWheel)

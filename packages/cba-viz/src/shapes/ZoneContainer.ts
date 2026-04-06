@@ -12,6 +12,16 @@ const ZONE_COLORS: Record<string, { stroke: string; fill: string; textFill: stri
  */
 export const ZoneContainer = dia.Element.define('cbaViz.ZoneContainer', {
   size: { width: 400, height: 200 },
+  markup: [{
+    tagName: 'rect',
+    selector: 'body',
+  }, {
+    tagName: 'rect',
+    selector: 'headerBg',
+  }, {
+    tagName: 'text',
+    selector: 'label',
+  }],
   attrs: {
     body: {
       width: 'calc(w)',
@@ -46,17 +56,6 @@ export const ZoneContainer = dia.Element.define('cbaViz.ZoneContainer', {
       letterSpacing: '0.05em',
     },
   },
-}, {
-  markup: [{
-    tagName: 'rect',
-    selector: 'body',
-  }, {
-    tagName: 'rect',
-    selector: 'headerBg',
-  }, {
-    tagName: 'text',
-    selector: 'label',
-  }],
 })
 
 export { ZONE_COLORS }

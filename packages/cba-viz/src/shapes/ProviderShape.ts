@@ -5,6 +5,13 @@ import { dia, shapes } from '@joint/plus'
  */
 export const ProviderShape = dia.Element.define('cbaViz.ProviderShape', {
   size: { width: 140, height: 50 },
+  markup: [{
+    tagName: 'rect',
+    selector: 'body',
+  }, {
+    tagName: 'text',
+    selector: 'label',
+  }],
   attrs: {
     body: {
       width: 'calc(w)',
@@ -28,14 +35,6 @@ export const ProviderShape = dia.Element.define('cbaViz.ProviderShape', {
       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
     },
   },
-}, {
-  markup: [{
-    tagName: 'rect',
-    selector: 'body',
-  }, {
-    tagName: 'text',
-    selector: 'label',
-  }],
 })
 
 Object.assign(shapes, {

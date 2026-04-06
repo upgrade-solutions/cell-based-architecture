@@ -5,6 +5,19 @@ import { dia, shapes } from '@joint/plus'
  */
 export const CellShape = dia.Element.define('cbaViz.CellShape', {
   size: { width: 160, height: 70 },
+  markup: [{
+    tagName: 'rect',
+    selector: 'body',
+  }, {
+    tagName: 'rect',
+    selector: 'adapterBadge',
+  }, {
+    tagName: 'text',
+    selector: 'label',
+  }, {
+    tagName: 'text',
+    selector: 'adapterLabel',
+  }],
   attrs: {
     body: {
       width: 'calc(w)',
@@ -47,20 +60,6 @@ export const CellShape = dia.Element.define('cbaViz.CellShape', {
       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
     },
   },
-}, {
-  markup: [{
-    tagName: 'rect',
-    selector: 'body',
-  }, {
-    tagName: 'rect',
-    selector: 'adapterBadge',
-  }, {
-    tagName: 'text',
-    selector: 'label',
-  }, {
-    tagName: 'text',
-    selector: 'adapterLabel',
-  }],
 })
 
 // Register in the shapes namespace for serialization

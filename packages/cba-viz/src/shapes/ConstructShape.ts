@@ -6,6 +6,19 @@ import { dia, shapes } from '@joint/plus'
  */
 export const ConstructShape = dia.Element.define('cbaViz.ConstructShape', {
   size: { width: 140, height: 60 },
+  markup: [{
+    tagName: 'rect',
+    selector: 'body',
+  }, {
+    tagName: 'rect',
+    selector: 'categoryBadge',
+  }, {
+    tagName: 'text',
+    selector: 'label',
+  }, {
+    tagName: 'text',
+    selector: 'categoryLabel',
+  }],
   attrs: {
     body: {
       width: 'calc(w)',
@@ -47,20 +60,6 @@ export const ConstructShape = dia.Element.define('cbaViz.ConstructShape', {
       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
     },
   },
-}, {
-  markup: [{
-    tagName: 'rect',
-    selector: 'body',
-  }, {
-    tagName: 'rect',
-    selector: 'categoryBadge',
-  }, {
-    tagName: 'text',
-    selector: 'label',
-  }, {
-    tagName: 'text',
-    selector: 'categoryLabel',
-  }],
 })
 
 Object.assign(shapes, {
