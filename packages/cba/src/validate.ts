@@ -93,15 +93,19 @@ export function runValidate(argv: string[], args: ParsedArgs): void {
 }
 
 function crossLayerValidate(paths: ReturnType<typeof resolveDomain>): Array<{ message: string }> {
-  const errors: Array<{ message: string }> = []
-  let operational: any, productApi: any, technical: any
+  let operational: any, productApi: any, productUi: any, technical: any
   try {
     operational = loadLayer(paths, 'operational')
   } catch {
-    return errors
+    return []
   }
   try {
     productApi = loadLayer(paths, 'product.api')
+  } catch {
+    /* optional */
+  }
+  try {
+    productUi = loadLayer(paths, 'product.ui')
   } catch {
     /* optional */
   }
@@ -111,39 +115,7 @@ function crossLayerValidate(paths: ReturnType<typeof resolveDomain>): Array<{ me
     /* optional */
   }
 
-  // Collect operational nouns (tree-walked)
-  const nounNames = new Set<string>()
-  const walk = (node: any): void => {
-    if (!node) return
-    for (const n of node.nouns ?? []) nounNames.add(n.name)
-    for (const d of node.domains ?? []) walk(d)
-  }
-  walk(operational.domain)
-
-  // product.api → Resource.noun must reference an operational Noun
-  if (productApi) {
-    for (const r of productApi.resources ?? []) {
-      if (r.noun && !nounNames.has(r.noun)) {
-        errors.push({
-          message: `product.api Resource "${r.name}" references unknown operational Noun "${r.noun}"`,
-        })
-      }
-    }
-  }
-
-  // technical → cell.dna must point at a real DNA layer file (domain/layer format)
-  if (technical) {
-    for (const c of technical.cells ?? []) {
-      if (!c.dna) continue
-      // "lending/operational", "lending/product.api" — we can't fully verify without scanning,
-      // but we can at least flag malformed values
-      if (!/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/.test(c.dna)) {
-        errors.push({
-          message: `technical Cell "${c.name}" has malformed dna reference "${c.dna}" (expected <domain>/<layer>)`,
-        })
-      }
-    }
-  }
-
-  return errors
+  const validator = new DnaValidator()
+  const result = validator.validateCrossLayer({ operational, productApi, productUi, technical })
+  return result.errors.map((e) => ({ message: `[${e.layer}] ${e.path}: ${e.message}` }))
 }

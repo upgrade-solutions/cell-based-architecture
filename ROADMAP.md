@@ -38,9 +38,6 @@ Flesh out existing cells and close gaps in the current implementation.
 
 Build the planned cells that extend the architecture beyond API and UI.
 
-- [ ] **auth-cell** — reads Rules (access) and Constructs from Technical DNA, generates authorization middleware (Auth0, Clerk, custom JWT)
-- [ ] **workflow-cell** — reads Causes, Lifecycles, and Outcomes from Operational DNA, generates event-driven workflows (queues, scheduled jobs, chained capabilities)
-
 > **Note:** Infrastructure is not a cell. Cells produce deployable artifacts (API, UI, DB schema). The deployment topology (Constructs, Providers, Environments) lives in Technical DNA and is consumed by `cba deliver` via delivery adapters — see Phase 5.
 
 ---

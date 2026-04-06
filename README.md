@@ -185,7 +185,6 @@ A cell is a **TypeScript package** that:
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
 | `db-cell` | Technical | Construct config (infra-only — no application schema) | Database provisioning (Docker, roles, permissions) | **Built** — `technical/cells/db-cell/` |
-| `auth-cell` | Technical | Rules (access), Constructs | Authorization middleware | Planned |
 | `workflow-cell` | Technical | Causes, Lifecycles, Outcomes, Constructs | Event-driven workflows | Planned |
 
 ### `api-cell` adapters
@@ -459,7 +458,6 @@ cell-based-architecture/
           adapters/
             postgres/               # Postgres adapter: Docker, init SQL, schema, migrations, seed
       ui-cell/                      # Consumes Product UI DNA → UI app (scaffolded)
-      auth-cell/                    # (planned) Consumes Technical DNA → auth layer
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
     cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)
