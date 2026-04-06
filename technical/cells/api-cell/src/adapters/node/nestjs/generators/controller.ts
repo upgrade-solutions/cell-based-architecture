@@ -52,6 +52,7 @@ export function generateController(
     const capability = resolveCapability(ep.operation, operations)
     const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
     const roles = accessRule?.allow?.map((a: { role: string }) => a.role) ?? []
+    const requiresOwnership = accessRule?.allow?.some(a => a.ownership) ?? false
 
     const pathParams = (ep.params ?? []).filter(p => p.in === 'path')
     const queryParams = (ep.params ?? []).filter(p => p.in === 'query')
@@ -89,6 +90,7 @@ export function generateController(
       ...apiQueryDecorators,
       `  @UseGuards(AuthGuard)`,
       ...(roles.length ? [`  @Roles(${roles.map(r => `'${r}'`).join(', ')})`] : []),
+      ...(requiresOwnership ? ['  @RequiresOwnership()'] : []),
       `  ${pathDec}`,
       `  ${methodName}(${params.join(', ')}) {`,
       `    return this.${serviceVar}.${methodName}(${serviceArgs.join(', ')})`,
@@ -113,7 +115,7 @@ export function generateController(
     `import { ${nestImports.join(', ')} } from '@nestjs/common'`,
     `import { ApiOperation, ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger'`,
     `import { AuthGuard } from '../auth/auth.guard'`,
-    `import { Roles } from '../auth/roles.decorator'`,
+    `import { Roles, RequiresOwnership } from '../auth/roles.decorator'`,
     `import { ${serviceName} } from './${fileName}.service'`,
     ...dtoImports,
     '',

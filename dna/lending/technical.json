@@ -25,7 +25,8 @@
       "description": "Identity provider for authentication and role-based access control.",
       "config": {
         "domain": "acme.auth0.com",
-        "audience": "https://api.acme.finance"
+        "audience": "https://api.acme.finance",
+        "roleClaim": "https://acme.finance/roles"
       }
     }
   ],

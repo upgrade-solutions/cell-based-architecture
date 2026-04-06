@@ -139,8 +139,16 @@ export interface OperationalDNA {
   lifecycles?: unknown[]
 }
 
+// ── Auth config (extracted from Technical DNA auth provider) ──────────────────
+
+export interface AuthProviderConfig {
+  domain: string
+  audience: string
+  roleClaim: string
+}
+
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface ApiCellAdapter {
-  generate(api: ProductApiDNA, operational: OperationalDNA, outputDir: string): void
+  generate(api: ProductApiDNA, operational: OperationalDNA, outputDir: string, authConfig?: AuthProviderConfig): void
 }

@@ -17,6 +17,7 @@ export function generatePackageJson(appName: string): string {
         'drizzle-orm': '^0.30.0',
         express: '^4.18.0',
         jsonwebtoken: '^9.0.0',
+        'jwks-rsa': '^3.1.0',
         pg: '^8.11.0',
         'swagger-ui-express': '^5.0.0',
       },

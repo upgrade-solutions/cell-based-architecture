@@ -45,6 +45,15 @@ function applyEffects(
   }
 }
 
+function checkOwnership(req: Request, entity: Record<string, any>): boolean {
+  if (!(req as any).requiresOwnership) return true
+  const user = (req as any).user
+  if (!user?.sub) return false
+  // Check common owner fields — the entity's creator or owner must match the JWT subject
+  const ownerFields = ['user_id', 'owner_id', 'borrower_id', 'created_by']
+  return ownerFields.some(f => entity[f] && entity[f] === user.sub)
+}
+
 export function createHandler(endpoint: any, api: any, operational: any) {
   const [resource] = endpoint.operation.split('.')
   const resourceKey = resource.toLowerCase() + 's'
@@ -74,6 +83,9 @@ export function createHandler(endpoint: any, api: any, operational: any) {
         if (!entity) {
           return res.status(404).json({ message: \`\${resource} \${req.params.id} not found\` })
         }
+        if (!checkOwnership(req, entity)) {
+          return res.status(403).json({ message: 'Forbidden' })
+        }
         return res.json(entity)
       }
 
@@ -94,6 +106,9 @@ export function createHandler(endpoint: any, api: any, operational: any) {
         const existing = await store.findById(resourceKey, req.params.id)
         if (!existing) {
           return res.status(404).json({ message: \`\${resource} \${req.params.id} not found\` })
+        }
+        if (!checkOwnership(req, existing)) {
+          return res.status(403).json({ message: 'Forbidden' })
         }
         const now = new Date()
         const merged = { ...existing, ...req.body, updated_at: now }

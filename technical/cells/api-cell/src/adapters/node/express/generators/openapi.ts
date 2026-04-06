@@ -22,8 +22,10 @@ export function buildOpenApiSpec(api: any, operational: any): object {
 
     const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
     const capability = operation?.capability ?? endpoint.operation
-    const policy = operational.policies?.find((p: any) => p.capability === capability)
-    const roles: string[] = policy?.allow?.map((a: any) => a.role) ?? []
+    const rule = (operational.rules ?? []).find(
+      (r: any) => r.capability === capability && r.type === 'access',
+    )
+    const roles: string[] = rule?.allow?.map((a: any) => a.role) ?? []
 
     const parameters: any[] = []
 

@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductApiDNA, OperationalDNA, Resource, Endpoint, ApiCellAdapter } from '../../../types'
+import { ProductApiDNA, OperationalDNA, AuthProviderConfig, Resource, Endpoint, ApiCellAdapter } from '../../../types'
 import { collectNouns, toFileName } from '../../../utils'
 import { generateDockerfile, generateDockerIgnore } from '../docker'
 import { generateDrizzleSchema, generateDbIndex } from './generators/schema'
@@ -32,6 +32,7 @@ export const generate: ApiCellAdapter['generate'] = (
   api: ProductApiDNA,
   operational: OperationalDNA,
   outputDir: string,
+  authConfig?: AuthProviderConfig,
 ): void => {
   const resources = api.resources ?? []
   const operations = api.operations ?? []
@@ -73,7 +74,7 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/db/index.ts', generateDbIndex())
 
   // ── Auth ────────────────────────────────────────────────────────────────────
-  write(outputDir, 'src/auth/auth.guard.ts', generateAuthGuard())
+  write(outputDir, 'src/auth/auth.guard.ts', generateAuthGuard(authConfig))
   write(outputDir, 'src/auth/roles.decorator.ts', generateRolesDecorator())
 
   // ── App shell ───────────────────────────────────────────────────────────────

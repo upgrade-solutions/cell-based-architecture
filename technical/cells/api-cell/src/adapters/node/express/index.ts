@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductApiDNA, OperationalDNA, ApiCellAdapter } from '../../../types'
+import { ProductApiDNA, OperationalDNA, AuthProviderConfig, ApiCellAdapter } from '../../../types'
 import { collectNouns } from '../../../utils'
 import { generateDockerfile, generateDockerIgnore } from '../docker'
 import { generateDrizzleSchema, generateDrizzleConfig } from '../shared/drizzle'
@@ -25,6 +25,7 @@ export const generate: ApiCellAdapter['generate'] = (
   api: ProductApiDNA,
   operational: OperationalDNA,
   outputDir: string,
+  authConfig?: AuthProviderConfig,
 ): void => {
   const appName = api.namespace.name.toLowerCase() + '-api'
   const nouns = collectNouns(operational.domain)
@@ -32,6 +33,9 @@ export const generate: ApiCellAdapter['generate'] = (
   // ── DNA — loaded at runtime ─────────────────────────────────────────────────
   write(outputDir, 'src/dna/api.json', JSON.stringify(api, null, 2) + '\n')
   write(outputDir, 'src/dna/operational.json', JSON.stringify(operational, null, 2) + '\n')
+  if (authConfig) {
+    write(outputDir, 'src/dna/auth.json', JSON.stringify(authConfig, null, 2) + '\n')
+  }
 
   // ── Database — Drizzle schema + connection ──────────────────────────────────
   write(outputDir, 'src/db/schema.ts', generateDrizzleSchema(nouns))

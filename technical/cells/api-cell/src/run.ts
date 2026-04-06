@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
-import { ProductApiDNA, OperationalDNA, ApiCellAdapter } from './types'
+import { ProductApiDNA, OperationalDNA, AuthProviderConfig, ApiCellAdapter } from './types'
 import * as nestjsAdapter from './adapters/node/nestjs'
 import * as expressAdapter from './adapters/node/express'
 
@@ -17,7 +17,14 @@ interface TechnicalCell {
   }
 }
 
+interface TechnicalProvider {
+  name: string
+  type: string
+  config?: Record<string, unknown>
+}
+
 interface TechnicalDNA {
+  providers?: TechnicalProvider[]
   cells: TechnicalCell[]
 }
 
@@ -82,10 +89,20 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     throw new Error(`Invalid Operational DNA:\n${errs}`)
   }
 
+  // ── Extract auth provider config ────────────────────────────────────────────
+  const authProvider = (technicalRaw.providers ?? []).find(p => p.type === 'auth')
+  const authConfig: AuthProviderConfig | undefined = authProvider?.config
+    ? {
+        domain: authProvider.config.domain as string,
+        audience: authProvider.config.audience as string,
+        roleClaim: (authProvider.config.roleClaim as string) ?? 'roles',
+      }
+    : undefined
+
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(apiDnaRaw as ProductApiDNA, operationalRaw as OperationalDNA, path.resolve(outputDir))
+  adapter.generate(apiDnaRaw as ProductApiDNA, operationalRaw as OperationalDNA, path.resolve(outputDir), authConfig)
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

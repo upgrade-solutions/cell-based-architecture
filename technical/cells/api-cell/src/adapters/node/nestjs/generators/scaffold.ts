@@ -21,6 +21,7 @@ export function generatePackageJson(appName: string): string {
         'class-validator': '^0.14.0',
         'drizzle-orm': '^0.30.0',
         jsonwebtoken: '^9.0.0',
+        'jwks-rsa': '^3.1.0',
         pg: '^8.11.0',
         'reflect-metadata': '^0.1.13',
         rxjs: '^7.8.1',

@@ -203,6 +203,27 @@ The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at
 
 **Dual-mode storage**: The Express adapter supports both in-memory and PostgreSQL (Drizzle ORM) storage. Without `DATABASE_URL`, it runs with in-memory Maps seeded from Operational DNA examples. With `DATABASE_URL`, it connects to Postgres, runs migrations on startup, and seeds from DNA.
 
+**Authentication and authorization**: Both adapters generate IDP-agnostic JWT verification using JWKS (JSON Web Key Sets). The auth middleware:
+
+1. Fetches and caches public keys from `https://{domain}/.well-known/jwks.json`
+2. Verifies JWT signatures (RS256), audience, and issuer claims
+3. Enforces role-based access from Operational DNA Rules (type: `access`)
+4. Flags ownership-required operations for handler-level enforcement
+
+Auth config comes from the Technical DNA `auth` provider — `domain`, `audience`, and `roleClaim`. Swapping IDPs (Auth0, Clerk, Okta, Keycloak, Cognito) is a DNA-only change:
+
+```json
+{
+  "name": "auth0",
+  "type": "auth",
+  "config": {
+    "domain": "acme.auth0.com",
+    "audience": "https://api.acme.finance",
+    "roleClaim": "https://acme.finance/roles"
+  }
+}
+```
+
 #### Generate and run
 
 ```bash
