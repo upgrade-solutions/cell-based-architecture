@@ -409,6 +409,52 @@
       ]
     },
     {
+      "name": "vue-ui-cell",
+      "description": "Reads Product UI DNA and produces the Vite + Vue loan dashboard.",
+      "dna": "lending/product.ui",
+      "adapter": {
+        "type": "vite/vue",
+        "version": "5",
+        "config": {
+          "operational_dna": "lending/operational",
+          "api_dna": "lending/product.api",
+          "api_base": "http://localhost:3001"
+        }
+      },
+      "constructs": [
+        "auth-provider",
+        "ui-server"
+      ],
+      "variables": [
+        {
+          "name": "AUTH0_DOMAIN",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_ID",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_CLIENT_SECRET",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "NEXT_PUBLIC_API_URL",
+          "source": "output",
+          "value": "api-cell.api_url",
+          "required": true
+        },
+        {
+          "name": "NODE_ENV",
+          "source": "env",
+          "required": false
+        }
+      ]
+    },
+    {
       "name": "ui-cell-next",
       "description": "Reads Product UI DNA and produces a Next.js App Router loan dashboard with SSR.",
       "dna": "lending/product.ui",

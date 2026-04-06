@@ -48,7 +48,7 @@ Broaden the adapter ecosystem so the same DNA can target different stacks.
 
 - [x] **api-cell: `ruby/rails` adapter** — generate a Rails API from the same Product API DNA
 - [ ] **api-cell: `python/fastapi` adapter** — generate a FastAPI app from the same Product API DNA
-- [ ] **ui-cell: `vite/vue` adapter** — generate a Vue UI from the same Product UI DNA
+- [x] **ui-cell: `vite/vue` adapter** — generate a Vue UI from the same Product UI DNA
 - [x] **ui-cell: `next/react` adapter** — generate a Next.js app with SSR/SSG from Product UI DNA
 - [ ] **Adapter conformance tests** — ensure all adapters for a given cell produce the same external surface (same OpenAPI spec, same routes, same behavior)
 

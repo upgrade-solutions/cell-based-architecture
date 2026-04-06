@@ -298,21 +298,33 @@ The `ui-cell` supports multiple adapters that produce the same DNA-driven UI fro
 
 | Adapter | Approach | Port | Output |
 |---------|----------|------|--------|
-| `vite/react` | DNA-driven React SPA — loads UI, API, and Operational DNA at runtime | 5173 | `output/lending-ui/` |
-| `next/react` | DNA-driven Next.js App Router app — client-side DNA loading with SSR-ready structure | 5174 | `output/lending-ui-next/` |
+| `vite/react` | DNA-driven React SPA — React Router, React Context, hooks | 5173 | `output/lending-ui/` |
+| `vite/vue` | DNA-driven Vue 3 app — Vue Router, provide/inject, Composition API | 5174 | `output/lending-vue-ui/` |
+| `next/react` | DNA-driven Next.js App Router app — client-side DNA loading with SSR-ready structure | 5175 | `output/lending-ui-next/` |
 
-Both adapters fetch all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from the Product API DNA and the `useApi` hook handles data fetching, form submission, and action dispatch.
+All adapters fetch all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from the Product API DNA and the `useApi` composable/hook handles data fetching, form submission, and action dispatch.
 
 #### Generate and run
 
 ```bash
-# Generate Vite UI from DNA
-cd technical/cells/ui-cell && npx ts-node -r tsconfig-paths/register src/index.ts \
-  ../../../dna/lending/technical.json ui-cell ../../../output/lending-ui
+# Generate React UI from DNA
+npx cba develop lending --cell ui-cell
+
+# Generate Vue UI from DNA
+npx cba develop lending --cell vue-ui-cell
+
+# Generate Next.js UI from DNA
+npx cba develop lending --cell ui-cell-next
 
 # Install deps and run (requires Express API on port 3001)
 npm install --prefix output/lending-ui
-cd output/lending-ui && npx vite    # http://localhost:5173
+cd output/lending-ui && npx vite        # http://localhost:5173
+
+npm install --prefix output/lending-vue-ui
+cd output/lending-vue-ui && npx vite    # http://localhost:5174
+
+npm install --prefix output/lending-ui-next
+cd output/lending-ui-next && npm run dev  # http://localhost:5175
 ```
 
 #### Next.js adapter
@@ -567,7 +579,13 @@ cell-based-architecture/
         src/
           adapters/
             postgres/               # Postgres adapter: Docker, init SQL, schema, migrations, seed
-      ui-cell/                      # Consumes Product UI DNA → UI app (scaffolded)
+      ui-cell/                      # Consumes Product UI DNA → UI app
+        src/
+          adapters/
+            vite/
+              docker.ts               # Shared Dockerfile, nginx.conf, .dockerignore generation
+              react/                  # React adapter: JSX components, React Router, React Context
+              vue/                    # Vue adapter: SFC components, Vue Router, provide/inject
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
     cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)
