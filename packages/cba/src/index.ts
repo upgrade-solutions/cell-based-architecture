@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { parseArgs, boolFlag } from './args'
 import { helpFor, ROOT_HELP } from './help'
-import { runDesign } from './design'
+import { runOperational } from './operational'
+import { runProduct } from './product'
+import { runTechnical } from './technical'
 import { runDevelop } from './develop'
 import { runDeliver } from './deliver/index'
-import { runDiscover } from './discover'
 import { runRun } from './run'
 import { runValidate } from './validate'
 import { listDomains, findRepoRoot } from './context'
@@ -14,38 +15,41 @@ function main(): void {
   const argv = process.argv.slice(2)
   const args = parseArgs(argv)
 
-  // Find the phase (first positional arg)
-  const [phase, ...rest] = args.positional
+  // Find the command (first positional arg)
+  const [command, ...rest] = args.positional
 
-  // No phase → root help
-  if (!phase || phase === 'help' && !rest[0]) {
+  // No command → root help
+  if (!command || command === 'help' && !rest[0]) {
     console.log(ROOT_HELP)
     return
   }
 
-  // `cba help <phase>`
-  if (phase === 'help') {
+  // `cba help <command>`
+  if (command === 'help') {
     console.log(helpFor(rest[0]))
     return
   }
 
   // `cba --help` anywhere at the top level
   if (boolFlag(args, 'help') && !rest.length) {
-    console.log(helpFor(phase))
+    console.log(helpFor(command))
     return
   }
 
-  switch (phase) {
-    case 'discover':
-      runDiscover(rest, args)
+  switch (command) {
+    case 'operational':
+      runOperational(rest, args)
       return
-    case 'design':
-      runDesign(rest, args)
+    case 'product':
+      runProduct(rest, args)
+      return
+    case 'technical':
+      runTechnical(rest, args)
       return
     case 'develop':
       runDevelop(rest, args)
       return
-    case 'deliver':
+    case 'deploy':
       runDeliver(rest, args)
       return
     case 'run':
@@ -63,7 +67,7 @@ function main(): void {
       return
     }
     default:
-      console.error(`Unknown phase: "${phase}"\n`)
+      console.error(`Unknown command: "${command}"\n`)
       console.error(ROOT_HELP)
       process.exit(1)
   }

@@ -2,7 +2,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { ParsedArgs, flag, boolFlag } from '../args'
 import { emit, emitError, emitOk } from '../output'
-import { DELIVER_HELP } from '../help'
+import { DEPLOY_HELP } from '../help'
 import { buildPlan, checkArtifacts, EnvironmentPlan } from './plan'
 import { generateDockerCompose } from './adapters/docker-compose'
 
@@ -13,13 +13,13 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
   const opts = { json: boolFlag(args, 'json') }
 
   if (boolFlag(args, 'help')) {
-    console.log(DELIVER_HELP)
+    console.log(DEPLOY_HELP)
     return
   }
 
   const [domain] = argv
   if (!domain) {
-    emitError('Usage: cba deliver <domain> --env <environment> [--adapter <name>] [--plan]', opts)
+    emitError('Usage: cba deploy <domain> --env <environment> [--adapter <name>] [--plan]', opts)
     process.exit(1)
   }
 
@@ -76,7 +76,7 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
         opts,
         () => {
           const lines = [
-            `cba deliver ${domain} --env ${environment} --adapter ${adapter} — plan`,
+            `cba deploy ${domain} --env ${environment} --adapter ${adapter} — plan`,
             ``,
             `  deploy dir : ${path.relative(process.cwd(), plan.deployDir)}`,
             `  services   : ${result.services.length}`,
@@ -114,7 +114,7 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
       opts,
       () => {
         const lines = [
-          `✓ Delivered ${domain}/${environment} → ${path.relative(process.cwd(), plan.deployDir)}`,
+          `✓ Deployed ${domain}/${environment} → ${path.relative(process.cwd(), plan.deployDir)}`,
           ``,
           `  ${result.services.length} service(s): ${result.services.join(', ')}`,
         ]

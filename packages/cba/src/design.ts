@@ -12,46 +12,30 @@ import {
 } from './primitives'
 import { ParsedArgs, flag, boolFlag } from './args'
 import { emit, emitError, emitOk } from './output'
-import { DESIGN_HELP } from './help'
+const VALID_COMMANDS = ['list', 'show', 'add', 'remove', 'schema', 'validate']
 
-function assertLayer(layer: string): asserts layer is Layer {
-  if (!LAYERS.includes(layer as Layer)) {
-    throw new Error(`Unknown layer: "${layer}". Valid: ${LAYERS.join(', ')}`)
-  }
-}
-
-export function runDesign(argv: string[], args: ParsedArgs): void {
+/**
+ * Run a design command for a pre-determined layer.
+ * argv = [command, domain, ...]
+ */
+export function runLayerCommand(layer: Layer, argv: string[], args: ParsedArgs): void {
   const json = boolFlag(args, 'json')
   const opts = { json }
 
-  if (boolFlag(args, 'help') || argv.length === 0) {
-    console.log(DESIGN_HELP)
-    return
-  }
-
-  // design <layer> <command> <domain> ...
-  const [layerArg, command, domain] = argv
-  if (!layerArg || !command) {
-    emitError('Usage: cba design <layer> <command> <domain> [args]', opts, { usage: 'cba design <layer> <command> <domain>' })
+  const [command, domain] = argv
+  if (!command) {
+    emitError(`Missing <command>. Valid: ${VALID_COMMANDS.join(', ')}`, opts)
     process.exit(1)
   }
-
-  try {
-    assertLayer(layerArg)
-  } catch (err) {
-    emitError((err as Error).message, opts)
-    process.exit(1)
-  }
-  const layer = layerArg as Layer
 
   // `schema` does not need a domain
   if (command === 'schema') {
-    cmdSchema(layer, argv[2], opts)
+    cmdSchema(layer, argv[1], opts)
     return
   }
 
   if (!domain) {
-    emitError(`Missing <domain>. Usage: cba design ${layer} ${command} <domain>`, opts)
+    emitError(`Missing <domain>. Usage: cba ${layerCliName(layer)} ${command} <domain>`, opts)
     process.exit(1)
   }
 
@@ -72,8 +56,17 @@ export function runDesign(argv: string[], args: ParsedArgs): void {
       cmdValidateLayer(layer, domain, opts)
       return
     default:
-      emitError(`Unknown command: "${command}". Valid: list, show, add, remove, schema, validate`, opts)
+      emitError(`Unknown command: "${command}". Valid: ${VALID_COMMANDS.join(', ')}`, opts)
       process.exit(1)
+  }
+}
+
+function layerCliName(layer: Layer): string {
+  switch (layer) {
+    case 'operational': return 'operational'
+    case 'product.api': return 'product api'
+    case 'product.ui': return 'product ui'
+    case 'technical': return 'technical'
   }
 }
 

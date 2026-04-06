@@ -5,6 +5,8 @@ import { ParsedArgs, flag, boolFlag } from './args'
 import { emit, emitError } from './output'
 import { DISCOVER_HELP } from './help'
 
+/* Re-export for use as a subcommand of `cba operational` */
+
 interface DiscoverSession {
   domain: string
   timestamp: string
@@ -23,7 +25,7 @@ export function runDiscover(argv: string[], args: ParsedArgs): void {
 
   const [domain] = argv
   if (!domain) {
-    emitError('Usage: cba discover <domain> [--from <file>] [--continue]', opts)
+    emitError('Usage: cba operational discover <domain> [--from <file>] [--continue]', opts)
     process.exit(1)
   }
 
@@ -104,9 +106,9 @@ export function runDiscover(argv: string[], args: ParsedArgs): void {
   }
 
   const nextSteps = [
-    `cba design operational list ${domain}`,
-    `cba design operational schema Noun`,
-    `cba design product.api list ${domain}`,
+    `cba operational list ${domain}`,
+    `cba operational schema Noun`,
+    `cba product api list ${domain}`,
     `cba validate ${domain} --json`,
   ]
 

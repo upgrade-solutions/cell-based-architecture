@@ -37,7 +37,7 @@ Cause → Rule → [Capability executes] → Outcome → Lifecycle
 | `Lifecycle` | The valid sequence of Capabilities across the life of a Noun |
 | `Equation` | A named, technology-agnostic computation — pure function with typed inputs and output. Implemented concretely by a Script in Technical DNA |
 
-Schemas live in `../dna/schemas/`. Reference: `../dna` or https://github.com/upgrade-solutions/dna
+Schemas live in `../operational/schemas/` or https://github.com/upgrade-solutions/cell-based-architecture/tree/main/operational/schemas
 
 ---
 
@@ -290,7 +290,7 @@ DATABASE_URL=postgresql://lending_app:lending_app@localhost:5433/lending npm run
 # Starts with [store] using postgres — data persists across restarts
 ```
 
-Or — use `cba deliver` to run the whole stack as one compose file (see Delivery section below). In that flow, db-cell's init.sql is mounted into the postgres service and api-cell's migrations run automatically on startup.
+Or — use `cba deploy` to run the whole stack as one compose file (see Deployment section below). In that flow, db-cell's init.sql is mounted into the postgres service and api-cell's migrations run automatically on startup.
 
 ### `ui-cell` adapters
 
@@ -387,22 +387,23 @@ This keeps superuser operations (role creation, grants) separate from applicatio
 
 # The `cba` CLI
 
-`cba` is the unified CLI for the cell-based architecture lifecycle, modeled on a four-phase flow — **Discover, Design, Develop, Deliver**. It ships as the `@cell/cba` workspace package and is the primary interface for both humans and agents operating on DNA and cells.
+`cba` is the unified CLI for the cell-based architecture lifecycle, organized around the three DNA layers plus build and deploy. It ships as the `@cell/cba` workspace package and is the primary interface for both humans and agents operating on DNA and cells.
 
 ```bash
 npx cba --help                                      # root help
-npx cba help design                                 # per-phase help
+npx cba help operational                             # per-command help
 npx cba domains                                     # list domains under dna/
 ```
 
-## The lifecycle
+## Commands
 
-| Phase | Command | What it does |
-|-------|---------|--------------|
-| **Discover** | `cba discover <domain>` | Launches or resumes an agent-driven conversation → proposes DNA. Outputs land in `.cba/sessions/` and `.cba/drafts/`. |
-| **Design** | `cba design <layer> <cmd> <domain>` | Authors DNA: `list`, `show`, `add`, `remove`, `schema`, `validate`. Scoped per-layer. |
-| **Develop** | `cba develop <domain> [--cell X]` | Reads technical DNA, invokes each declared cell's generator. |
-| **Deliver** | `cba deliver <domain> --env <env> [--adapter X]` | Composes generated cells into a deployable topology via a delivery adapter (default: `docker-compose`). |
+| Command | What it does |
+|---------|--------------|
+| `cba operational <cmd> <domain>` | Work with Operational DNA: `discover`, `list`, `show`, `add`, `remove`, `schema`, `validate` |
+| `cba product <api\|ui> <cmd> <domain>` | Work with Product DNA (API or UI surface): `list`, `show`, `add`, `remove`, `schema`, `validate` |
+| `cba technical <cmd> <domain>` | Work with Technical DNA: `list`, `show`, `add`, `remove`, `schema`, `validate` |
+| `cba develop <domain> [--cell X]` | Reads technical DNA, invokes each declared cell's generator |
+| `cba deploy <domain> --env <env> [--adapter X]` | Composes generated cells into a deployable topology (default: `docker-compose`) |
 
 Plus utilities: `cba run <domain> --adapter <x>` (start generated output), `cba validate <domain>` (all-layer + cross-layer validation).
 
@@ -410,26 +411,32 @@ Plus utilities: `cba run <domain> --adapter <x>` (start generated output), `cba 
 
 ```bash
 # Inspect DNA
-npx cba design operational list lending
-npx cba design operational show lending --type Noun --name Loan
-npx cba design operational schema Noun              # prints JSON schema
+npx cba operational list lending
+npx cba operational show lending --type Noun --name Loan
+npx cba operational schema Noun                     # prints JSON schema
+npx cba product api list lending
+npx cba product ui list lending
 
 # Mutate DNA
-npx cba design technical add lending --type Variable --file new-var.json
-npx cba design operational add lending --type Noun \
+npx cba technical add lending --type Variable --file new-var.json
+npx cba operational add lending --type Noun \
   --at acme.finance.lending --file loan.json
-npx cba design operational add lending --type Verb \
+npx cba operational add lending --type Verb \
   --at acme.finance.lending:Loan --file approve.json
-npx cba design technical remove lending --type Variable --name OLD_FLAG
+npx cba technical remove lending --type Variable --name OLD_FLAG
+
+# Discover — agent-driven stakeholder conversation
+npx cba operational discover lending
+npx cba operational discover lending --from notes.md
 
 # Generate + run
 npx cba develop lending --dry-run                   # preview all cells
 npx cba develop lending --cell api-cell             # run one cell
 npx cba run lending --adapter express               # start generated API
 
-# Deliver — compose generated cells into a deployable topology
-npx cba deliver lending --env dev --plan            # preview services + skipped constructs
-npx cba deliver lending --env dev                   # writes output/lending-deploy/docker-compose.yml
+# Deploy — compose generated cells into a deployable topology
+npx cba deploy lending --env dev --plan             # preview services + skipped constructs
+npx cba deploy lending --env dev                    # writes output/lending-deploy/docker-compose.yml
 cd output/lending-deploy && docker compose up -d    # run the full stack locally
 
 # Validate
@@ -441,9 +448,9 @@ npx cba validate lending --json                     # structured JSON errors
 
 Every command supports `--json` for machine-parseable output. An agent's typical loop during discovery:
 
-1. `cba design operational list lending --json` — ground itself in existing DNA
-2. `cba design operational schema Noun --json` — learn the primitive shape
-3. `cba design operational add lending --type Noun --at … --file draft.json --json` — draft
+1. `cba operational list lending --json` — ground itself in existing DNA
+2. `cba operational schema Noun --json` — learn the primitive shape
+3. `cba operational add lending --type Noun --at … --file draft.json --json` — draft
 4. `cba validate lending --json` — catch cross-layer errors, loop back to conversation
 5. `cba develop lending --dry-run --json` — show stakeholder the diff
 6. `cba develop lending` — ship it
@@ -452,9 +459,9 @@ See `packages/cba/README.md` for full command reference and flags.
 
 ---
 
-# Delivery
+# Deployment
 
-`cba deliver` reads Technical DNA for a target Environment and composes the generated cell artifacts into a deployable topology via a **delivery adapter**. Infrastructure is not a cell — it's configuration consumed by the delivery step.
+`cba deploy` reads Technical DNA for a target Environment and composes the generated cell artifacts into a deployable topology via a **deployment adapter**. Infrastructure is not a cell — it's configuration consumed by the deployment step.
 
 | Adapter | Status | Output |
 |---------|--------|--------|
@@ -474,13 +481,13 @@ Composes the full lending stack (Postgres, Redis, Express API, NestJS API, Vite 
 
 ```bash
 npx cba develop lending                      # generate all cells first
-npx cba deliver lending --env dev --plan     # preview
-npx cba deliver lending --env dev            # write output/lending-deploy/
+npx cba deploy lending --env dev --plan      # preview
+npx cba deploy lending --env dev             # write output/lending-deploy/
 cd output/lending-deploy
 docker compose up -d                         # run the full stack
 ```
 
-Delivery is **not regenerative** — it fails loudly if cell artifacts are missing, telling you to run `cba develop` first.
+Deployment is **not regenerative** — it fails loudly if cell artifacts are missing, telling you to run `cba develop` first.
 
 ---
 
