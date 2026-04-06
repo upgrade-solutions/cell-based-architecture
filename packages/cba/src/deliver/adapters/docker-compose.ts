@@ -171,6 +171,28 @@ function buildCellService(cell: ResolvedCell, plan: EnvironmentPlan): CellServic
     return { name: svcName, definition: def }
   }
 
+  if (cell.adapterType.startsWith('ruby/')) {
+    const port = guessApiPort(cell, plan)
+    const env = resolveEnv(cell, plan, port)
+    env.PORT = String(port)
+    env.RAILS_ENV = 'production'
+    const def: any = {
+      build: { context: relBuildContext },
+      restart: 'unless-stopped',
+      ports: [`${port}:${port}`],
+      environment: env,
+      healthcheck: {
+        test: ['CMD-SHELL', `ruby -e "require 'net/http'; Net::HTTP.get_response(URI('http://localhost:${port}/health')).is_a?(Net::HTTPSuccess) || exit(1)"`],
+        interval: '5s',
+        timeout: '3s',
+        retries: 10,
+      },
+    }
+    const deps = dependsOn(cell, plan)
+    if (Object.keys(deps).length) def.depends_on = deps
+    return { name: svcName, definition: def }
+  }
+
   if (cell.adapterType.startsWith('vite/')) {
     const port = 80 // nginx in vite Dockerfile serves on 80
     const exposed = 5173
@@ -195,9 +217,10 @@ function serviceNameForCell(cellName: string): string {
 }
 
 function guessApiPort(cell: ResolvedCell, _plan: EnvironmentPlan): number {
-  // Prefer adapter-native port. Construct.config.port describes deploy-target
-  // infra (e.g. ECS task port) which may collide when multiple cells share a
-  // construct (e.g. express + nestjs both pointing at api-server).
+  // Prefer explicit port from adapter config, then fall back to adapter-native
+  // defaults. Construct.config.port describes deploy-target infra (e.g. ECS
+  // task port) which may collide when multiple cells share a construct.
+  if (cell.adapterConfig?.port) return cell.adapterConfig.port as number
   if (cell.adapterType === 'node/nestjs') return 3000
   if (cell.adapterType === 'node/express') return 3001
   return 3000

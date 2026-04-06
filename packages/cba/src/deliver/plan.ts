@@ -129,5 +129,6 @@ export function checkArtifacts(plan: EnvironmentPlan): string[] {
 
 function canonicalArtifactFor(adapterType: string): string {
   if (adapterType === 'postgres') return 'docker-compose.yml'
+  if (adapterType.startsWith('ruby/')) return 'Gemfile'
   return 'package.json'
 }

@@ -309,7 +309,8 @@
       "adapter": {
         "type": "ruby/rails",
         "config": {
-          "operational_dna": "lending/operational"
+          "operational_dna": "lending/operational",
+          "port": 3002
         }
       },
       "constructs": [

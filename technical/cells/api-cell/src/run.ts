@@ -4,6 +4,7 @@ import { DnaValidator } from '@cell/dna-validator'
 import { ProductApiDNA, OperationalDNA, AuthProviderConfig, ApiCellAdapter } from './types'
 import * as nestjsAdapter from './adapters/node/nestjs'
 import * as expressAdapter from './adapters/node/express'
+import * as railsAdapter from './adapters/ruby/rails'
 
 interface TechnicalCell {
   name: string
@@ -31,6 +32,7 @@ interface TechnicalDNA {
 const ADAPTERS: Record<string, ApiCellAdapter> = {
   'node/nestjs': nestjsAdapter,
   'node/express': expressAdapter,
+  'ruby/rails': railsAdapter,
 }
 
 function resolveAdapter(type: string): ApiCellAdapter {
