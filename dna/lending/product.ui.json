@@ -111,7 +111,7 @@
           "name": "ReviewTable",
           "type": "table",
           "description": "Loans currently in under_review status, sorted oldest first.",
-          "operation": "Loan.Review",
+          "operation": "Loan.List",
           "fields": [
             { "name": "id", "label": "Loan ID", "type": "string" },
             { "name": "borrower_id", "label": "Borrower", "type": "string" },

@@ -280,11 +280,11 @@ describe('DnaValidator — availableSchemas', () => {
     expect(schemas).toContain('operational/capability')
     expect(schemas).toContain('operational/attribute')
     expect(schemas).toContain('operational/domain')
-    expect(schemas).toContain('operational/trigger')
-    expect(schemas).toContain('operational/policy')
+    expect(schemas).toContain('operational/cause')
     expect(schemas).toContain('operational/rule')
-    expect(schemas).toContain('operational/effect')
-    expect(schemas).toContain('operational/flow')
+    expect(schemas).toContain('operational/outcome')
+    expect(schemas).toContain('operational/lifecycle')
+    expect(schemas).toContain('operational/equation')
     expect(schemas).toContain('product/core/resource')
     expect(schemas).toContain('product/core/action')
     expect(schemas).toContain('product/core/operation')
@@ -307,5 +307,135 @@ describe('DnaValidator — availableSchemas', () => {
     expect(schemas).toContain('product/api')
     expect(schemas).toContain('product/ui')
     expect(schemas).toContain('technical')
+  })
+})
+
+// ── Cross-layer validation ─────────────────────────────────────────────────
+
+describe('DnaValidator — cross-layer validation', () => {
+  const operational = loadDna('dna/lending/operational.json')
+  const productApi = loadDna('dna/lending/product.api.json')
+  const productUi = loadDna('dna/lending/product.ui.json')
+  const technical = loadDna('dna/lending/technical.json')
+
+  it('passes for valid lending DNA', () => {
+    const result = validator.validateCrossLayer({ operational, productApi, productUi, technical })
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('detects invalid resource noun reference', () => {
+    const badApi = {
+      ...productApi,
+      resources: [{ name: 'Widget', noun: 'NonExistentNoun', fields: [], actions: [] }],
+    }
+    const result = validator.validateCrossLayer({ operational, productApi: badApi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('NonExistentNoun'))).toBe(true)
+    expect(result.errors.some(e => e.layer === 'product/api')).toBe(true)
+  })
+
+  it('detects invalid action verb reference', () => {
+    const badApi = {
+      ...productApi,
+      resources: [
+        { name: 'Loan', noun: 'Loan', fields: [], actions: [{ name: 'Fly', verb: 'Fly' }] },
+      ],
+    }
+    const result = validator.validateCrossLayer({ operational, productApi: badApi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Verb "Fly"'))).toBe(true)
+  })
+
+  it('detects invalid operation capability reference', () => {
+    const badApi = {
+      ...productApi,
+      operations: [
+        { resource: 'Loan', action: 'Warp', name: 'Loan.Warp', capability: 'Loan.Warp' },
+      ],
+    }
+    const result = validator.validateCrossLayer({ operational, productApi: badApi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Capability "Loan.Warp"'))).toBe(true)
+  })
+
+  it('detects invalid endpoint operation reference', () => {
+    const badApi = {
+      ...productApi,
+      endpoints: [{ method: 'GET', path: '/x', operation: 'Loan.Teleport' }],
+    }
+    const result = validator.validateCrossLayer({ operational, productApi: badApi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Operation "Loan.Teleport"'))).toBe(true)
+  })
+
+  it('detects invalid page resource reference', () => {
+    const badUi = {
+      ...productUi,
+      pages: [{ name: 'WidgetPage', resource: 'Widget', blocks: [] }],
+    }
+    const result = validator.validateCrossLayer({ operational, productApi, productUi: badUi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Resource "Widget"'))).toBe(true)
+    expect(result.errors.some(e => e.layer === 'product/ui')).toBe(true)
+  })
+
+  it('detects invalid block operation reference', () => {
+    const badUi = {
+      ...productUi,
+      pages: [
+        {
+          name: 'LoanPage',
+          resource: 'Loan',
+          blocks: [{ name: 'BadBlock', operation: 'Loan.Levitate' }],
+        },
+      ],
+    }
+    const result = validator.validateCrossLayer({ operational, productApi, productUi: badUi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Operation "Loan.Levitate"'))).toBe(true)
+  })
+
+  it('detects invalid route page reference', () => {
+    const badUi = {
+      pages: (productUi as any).pages,
+      routes: [{ path: '/nowhere', page: 'GhostPage' }],
+    }
+    const result = validator.validateCrossLayer({ operational, productApi, productUi: badUi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Page "GhostPage"'))).toBe(true)
+  })
+
+  it('detects invalid construct provider reference', () => {
+    const badTech = {
+      ...technical,
+      constructs: [{ name: 'bad-db', type: 'database', category: 'storage', provider: 'gcp' }],
+    }
+    const result = validator.validateCrossLayer({ operational, technical: badTech })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Provider "gcp"'))).toBe(true)
+    expect(result.errors.some(e => e.layer === 'technical')).toBe(true)
+  })
+
+  it('detects invalid cell construct reference', () => {
+    const badTech = {
+      ...technical,
+      cells: [
+        { name: 'test-cell', dna: 'lending/product.api', adapter: { type: 'node/express' }, constructs: ['phantom-db'] },
+      ],
+    }
+    const result = validator.validateCrossLayer({ operational, technical: badTech })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Construct "phantom-db"'))).toBe(true)
+  })
+
+  it('works with partial layers (only operational + productApi)', () => {
+    const result = validator.validateCrossLayer({ operational, productApi })
+    expect(result.valid).toBe(true)
+  })
+
+  it('works with only technical layer', () => {
+    const result = validator.validateCrossLayer({ technical })
+    expect(result.valid).toBe(true)
   })
 })

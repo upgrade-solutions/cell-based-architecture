@@ -27,6 +27,7 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
+    "testPathIgnorePatterns": ["/node_modules/", "/dist/"],
     "moduleNameMapper": {
       "^@cell/dna-validator$": "<rootDir>/../../../packages/dna-validator/src/index.ts"
     }

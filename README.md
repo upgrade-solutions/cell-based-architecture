@@ -418,6 +418,62 @@ Delivery is **not regenerative** — it fails loudly if cell artifacts are missi
 
 ---
 
+# Validation
+
+DNA validation operates at two levels:
+
+## Per-layer schema validation
+
+Each DNA document is validated against its JSON schema using `@cell/dna-validator`. This catches structural errors — missing required fields, invalid types, malformed primitives.
+
+```bash
+npx cba validate lending --layer operational   # validate one layer
+npx cba validate lending                       # validate all layers
+```
+
+## Cross-layer reference validation
+
+Cross-layer validation checks that references between DNA layers are consistent:
+
+| Source | Target | What's checked |
+|--------|--------|---------------|
+| Product API `Resource.noun` | Operational `Noun` | Resource references an existing Noun |
+| Product API `Action.verb` | Operational `Verb` | Action verb exists on the corresponding Noun |
+| Product API `Operation.capability` | Operational `Capability` | Operation capability exists |
+| Product API `Endpoint.operation` | Product API `Operation` | Endpoint references a defined Operation |
+| Product UI `Page.resource` | Product API `Resource` | Page references an existing Resource |
+| Product UI `Block.operation` | Product API `Operation` | Block references an existing Operation |
+| Product UI `Route.page` | Product UI `Page` | Route references a defined Page |
+| Technical `Construct.provider` | Technical `Provider` | Construct references an existing Provider |
+| Technical `Cell.constructs[]` | Technical `Construct` | Cell construct references exist |
+
+Cross-layer runs automatically as part of `cba validate` (unless scoped to a single layer with `--layer`). Programmatic access:
+
+```typescript
+import { DnaValidator } from '@cell/dna-validator'
+
+const validator = new DnaValidator()
+const result = validator.validateCrossLayer({ operational, productApi, productUi, technical })
+// result.errors: Array<{ layer, path, message }>
+```
+
+---
+
+# Testing
+
+All packages include Jest test suites. Run the full workspace:
+
+```bash
+npm test                    # runs all workspace tests
+```
+
+| Package | Tests | Coverage |
+|---------|-------|----------|
+| `@cell/dna-validator` | 42 | Per-schema validation, composite documents, cross-layer validation (12 tests covering all reference types) |
+| `@cell/api-cell` | 58 | NestJS generators (schema, DTO, controller, service, module), Express integration (scaffold, DNA bundling, auth config), NestJS integration (full generation pipeline) |
+
+---
+
 # Implementation Stack
 
 - **Description language**: JSON (all three DNA layers)
@@ -461,7 +517,7 @@ cell-based-architecture/
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
     cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)
-    dna-validator/                  # Validates DNA documents against JSON schemas
+    dna-validator/                  # Validates DNA documents against JSON schemas (per-layer + cross-layer)
 ```
 
 # Key Principles

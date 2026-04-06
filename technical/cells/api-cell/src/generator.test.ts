@@ -205,11 +205,11 @@ describe('generateDto', () => {
 
 describe('generateController', () => {
   const endpoints = [applyEndpoint, viewEndpoint, listEndpoint, approveEndpoint]
-  const policies = [
-    { capability: 'Loan.Apply', allow: [{ role: 'borrower' }] },
-    { capability: 'Loan.Approve', allow: [{ role: 'underwriter' }] },
+  const rules = [
+    { capability: 'Loan.Apply', type: 'access' as const, allow: [{ role: 'borrower' }] },
+    { capability: 'Loan.Approve', type: 'access' as const, allow: [{ role: 'underwriter' }] },
   ]
-  const ctrl = generateController(loanResource, endpoints, [], policies, namespace)
+  const ctrl = generateController(loanResource, endpoints, [], rules, namespace)
 
   test('declares @Controller with correct base path', () => {
     expect(ctrl).toContain("@Controller('lending/loans')")
@@ -253,17 +253,16 @@ describe('generateController', () => {
 
 describe('generateService', () => {
   const endpoints = [applyEndpoint, approveEndpoint, viewEndpoint]
-  const policies = [{ capability: 'Loan.Apply', allow: [{ role: 'borrower' }] }]
-  const rules = [{
-    capability: 'Loan.Apply',
-    conditions: [{ attribute: 'loan.amount', operator: 'gt', value: 0 }],
-  }]
-  const effects = [{
+  const rules = [
+    { capability: 'Loan.Apply', type: 'access' as const, allow: [{ role: 'borrower' }] },
+    { capability: 'Loan.Apply', type: 'condition' as const, conditions: [{ attribute: 'loan.amount', operator: 'gt', value: 0 }] },
+  ]
+  const outcomes = [{
     capability: 'Loan.Apply',
     changes: [{ attribute: 'loan.status', set: 'under_review' }],
   }]
 
-  const svc = generateService(loanResource, endpoints, [], policies, rules, effects)
+  const svc = generateService(loanResource, endpoints, [], rules, outcomes)
 
   test('is an @Injectable() class', () => {
     expect(svc).toContain('@Injectable()')
@@ -275,10 +274,10 @@ describe('generateService', () => {
     expect(svc).toContain('NotFoundException')
   })
 
-  test('annotates capability operations with Policy/Rules/Effects', () => {
-    expect(svc).toContain('// Policy:')
+  test('annotates capability operations with Access/Rules/Outcome', () => {
+    expect(svc).toContain('// Access:')
     expect(svc).toContain('// Rules:')
-    expect(svc).toContain('// Effects:')
+    expect(svc).toContain('// Outcome:')
   })
 
   test('includes DTO in method signature for endpoints with request body', () => {
@@ -326,14 +325,14 @@ describe('docker generators', () => {
 
 // ── Integration ───────────────────────────────────────────────────────────────
 
-describe('api-cell integration', () => {
+describe('api-cell integration (nestjs)', () => {
   const repoRoot = path.resolve(__dirname, '../../../../')
   const technicalPath = path.join(repoRoot, 'dna/lending/technical.json')
   let outputDir: string
 
   beforeAll(() => {
     outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'api-cell-test-'))
-    run(technicalPath, 'api-cell', outputDir)
+    run(technicalPath, 'api-cell-nestjs', outputDir)
   })
 
   afterAll(() => {
@@ -397,9 +396,9 @@ describe('api-cell integration', () => {
 
   test('loans service has mock implementations', () => {
     const svc = fs.readFileSync(path.join(outputDir, 'src/loans/loans.service.ts'), 'utf-8')
-    expect(svc).toContain('// Policy:')
+    expect(svc).toContain('// Access:')
     expect(svc).toContain('// Rules:')
-    expect(svc).toContain('// Effects:')
+    expect(svc).toContain('// Outcome:')
     expect(svc).toContain('store.set(')
     expect(svc).toContain('NotFoundException')
   })
@@ -408,5 +407,95 @@ describe('api-cell integration', () => {
     expectFile('src/loans/dto/apply-loan.dto.ts')
     expectFile('src/loans/dto/approve-loan.dto.ts')
     expectFile('src/loans/dto/repay-loan.dto.ts')
+  })
+
+  test('generates lender resource files', () => {
+    expectFile('src/lenders/lenders.controller.ts')
+    expectFile('src/lenders/lenders.service.ts')
+    expectFile('src/lenders/lenders.module.ts')
+    expectFile('src/lenders/dto/onboard-lender.dto.ts')
+  })
+})
+
+// ── Express integration ──────────────────────────────────────────────────────
+
+describe('api-cell integration (express)', () => {
+  const repoRoot = path.resolve(__dirname, '../../../../')
+  const technicalPath = path.join(repoRoot, 'dna/lending/technical.json')
+  let outputDir: string
+
+  beforeAll(() => {
+    outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'api-cell-express-test-'))
+    run(technicalPath, 'api-cell', outputDir)
+  })
+
+  afterAll(() => {
+    fs.rmSync(outputDir, { recursive: true, force: true })
+  })
+
+  const expectFile = (relPath: string) =>
+    expect(fs.existsSync(path.join(outputDir, relPath))).toBe(true)
+
+  test('generates Dockerfile and .dockerignore', () => {
+    expectFile('Dockerfile')
+    expectFile('.dockerignore')
+  })
+
+  test('generates scaffold files', () => {
+    expectFile('package.json')
+    expectFile('tsconfig.json')
+    expectFile('.env')
+    expectFile('drizzle.config.ts')
+  })
+
+  test('generates DNA files for runtime interpretation', () => {
+    expectFile('src/dna/api.json')
+    expectFile('src/dna/operational.json')
+    expectFile('src/dna/auth.json')
+  })
+
+  test('generates Drizzle schema from Operational DNA', () => {
+    expectFile('src/db/schema.ts')
+    const schema = fs.readFileSync(path.join(outputDir, 'src/db/schema.ts'), 'utf-8')
+    expect(schema).toContain("export const borrowers = pgTable('borrowers'")
+    expect(schema).toContain("export const loans = pgTable('loans'")
+    expect(schema).toContain("export const lenders = pgTable('lenders'")
+  })
+
+  test('generates interpreter modules', () => {
+    expectFile('src/interpreter/auth.ts')
+    expectFile('src/interpreter/store.ts')
+    expectFile('src/interpreter/handler.ts')
+    expectFile('src/interpreter/openapi.ts')
+    expectFile('src/interpreter/router.ts')
+    expectFile('src/interpreter/validators.ts')
+    expectFile('src/interpreter/drizzle-store.ts')
+  })
+
+  test('generates entry point and seed', () => {
+    expectFile('src/main.ts')
+    expectFile('src/seed.ts')
+  })
+
+  test('auth config contains IDP settings', () => {
+    const authConfig = JSON.parse(fs.readFileSync(path.join(outputDir, 'src/dna/auth.json'), 'utf-8'))
+    expect(authConfig.domain).toBe('acme.auth0.com')
+    expect(authConfig.audience).toBe('https://api.acme.finance')
+    expect(authConfig.roleClaim).toBe('https://acme.finance/roles')
+  })
+
+  test('bundled API DNA matches source', () => {
+    const apiDna = JSON.parse(fs.readFileSync(path.join(outputDir, 'src/dna/api.json'), 'utf-8'))
+    expect(apiDna.namespace.name).toBe('Lending')
+    expect(apiDna.resources).toHaveLength(3)
+    expect(apiDna.endpoints.length).toBeGreaterThanOrEqual(13)
+  })
+
+  test('package.json includes runtime dependencies', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(outputDir, 'package.json'), 'utf-8'))
+    expect(pkg.dependencies.express).toBeDefined()
+    expect(pkg.dependencies['drizzle-orm']).toBeDefined()
+    expect(pkg.dependencies['jwks-rsa']).toBeDefined()
+    expect(pkg.dependencies.jsonwebtoken).toBeDefined()
   })
 })
