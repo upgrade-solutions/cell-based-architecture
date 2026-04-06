@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/architecture/view",
+  "title": "View",
+  "description": "A named diagram perspective showing a specific aspect of the architecture. Each view contains its own set of nodes, connections, and zones.",
+  "type": "object",
+  "required": ["name", "nodes"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The unique name of this view.",
+      "examples": ["deployment", "data-flow", "domain-map"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this view shows.",
+      "examples": ["Cell deployment topology with infrastructure", "How data flows through the system"]
+    },
+    "layout": {
+      "type": "object",
+      "description": "Layout hints for auto-positioning.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The layout algorithm to use.",
+          "enum": ["hierarchical", "force", "grid", "manual"],
+          "default": "hierarchical"
+        },
+        "direction": {
+          "type": "string",
+          "description": "Direction for hierarchical layouts.",
+          "enum": ["TB", "BT", "LR", "RL"],
+          "default": "TB"
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "description": "The visual elements in this view.",
+      "items": { "$ref": "https://dna.local/architecture/node" }
+    },
+    "connections": {
+      "type": "array",
+      "description": "The relationships between nodes in this view.",
+      "items": { "$ref": "https://dna.local/architecture/connection" }
+    },
+    "zones": {
+      "type": "array",
+      "description": "Visual groupings of nodes in this view.",
+      "items": { "$ref": "https://dna.local/architecture/zone" }
+    }
+  },
+  "examples": [
+    {
+      "name": "deployment",
+      "description": "Cell deployment topology with infrastructure",
+      "layout": { "type": "hierarchical", "direction": "TB" },
+      "nodes": [
+        { "id": "api-cell", "name": "API Cell", "type": "cell", "source": "technical:cell:api-cell" },
+        { "id": "primary-db", "name": "Primary DB", "type": "construct", "source": "technical:construct:primary-db" }
+      ],
+      "connections": [
+        { "id": "api-to-db", "source": "api-cell", "target": "primary-db", "type": "depends-on", "label": "reads/writes" }
+      ],
+      "zones": [
+        { "id": "storage-tier", "name": "Storage", "type": "tier", "nodes": ["primary-db"] }
+      ]
+    }
+  ]
+}

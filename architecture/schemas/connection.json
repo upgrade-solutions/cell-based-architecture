@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/architecture/connection",
+  "title": "Connection",
+  "description": "A directed relationship between two nodes in an architecture view. Connections represent data flow, dependencies, or communication paths.",
+  "type": "object",
+  "required": ["id", "source", "target", "type"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this connection within the view.",
+      "examples": ["api-to-db", "ui-calls-api"]
+    },
+    "source": {
+      "type": "string",
+      "description": "The `id` of the source node.",
+      "examples": ["api-cell", "ui-cell"]
+    },
+    "target": {
+      "type": "string",
+      "description": "The `id` of the target node.",
+      "examples": ["primary-db", "api-cell"]
+    },
+    "type": {
+      "type": "string",
+      "description": "The kind of relationship. Drives visual styling (line style, arrowheads).",
+      "enum": ["depends-on", "data-flow", "communicates-with", "publishes-to"],
+      "examples": ["depends-on", "data-flow"]
+    },
+    "label": {
+      "type": "string",
+      "description": "Text displayed on the connection line.",
+      "examples": ["reads/writes", "REST", "gRPC", "events"]
+    },
+    "vertices": {
+      "type": "array",
+      "description": "Intermediate waypoints for the connection path.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "x": { "type": "number" },
+          "y": { "type": "number" }
+        },
+        "required": ["x", "y"]
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Arbitrary key-value pairs.",
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "id": "api-to-db",
+      "source": "api-cell",
+      "target": "primary-db",
+      "type": "depends-on",
+      "label": "reads/writes"
+    },
+    {
+      "id": "ui-calls-api",
+      "source": "ui-cell",
+      "target": "api-cell",
+      "type": "communicates-with",
+      "label": "REST"
+    }
+  ]
+}

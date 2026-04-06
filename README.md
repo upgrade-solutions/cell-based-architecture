@@ -119,6 +119,57 @@ Constructs are declared once and referenced by multiple Cells — e.g. a `databa
 
 ---
 
+## 4. Architecture DNA
+> *"How the platform looks"* — interactive visual diagrams of system architecture
+
+Architecture DNA captures visual architecture diagrams as structured data. Each domain can have multiple named **views** (deployment topology, data flow, domain map, etc.) composed of **nodes**, **connections**, and **zones**.
+
+Architecture DNA is both derivable from other layers (cells and constructs from Technical DNA become nodes, their relationships become connections) and independently editable via the `cba-viz` interactive viewer.
+
+**Primitives:**
+
+| Primitive | Description |
+|-----------|-------------|
+| `View` | A named diagram perspective (e.g. `deployment`, `data-flow`, `domain-map`) with a layout hint |
+| `Node` | A visual element representing a system component — typed as `cell`, `construct`, `provider`, `domain`, `noun`, `external`, or `custom` |
+| `Connection` | A directed relationship between two nodes — typed as `depends-on`, `data-flow`, `communicates-with`, or `publishes-to` |
+| `Zone` | A visual container grouping related nodes — typed as `tier`, `boundary`, `environment`, or `domain` |
+
+Nodes can reference DNA primitives from other layers via the `source` field (e.g. `"technical:cell:api-cell"`), enabling cross-layer traceability.
+
+```bash
+# CLI commands
+npx cba architecture list lending
+npx cba architecture list lending --type Node
+npx cba architecture show lending --type View --name deployment
+npx cba architecture schema Node
+npx cba validate lending                   # includes architecture layer
+```
+
+Schemas live in `architecture/schemas/`.
+
+---
+
+# `cba-viz` — Interactive Architecture Viewer
+
+The `cba-viz` package (`packages/cba-viz/`) is a standalone Vite + React application that renders Architecture DNA as interactive JointJS diagrams.
+
+```bash
+cd packages/cba-viz
+npm run dev                                # http://localhost:5174
+```
+
+**Features:**
+- **View switching** — dropdown to switch between views in the architecture DNA
+- **Editable** — drag nodes to reposition, inspector panel to edit properties
+- **Custom shapes** — distinct visual styles for cells (rounded rect, blue), constructs (dashed rect, purple), providers (pill, amber), zones (dashed container)
+- **Write-back** — save positions and edits back to `architecture.json` (Ctrl+S or Save button)
+- **Dark theme** — dark canvas with dot grid, matching the cell-based architecture aesthetic
+
+**Tech stack:** Vite 7, React 19, JointJS Plus (v4.2), MobX, Tailwind CSS v4.
+
+---
+
 # Primitive Vocabulary by Layer
 
 | Layer | Primitives |
@@ -126,6 +177,7 @@ Constructs are declared once and referenced by multiple Cells — e.g. a `databa
 | Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Cause`, `Rule`, `Outcome`, `Lifecycle`, `Equation` |
 | Product | `Resource`, `Action`, `Operation`, `Layout`, `Page`, `Route`, `Block`, `Field`, `Namespace`, `Endpoint`, `Schema`, `Param` |
 | Technical | `Environment`, `Cell`, `Construct`, `Provider`, `Variable`, `Output`, `Script` |
+| Architecture | `View`, `Node`, `Connection`, `Zone` |
 
 No primitive name is shared across layers.
 
@@ -429,6 +481,7 @@ npx cba domains                                     # list domains under dna/
 | `cba operational <cmd> <domain>` | Work with Operational DNA: `discover`, `list`, `show`, `add`, `remove`, `schema`, `validate` |
 | `cba product <api\|ui> <cmd> <domain>` | Work with Product DNA (API or UI surface): `list`, `show`, `add`, `remove`, `schema`, `validate` |
 | `cba technical <cmd> <domain>` | Work with Technical DNA: `list`, `show`, `add`, `remove`, `schema`, `validate` |
+| `cba architecture <cmd> <domain>` | Work with Architecture DNA: `list`, `show`, `add`, `remove`, `schema`, `validate` |
 | `cba develop <domain> [--cell X]` | Reads technical DNA, invokes each declared cell's generator |
 | `cba deploy <domain> --env <env> [--adapter X]` | Composes generated cells into a deployable topology (default: `docker-compose`) |
 

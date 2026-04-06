@@ -4,6 +4,7 @@ import { helpFor, ROOT_HELP } from './help'
 import { runOperational } from './operational'
 import { runProduct } from './product'
 import { runTechnical } from './technical'
+import { runArchitecture } from './architecture'
 import { runDevelop } from './develop'
 import { runDeliver } from './deliver/index'
 import { runRun } from './run'
@@ -45,6 +46,9 @@ function main(): void {
       return
     case 'technical':
       runTechnical(rest, args)
+      return
+    case 'architecture':
+      runArchitecture(rest, args)
       return
     case 'develop':
       runDevelop(rest, args)

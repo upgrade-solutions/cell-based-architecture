@@ -1,0 +1,203 @@
+{
+  "views": [
+    {
+      "name": "deployment",
+      "description": "Cell deployment topology with infrastructure constructs and providers.",
+      "layout": { "type": "hierarchical", "direction": "TB" },
+      "nodes": [
+        {
+          "id": "aws",
+          "name": "AWS",
+          "type": "provider",
+          "source": "technical:provider:aws",
+          "position": { "x": 400, "y": 20 },
+          "metadata": { "region": "us-east-1" }
+        },
+        {
+          "id": "auth0",
+          "name": "Auth0",
+          "type": "provider",
+          "source": "technical:provider:auth0",
+          "position": { "x": 700, "y": 20 },
+          "metadata": { "domain": "acme.auth0.com" }
+        },
+        {
+          "id": "api-gateway",
+          "name": "API Gateway",
+          "type": "construct",
+          "source": "technical:construct:api-gateway",
+          "position": { "x": 400, "y": 120 },
+          "metadata": { "category": "network" }
+        },
+        {
+          "id": "api-cell",
+          "name": "API Cell (Express)",
+          "type": "cell",
+          "source": "technical:cell:api-cell",
+          "position": { "x": 100, "y": 240 },
+          "metadata": { "adapter": "node/express" }
+        },
+        {
+          "id": "api-cell-nestjs",
+          "name": "API Cell (NestJS)",
+          "type": "cell",
+          "source": "technical:cell:api-cell-nestjs",
+          "position": { "x": 300, "y": 240 },
+          "metadata": { "adapter": "node/nestjs" }
+        },
+        {
+          "id": "api-cell-rails",
+          "name": "API Cell (Rails)",
+          "type": "cell",
+          "source": "technical:cell:api-cell-rails",
+          "position": { "x": 500, "y": 240 },
+          "metadata": { "adapter": "ruby/rails" }
+        },
+        {
+          "id": "api-cell-fastapi",
+          "name": "API Cell (FastAPI)",
+          "type": "cell",
+          "source": "technical:cell:api-cell-fastapi",
+          "position": { "x": 700, "y": 240 },
+          "metadata": { "adapter": "python/fastapi" }
+        },
+        {
+          "id": "api-server",
+          "name": "API Server (ECS)",
+          "type": "construct",
+          "source": "technical:construct:api-server",
+          "position": { "x": 400, "y": 360 },
+          "metadata": { "category": "compute" }
+        },
+        {
+          "id": "db-cell",
+          "name": "DB Cell",
+          "type": "cell",
+          "source": "technical:cell:db-cell",
+          "position": { "x": 200, "y": 480 },
+          "metadata": { "adapter": "postgres" }
+        },
+        {
+          "id": "primary-db",
+          "name": "Primary DB",
+          "type": "construct",
+          "source": "technical:construct:primary-db",
+          "position": { "x": 200, "y": 600 },
+          "metadata": { "category": "storage", "engine": "postgres" }
+        },
+        {
+          "id": "session-cache",
+          "name": "Session Cache",
+          "type": "construct",
+          "source": "technical:construct:session-cache",
+          "position": { "x": 500, "y": 600 },
+          "metadata": { "category": "storage", "engine": "redis" }
+        },
+        {
+          "id": "auth-provider",
+          "name": "Auth Provider",
+          "type": "construct",
+          "source": "technical:construct:auth-provider",
+          "position": { "x": 700, "y": 480 },
+          "metadata": { "category": "storage", "provider": "auth0" }
+        },
+        {
+          "id": "ui-cell",
+          "name": "UI Cell (React)",
+          "type": "cell",
+          "source": "technical:cell:ui-cell",
+          "position": { "x": 900, "y": 240 },
+          "metadata": { "adapter": "vite/react" }
+        },
+        {
+          "id": "vue-ui-cell",
+          "name": "UI Cell (Vue)",
+          "type": "cell",
+          "source": "technical:cell:vue-ui-cell",
+          "position": { "x": 1100, "y": 240 },
+          "metadata": { "adapter": "vite/vue" }
+        },
+        {
+          "id": "ui-cell-next",
+          "name": "UI Cell (Next.js)",
+          "type": "cell",
+          "source": "technical:cell:ui-cell-next",
+          "position": { "x": 1000, "y": 360 },
+          "metadata": { "adapter": "next/react" }
+        },
+        {
+          "id": "ui-server",
+          "name": "UI Server (ECS)",
+          "type": "construct",
+          "source": "technical:construct:ui-server",
+          "position": { "x": 1000, "y": 480 },
+          "metadata": { "category": "compute" }
+        }
+      ],
+      "connections": [
+        { "id": "gw-to-api-express", "source": "api-gateway", "target": "api-cell", "type": "data-flow", "label": "routes" },
+        { "id": "gw-to-api-nestjs", "source": "api-gateway", "target": "api-cell-nestjs", "type": "data-flow", "label": "routes" },
+        { "id": "gw-to-api-rails", "source": "api-gateway", "target": "api-cell-rails", "type": "data-flow", "label": "routes" },
+        { "id": "gw-to-api-fastapi", "source": "api-gateway", "target": "api-cell-fastapi", "type": "data-flow", "label": "routes" },
+        { "id": "api-express-to-db", "source": "api-cell", "target": "primary-db", "type": "depends-on", "label": "reads/writes" },
+        { "id": "api-nestjs-to-db", "source": "api-cell-nestjs", "target": "primary-db", "type": "depends-on", "label": "reads/writes" },
+        { "id": "api-rails-to-db", "source": "api-cell-rails", "target": "primary-db", "type": "depends-on", "label": "reads/writes" },
+        { "id": "api-fastapi-to-db", "source": "api-cell-fastapi", "target": "primary-db", "type": "depends-on", "label": "reads/writes" },
+        { "id": "api-express-to-cache", "source": "api-cell", "target": "session-cache", "type": "depends-on", "label": "sessions" },
+        { "id": "api-nestjs-to-cache", "source": "api-cell-nestjs", "target": "session-cache", "type": "depends-on", "label": "sessions" },
+        { "id": "api-express-to-auth", "source": "api-cell", "target": "auth-provider", "type": "depends-on", "label": "JWT" },
+        { "id": "api-nestjs-to-auth", "source": "api-cell-nestjs", "target": "auth-provider", "type": "depends-on", "label": "JWT" },
+        { "id": "api-rails-to-auth", "source": "api-cell-rails", "target": "auth-provider", "type": "depends-on", "label": "JWT" },
+        { "id": "api-fastapi-to-auth", "source": "api-cell-fastapi", "target": "auth-provider", "type": "depends-on", "label": "JWT" },
+        { "id": "db-cell-to-db", "source": "db-cell", "target": "primary-db", "type": "depends-on", "label": "provisions" },
+        { "id": "ui-to-api", "source": "ui-cell", "target": "api-gateway", "type": "communicates-with", "label": "REST" },
+        { "id": "vue-to-api", "source": "vue-ui-cell", "target": "api-gateway", "type": "communicates-with", "label": "REST" },
+        { "id": "next-to-api", "source": "ui-cell-next", "target": "api-gateway", "type": "communicates-with", "label": "REST" },
+        { "id": "ui-to-auth", "source": "ui-cell", "target": "auth-provider", "type": "depends-on", "label": "auth" },
+        { "id": "vue-to-auth", "source": "vue-ui-cell", "target": "auth-provider", "type": "depends-on", "label": "auth" },
+        { "id": "next-to-auth", "source": "ui-cell-next", "target": "auth-provider", "type": "depends-on", "label": "auth" },
+        { "id": "ui-to-server", "source": "ui-cell", "target": "ui-server", "type": "depends-on" },
+        { "id": "vue-to-server", "source": "vue-ui-cell", "target": "ui-server", "type": "depends-on" },
+        { "id": "next-to-server", "source": "ui-cell-next", "target": "ui-server", "type": "depends-on" },
+        { "id": "api-express-to-server", "source": "api-cell", "target": "api-server", "type": "depends-on" },
+        { "id": "api-nestjs-to-server", "source": "api-cell-nestjs", "target": "api-server", "type": "depends-on" },
+        { "id": "api-rails-to-server", "source": "api-cell-rails", "target": "api-server", "type": "depends-on" },
+        { "id": "api-fastapi-to-server", "source": "api-cell-fastapi", "target": "api-server", "type": "depends-on" },
+        { "id": "auth-provider-to-auth0", "source": "auth-provider", "target": "auth0", "type": "depends-on" },
+        { "id": "primary-db-to-aws", "source": "primary-db", "target": "aws", "type": "depends-on" },
+        { "id": "session-cache-to-aws", "source": "session-cache", "target": "aws", "type": "depends-on" },
+        { "id": "api-gateway-to-aws", "source": "api-gateway", "target": "aws", "type": "depends-on" }
+      ],
+      "zones": [
+        {
+          "id": "compute-tier",
+          "name": "Compute",
+          "type": "tier",
+          "nodes": ["api-cell", "api-cell-nestjs", "api-cell-rails", "api-cell-fastapi", "api-server", "ui-cell", "vue-ui-cell", "ui-cell-next", "ui-server"],
+          "description": "Application cells and their compute constructs."
+        },
+        {
+          "id": "storage-tier",
+          "name": "Storage",
+          "type": "tier",
+          "nodes": ["db-cell", "primary-db", "session-cache"],
+          "description": "Persistent and ephemeral storage constructs."
+        },
+        {
+          "id": "network-tier",
+          "name": "Network",
+          "type": "tier",
+          "nodes": ["api-gateway"],
+          "description": "Network and routing constructs."
+        },
+        {
+          "id": "identity-boundary",
+          "name": "Identity",
+          "type": "boundary",
+          "nodes": ["auth-provider", "auth0"],
+          "description": "Authentication and authorization boundary."
+        }
+      ]
+    }
+  ]
+}

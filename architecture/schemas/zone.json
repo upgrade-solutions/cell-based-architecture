@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/architecture/zone",
+  "title": "Zone",
+  "description": "A visual container that groups related nodes. Zones represent logical boundaries such as tiers, security boundaries, environments, or domain boundaries.",
+  "type": "object",
+  "required": ["id", "name", "type", "nodes"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this zone within the view.",
+      "examples": ["storage-tier", "compute-tier", "public-zone"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name shown on the zone container.",
+      "examples": ["Storage Tier", "Compute", "Public Zone"]
+    },
+    "type": {
+      "type": "string",
+      "description": "The kind of grouping. Drives visual styling (border style, color).",
+      "enum": ["tier", "boundary", "environment", "domain"],
+      "examples": ["tier", "boundary"]
+    },
+    "nodes": {
+      "type": "array",
+      "description": "IDs of nodes contained in this zone.",
+      "items": { "type": "string" },
+      "examples": [["primary-db", "session-cache"], ["api-cell", "api-gateway"]]
+    },
+    "position": {
+      "type": "object",
+      "description": "Position on the canvas in pixels. Auto-calculated if omitted.",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "required": ["x", "y"]
+    },
+    "size": {
+      "type": "object",
+      "description": "Dimensions on the canvas in pixels. Auto-calculated if omitted.",
+      "properties": {
+        "width": { "type": "number" },
+        "height": { "type": "number" }
+      },
+      "required": ["width", "height"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this zone represents."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Arbitrary key-value pairs.",
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "id": "storage-tier",
+      "name": "Storage Tier",
+      "type": "tier",
+      "nodes": ["primary-db", "session-cache"],
+      "description": "Persistent and ephemeral storage constructs."
+    },
+    {
+      "id": "compute-tier",
+      "name": "Compute",
+      "type": "tier",
+      "nodes": ["api-cell", "api-cell-nestjs", "api-cell-rails", "api-cell-fastapi"]
+    }
+  ]
+}

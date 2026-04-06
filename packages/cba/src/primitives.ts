@@ -49,6 +49,12 @@ export const PRIMITIVES: PrimitiveSpec[] = [
   { type: 'Cell', layer: 'technical', location: 'cells' },
   { type: 'Output', layer: 'technical', location: 'outputs' },
   { type: 'Script', layer: 'technical', location: 'scripts' },
+
+  // architecture
+  { type: 'View', layer: 'architecture', location: 'views' },
+  { type: 'Node', layer: 'architecture', location: 'views.*.nodes', nested: true },
+  { type: 'Connection', layer: 'architecture', location: 'views.*.connections', nested: true },
+  { type: 'Zone', layer: 'architecture', location: 'views.*.zones', nested: true },
 ]
 
 export function primitivesForLayer(layer: Layer): PrimitiveSpec[] {
@@ -90,6 +96,23 @@ export function collectPrimitives(
   spec: PrimitiveSpec,
 ): FoundPrimitive[] {
   if (!doc) return []
+
+  // Architecture view-nested primitives (nodes, connections, zones inside views)
+  if (spec.nested && spec.location.startsWith('views.*')) {
+    const out: FoundPrimitive[] = []
+    const field = spec.location.split('.').pop()! // 'nodes' | 'connections' | 'zones'
+    for (const view of doc.views ?? []) {
+      for (const item of view[field] ?? []) {
+        out.push({
+          type: spec.type,
+          name: item.name ?? item.id ?? '(unnamed)',
+          domainPath: view.name,
+          node: item,
+        })
+      }
+    }
+    return out
+  }
 
   // Tree-walked operational primitives
   if (spec.nested && spec.location.startsWith('domain.*')) {

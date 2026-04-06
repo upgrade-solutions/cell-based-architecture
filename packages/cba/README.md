@@ -21,6 +21,7 @@ The CLI is organized around the three DNA layers plus build/deploy:
 cba operational ...     # Operational DNA (business logic, domain concepts)
 cba product ...         # Product DNA — api or ui surface
 cba technical ...       # Technical DNA (cells, constructs, infra)
+cba architecture ...    # Architecture DNA (visual diagrams)
 cba develop ...         # DNA → generated code
 cba deploy ...          # compose cells into a deployable topology
 ```
@@ -87,6 +88,18 @@ cba technical show lending --type Cell --name api-cell
 cba technical add lending --type Variable --file new-var.json
 cba technical remove lending --type Variable --name OLD_FLAG
 cba technical schema Construct
+```
+
+### `cba architecture <command> <domain>` — work with Architecture DNA
+
+Commands: `list`, `show`, `add`, `remove`, `schema`, `validate`.
+
+```bash
+cba architecture list lending
+cba architecture list lending --type Node
+cba architecture show lending --type View --name deployment
+cba architecture schema Node
+cba architecture validate lending
 ```
 
 ### `cba develop <domain>` — run cells (DNA → code)
@@ -206,6 +219,7 @@ packages/cba/
 │   ├── operational.ts   # operational layer commands (incl. discover)
 │   ├── product.ts       # product layer commands (api/ui dispatch)
 │   ├── technical.ts     # technical layer commands
+│   ├── architecture.ts  # architecture layer commands
 │   ├── design.ts        # shared list / show / add / remove / schema / validate
 │   ├── develop.ts       # cell generation dispatch
 │   ├── run.ts           # start generated output
