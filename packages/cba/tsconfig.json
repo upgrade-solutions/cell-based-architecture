@@ -11,7 +11,7 @@
     "declaration": true,
     "sourceMap": true,
     "paths": {
-      "@cell/dna-validator": ["../dna-validator/src/index.ts"]
+      "@cell/dna-validator": ["../dna-validator/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
