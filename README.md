@@ -463,6 +463,8 @@ npx cba run lending --adapter express               # start generated API
 # Deploy — compose generated cells into a deployable topology
 npx cba deploy lending --env dev --plan             # preview services + skipped constructs
 npx cba deploy lending --env dev                    # writes output/lending-deploy/docker-compose.yml
+npx cba deploy lending --env prod --adapter terraform/aws --plan  # preview AWS resources
+npx cba deploy lending --env prod --adapter terraform/aws         # writes output/lending-deploy/*.tf
 cd output/lending-deploy && docker compose up -d    # run the full stack locally
 
 # Validate
@@ -492,7 +494,7 @@ See `packages/cba/README.md` for full command reference and flags.
 | Adapter | Status | Output |
 |---------|--------|--------|
 | `docker-compose` | **Built** | `output/<domain>-deploy/docker-compose.yml` — multi-service local stack |
-| `terraform/aws` | Planned | AWS IaC from Constructs + Providers |
+| `terraform/aws` | **Built** | `output/<domain>-deploy/*.tf` — AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront) |
 | `aws-sam` | Planned | AWS serverless deployment for function-category Constructs |
 
 ## `docker-compose` adapter
@@ -514,6 +516,55 @@ docker compose up -d                         # run the full stack
 ```
 
 Deployment is **not regenerative** — it fails loudly if cell artifacts are missing, telling you to run `cba develop` first.
+
+## `terraform/aws` adapter
+
+Generates Terraform HCL files that provision AWS infrastructure from Technical DNA. The adapter maps DNA primitives to AWS resources:
+
+| DNA Primitive | AWS Resource |
+|---------------|-------------|
+| Provider `aws` (region, account_id) | `provider "aws"` block |
+| storage/database (postgres) | `aws_db_instance` (RDS) with subnet group |
+| storage/cache (redis) | `aws_elasticache_cluster` with subnet group |
+| compute/container (cpu, memory) | ECS Fargate task definition + service |
+| network/gateway | `aws_apigatewayv2_api` (HTTP) |
+| Cell (node/\*, ruby/\*, python/\*) | ECR repository + ECS container definition |
+| Cell (vite/\*) | S3 bucket + CloudFront distribution |
+| Cell (next/\*) | ECR repository + ECS container (SSR) |
+| Variable (secret) | Secrets Manager secret + TF input variable |
+| Variable (literal) | Container environment value |
+| Variable (env) | TF input variable with default |
+
+Generated files:
+
+| File | Contents |
+|------|----------|
+| `main.tf` | Terraform block, required providers, `provider "aws"` |
+| `variables.tf` | Input variables for secrets, VPC CIDR, env vars |
+| `vpc.tf` | VPC, public/private subnets (2 AZs), NAT gateway, security groups |
+| `storage.tf` | RDS instances, ElastiCache clusters |
+| `compute.tf` | ECS cluster, task definitions, services, S3 buckets for static cells |
+| `network.tf` | ALB + target groups + listener rules, API Gateway, CloudFront |
+| `secrets.tf` | Secrets Manager entries |
+| `iam.tf` | ECS execution/task roles, secrets read policy |
+| `ecr.tf` | ECR repositories per container cell |
+| `outputs.tf` | ALB DNS, ECR URLs, RDS endpoints, CloudFront domains |
+| `terraform.tfvars.example` | Example variable values (copy to `terraform.tfvars`) |
+
+```bash
+npx cba develop lending                                         # generate all cells first
+npx cba deploy lending --env prod --adapter terraform/aws --plan  # preview resources
+npx cba deploy lending --env prod --adapter terraform/aws         # write output/lending-deploy/
+
+cd output/lending-deploy
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with real secret values
+terraform init
+terraform plan
+terraform apply
+```
+
+Environment overlays work the same as docker-compose — `--env dev` uses the dev-scoped Construct configs (e.g. `db.t3.micro` instead of `db.t3.medium`). External providers (auth0, etc.) and db-cells are skipped.
 
 ---
 

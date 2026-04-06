@@ -182,13 +182,15 @@ existing artifacts; it does not regenerate them.
 
 DEPLOYMENT ADAPTERS
   docker-compose    Local multi-cell orchestration (default)
-  terraform/aws     AWS IaC — planned
+  terraform/aws     AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront)
   aws-sam           AWS serverless — planned
 
 EXAMPLES
   cba deploy lending --env dev                      # default: docker-compose
   cba deploy lending --env dev --plan               # preview without writing
   cba deploy lending --env dev --adapter docker-compose
+  cba deploy lending --env prod --adapter terraform/aws
+  cba deploy lending --env prod --adapter terraform/aws --plan
 
 FLAGS
   --env <name>      Target environment (must exist in technical DNA)

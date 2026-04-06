@@ -115,6 +115,7 @@ selected adapter. Fails loudly if `cba develop` hasn't been run first.
 cba deploy lending --env dev                          # default: docker-compose
 cba deploy lending --env dev --plan                   # preview without writing
 cba deploy lending --env dev --adapter docker-compose
+cba deploy lending --env prod --adapter terraform/aws # AWS IaC
 ```
 
 **Supported adapters:**
@@ -122,7 +123,7 @@ cba deploy lending --env dev --adapter docker-compose
 | Adapter | Status | Output |
 |---------|--------|--------|
 | `docker-compose` | built | `output/<domain>-deploy/docker-compose.yml` + README |
-| `terraform/aws` | planned | AWS IaC |
+| `terraform/aws` | built | `output/<domain>-deploy/*.tf` — VPC, RDS, ECS, ALB, S3+CloudFront |
 | `aws-sam` | planned | AWS serverless |
 
 The `docker-compose` adapter maps storage Constructs (postgres, redis) to
@@ -130,6 +131,13 @@ standard images, builds node/vite cells from their output dirs, and wires
 `DATABASE_URL`/`REDIS_URL`/output-reference env vars to compose-internal
 service URLs. External providers and network Constructs are reported under
 `skipped`.
+
+The `terraform/aws` adapter generates Terraform HCL targeting AWS — VPC with
+public/private subnets, RDS for database Constructs, ElastiCache for cache
+Constructs, ECS Fargate for container Cells, S3+CloudFront for static UI Cells,
+ALB with target groups, API Gateway, ECR repositories, Secrets Manager, and IAM
+roles. Secret-sourced Variables become TF input variables; environment overlays
+control instance sizing.
 
 ### `cba run <domain> --adapter <name>` — run generated output locally
 
@@ -196,7 +204,7 @@ packages/cba/
 │   ├── design.ts        # shared list / show / add / remove / schema / validate
 │   ├── develop.ts       # cell generation dispatch
 │   ├── run.ts           # start generated output
-│   ├── deliver/         # deployment: plan + adapters (docker-compose, ...)
+│   ├── deliver/         # deployment: plan + adapters (docker-compose, terraform/aws)
 │   ├── discover.ts      # discovery session scaffolding
 │   └── validate.ts      # cross-layer validation
 └── tsconfig.json

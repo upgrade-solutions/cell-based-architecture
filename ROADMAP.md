@@ -61,7 +61,7 @@ Make the system easy to adopt, extend, and operate.
 - [x] **CLI** — unified `cba` CLI organized around DNA layers (`cba operational`, `cba product`, `cba technical`) plus cross-cutting commands (`cba develop`, `cba deploy`, `cba run`, `cba validate`). Every command supports `--json` for agents. Lives in `packages/cba/`.
 - [ ] **`cba deploy`: delivery adapters** — replace the Phase 3 stub with real deployment. `cba deploy` reads Technical DNA (Constructs, Providers, Environments) + each Cell's generated artifacts and provisions/deploys via a delivery adapter:
   - [x] `docker-compose` — local multi-cell orchestration (built)
-  - [ ] `terraform/aws` — AWS IaC (RDS, Lambda, API Gateway, etc.) from Constructs + Providers
+  - [x] `terraform/aws` — AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront, ECR, Secrets Manager) from Constructs + Providers
   - [ ] `aws-sam` — serverless-first AWS deployment for function-category Constructs
   - [ ] Future: `cdk`, `pulumi`, `terraform/gcp`
 - [ ] **DNA editor / visual designer** — browser-based tool for authoring DNA without writing JSON by hand

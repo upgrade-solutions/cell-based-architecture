@@ -31,6 +31,23 @@ export interface ResolvedCell {
   outputDir: string
 }
 
+export interface ResolvedProvider {
+  name: string
+  type: string
+  region?: string
+  description?: string
+  config?: Record<string, any>
+}
+
+export interface ResolvedScript {
+  name: string
+  equation: string
+  construct: string
+  runtime: string
+  handler: string
+  environment?: string
+}
+
 export interface EnvironmentPlan {
   domain: string
   environment: string
@@ -38,6 +55,8 @@ export interface EnvironmentPlan {
   constructs: ResolvedConstruct[]
   cells: ResolvedCell[]
   variables: ResolvedVariable[]
+  providers: ResolvedProvider[]
+  scripts: ResolvedScript[]
   deployDir: string
 }
 
@@ -68,6 +87,14 @@ export function buildPlan(domain: string, environment: string): EnvironmentPlan 
     constructs: overlayByName(technical.constructs ?? [], environment),
     variables: overlayByName(technical.variables ?? [], environment),
     cells: (technical.cells ?? []).map((c: any) => resolveCell(c, domain, paths.root, environment)),
+    providers: (technical.providers ?? []).map((p: any) => ({
+      name: p.name,
+      type: p.type,
+      region: p.region,
+      description: p.description,
+      config: p.config,
+    })),
+    scripts: overlayByName(technical.scripts ?? [], environment),
     deployDir: path.join(paths.root, 'output', `${domain}-deploy`),
   }
 }
@@ -130,5 +157,6 @@ export function checkArtifacts(plan: EnvironmentPlan): string[] {
 function canonicalArtifactFor(adapterType: string): string {
   if (adapterType === 'postgres') return 'docker-compose.yml'
   if (adapterType.startsWith('ruby/')) return 'Gemfile'
+  if (adapterType.startsWith('python/')) return 'requirements.txt'
   return 'package.json'
 }

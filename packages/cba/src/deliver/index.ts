@@ -5,9 +5,10 @@ import { emit, emitError, emitOk } from '../output'
 import { DEPLOY_HELP } from '../help'
 import { buildPlan, checkArtifacts, EnvironmentPlan } from './plan'
 import { generateDockerCompose } from './adapters/docker-compose'
+import { generateTerraformAws } from './adapters/terraform-aws'
 
 const DEFAULT_ADAPTER = 'docker-compose'
-const SUPPORTED_ADAPTERS = ['docker-compose']
+const SUPPORTED_ADAPTERS = ['docker-compose', 'terraform/aws']
 
 export function runDeliver(argv: string[], args: ParsedArgs): void {
   const opts = { json: boolFlag(args, 'json') }
@@ -124,6 +125,77 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
         lines.push(
           ``,
           `  Next: cd ${path.relative(process.cwd(), plan.deployDir)} && docker compose up -d`,
+        )
+        return lines.join('\n')
+      },
+    )
+  }
+
+  if (adapter === 'terraform/aws') {
+    const result = generateTerraformAws(plan)
+
+    if (planOnly) {
+      emit(
+        {
+          domain,
+          environment,
+          adapter,
+          deployDir: plan.deployDir,
+          resources: result.resources,
+          skipped: result.skipped,
+          files: result.files.map((f) => path.relative(process.cwd(), f.path)),
+        },
+        opts,
+        () => {
+          const lines = [
+            `cba deploy ${domain} --env ${environment} --adapter ${adapter} — plan`,
+            ``,
+            `  deploy dir : ${path.relative(process.cwd(), plan.deployDir)}`,
+            `  resources  : ${result.resources.length}`,
+            ...result.resources.map((r) => `    · ${r}`),
+          ]
+          if (result.skipped.length) {
+            lines.push(``, `  skipped    : ${result.skipped.length}`)
+            for (const s of result.skipped) {
+              lines.push(`    · ${s.name} (${s.kind}) — ${s.reason}`)
+            }
+          }
+          return lines.join('\n')
+        },
+      )
+      return
+    }
+
+    // Write files
+    fs.mkdirSync(plan.deployDir, { recursive: true })
+    for (const file of result.files) {
+      fs.mkdirSync(path.dirname(file.path), { recursive: true })
+      fs.writeFileSync(file.path, file.content, 'utf-8')
+    }
+
+    emitOk(
+      {
+        domain,
+        environment,
+        adapter,
+        deployDir: plan.deployDir,
+        resources: result.resources,
+        skipped: result.skipped,
+        files: result.files.map((f) => path.relative(process.cwd(), f.path)),
+      },
+      opts,
+      () => {
+        const lines = [
+          `✓ Deployed ${domain}/${environment} → ${path.relative(process.cwd(), plan.deployDir)}`,
+          ``,
+          `  ${result.resources.length} resource(s): ${result.resources.join(', ')}`,
+        ]
+        if (result.skipped.length) {
+          lines.push(`  ${result.skipped.length} skipped construct(s)`)
+        }
+        lines.push(
+          ``,
+          `  Next: cd ${path.relative(process.cwd(), plan.deployDir)} && terraform init && terraform plan`,
         )
         return lines.join('\n')
       },
