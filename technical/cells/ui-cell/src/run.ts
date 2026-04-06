@@ -3,6 +3,7 @@ import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
 import { ProductUiDNA, OperationalDNA, UiCellContext, UiCellAdapter } from './types'
 import * as viteReactAdapter from './adapters/vite/react'
+import * as viteVueAdapter from './adapters/vite/vue'
 
 interface TechnicalCell {
   name: string
@@ -19,6 +20,7 @@ interface TechnicalDNA {
 
 const ADAPTERS: Record<string, UiCellAdapter> = {
   'vite/react': viteReactAdapter,
+  'vite/vue': viteVueAdapter,
 }
 
 function resolveAdapter(type: string): UiCellAdapter {
