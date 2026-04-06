@@ -38,7 +38,7 @@ Flesh out existing cells and close gaps in the current implementation.
 
 Build the planned cells that extend the architecture beyond API and UI.
 
-> **Note:** Infrastructure is not a cell. Cells produce deployable artifacts (API, UI, DB schema). The deployment topology (Constructs, Providers, Environments) lives in Technical DNA and is consumed by `cba deliver` via delivery adapters — see Phase 5.
+> **Note:** Infrastructure is not a cell. Cells produce deployable artifacts (API, UI, DB, worker, event bus, etc.). The deployment topology (Constructs, Providers, Environments) lives in Technical DNA and is consumed by `cba deliver` via delivery adapters — see Phase 5.
 
 ---
 
@@ -50,7 +50,7 @@ Broaden the adapter ecosystem so the same DNA can target different stacks.
 - [ ] **api-cell: `python/fastapi` adapter** — generate a FastAPI app from the same Product API DNA
 - [x] **ui-cell: `vite/vue` adapter** — generate a Vue UI from the same Product UI DNA
 - [x] **ui-cell: `next/react` adapter** — generate a Next.js app with SSR/SSG from Product UI DNA
-- [ ] **Adapter conformance tests** — ensure all adapters for a given cell produce the same external surface (same OpenAPI spec, same routes, same behavior)
+- [x] **Adapter conformance tests** — ensure all adapters for a given cell produce the same external surface (same OpenAPI spec, same routes, same behavior)
 
 ---
 

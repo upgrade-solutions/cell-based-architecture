@@ -543,7 +543,27 @@ npm test                    # runs all workspace tests
 | Package | Tests | Coverage |
 |---------|-------|----------|
 | `@cell/dna-validator` | 42 | Per-schema validation, composite documents, cross-layer validation (12 tests covering all reference types) |
-| `@cell/api-cell` | 58 | NestJS generators (schema, DTO, controller, service, module), Express integration (scaffold, DNA bundling, auth config), NestJS integration (full generation pipeline) |
+| `@cell/api-cell` | 68 | NestJS generators (schema, DTO, controller, service, module), Express integration (scaffold, DNA bundling, auth config), NestJS integration (full generation pipeline), **adapter conformance** (10 tests) |
+| `@cell/ui-cell` | 14 | **Adapter conformance** (14 tests) |
+
+## Adapter conformance tests
+
+Conformance tests verify that all adapters for a given cell produce the same external surface from the same DNA input.
+
+**API-cell** (`conformance.test.ts`): Generates all 3 adapters (NestJS, Express, Rails) into temp dirs and asserts they agree on:
+- Same HTTP method + path pairs (14 endpoints)
+- Same operation mappings
+- Same request body fields per endpoint
+- Same role-based access enforcement per capability
+- OpenAPI spec covers all endpoints (Rails static spec verified)
+- All produce Dockerfiles
+
+**UI-cell** (`conformance.test.ts`): Generates all 3 adapters (Vite/React, Vite/Vue, Next/React) into temp dirs and asserts they agree on:
+- Identical bundled DNA across adapters (UI, API, Operational)
+- Same block types supported (form, table, detail, actions, empty-state)
+- Consistent `config.json` DNA fetch paths
+- All produce Dockerfiles, package.json, tsconfig.json
+- All generate DNA loader and API hook/composable
 
 ---
 
