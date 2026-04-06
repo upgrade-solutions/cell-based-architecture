@@ -5,6 +5,7 @@ import { ProductApiDNA, OperationalDNA, AuthProviderConfig, ApiCellAdapter } fro
 import * as nestjsAdapter from './adapters/node/nestjs'
 import * as expressAdapter from './adapters/node/express'
 import * as railsAdapter from './adapters/ruby/rails'
+import * as fastapiAdapter from './adapters/python/fastapi'
 
 interface TechnicalCell {
   name: string
@@ -33,6 +34,7 @@ const ADAPTERS: Record<string, ApiCellAdapter> = {
   'node/nestjs': nestjsAdapter,
   'node/express': expressAdapter,
   'ruby/rails': railsAdapter,
+  'python/fastapi': fastapiAdapter,
 }
 
 function resolveAdapter(type: string): ApiCellAdapter {

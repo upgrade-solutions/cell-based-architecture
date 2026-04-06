@@ -38,7 +38,7 @@ Flesh out existing cells and close gaps in the current implementation.
 
 Build the planned cells that extend the architecture beyond API and UI.
 
-> **Note:** Infrastructure is not a cell. Cells produce deployable artifacts (API, UI, DB, worker, event bus, etc.). The deployment topology (Constructs, Providers, Environments) lives in Technical DNA and is consumed by `cba deliver` via delivery adapters — see Phase 5.
+> **Note:** Infrastructure is not a cell. Cells produce deployable artifacts (API, UI, DB, worker, event bus, etc.). The deployment topology (Constructs, Providers, Environments) lives in Technical DNA and is consumed by `cba deploy` via delivery adapters — see Phase 5.
 
 ---
 
@@ -47,7 +47,7 @@ Build the planned cells that extend the architecture beyond API and UI.
 Broaden the adapter ecosystem so the same DNA can target different stacks.
 
 - [x] **api-cell: `ruby/rails` adapter** — generate a Rails API from the same Product API DNA
-- [ ] **api-cell: `python/fastapi` adapter** — generate a FastAPI app from the same Product API DNA
+- [x] **api-cell: `python/fastapi` adapter** — generate a FastAPI app from the same Product API DNA
 - [x] **ui-cell: `vite/vue` adapter** — generate a Vue UI from the same Product UI DNA
 - [x] **ui-cell: `next/react` adapter** — generate a Next.js app with SSR/SSG from Product UI DNA
 - [x] **Adapter conformance tests** — ensure all adapters for a given cell produce the same external surface (same OpenAPI spec, same routes, same behavior)
@@ -58,8 +58,8 @@ Broaden the adapter ecosystem so the same DNA can target different stacks.
 
 Make the system easy to adopt, extend, and operate.
 
-- [x] **CLI** — unified `cba` CLI organized around the D-D-D-D lifecycle (`cba discover`, `cba design`, `cba develop`, `cba deliver`, plus `cba run` / `cba validate`). Every command supports `--json` for agents. Lives in `packages/cba/`.
-- [ ] **`cba deliver`: delivery adapters** — replace the Phase 3 stub with real deployment. `cba deliver` reads Technical DNA (Constructs, Providers, Environments) + each Cell's generated artifacts and provisions/deploys via a delivery adapter:
+- [x] **CLI** — unified `cba` CLI organized around DNA layers (`cba operational`, `cba product`, `cba technical`) plus cross-cutting commands (`cba develop`, `cba deploy`, `cba run`, `cba validate`). Every command supports `--json` for agents. Lives in `packages/cba/`.
+- [ ] **`cba deploy`: delivery adapters** — replace the Phase 3 stub with real deployment. `cba deploy` reads Technical DNA (Constructs, Providers, Environments) + each Cell's generated artifacts and provisions/deploys via a delivery adapter:
   - [x] `docker-compose` — local multi-cell orchestration (built)
   - [ ] `terraform/aws` — AWS IaC (RDS, Lambda, API Gateway, etc.) from Constructs + Providers
   - [ ] `aws-sam` — serverless-first AWS deployment for function-category Constructs

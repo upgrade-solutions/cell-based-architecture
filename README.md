@@ -112,7 +112,7 @@ A `Cell` definition embeds its adapter config and references named `Construct`s:
 }
 ```
 
-Adapter types are namespaced by runtime — `node/nestjs`, `node/express`, `ruby/rails`, etc. — making the execution environment explicit in the DNA.
+Adapter types are namespaced by runtime — `node/nestjs`, `node/express`, `ruby/rails`, `python/fastapi`, etc. — making the execution environment explicit in the DNA.
 
 Constructs are declared once and referenced by multiple Cells — e.g. a `database` Construct shared by both an `api` Cell and a `workflow` Cell.
 
@@ -146,7 +146,7 @@ flowchart LR
     subgraph CellRuntime["Cell Runtime"]
         direction TB
         CELL["Cell\nTypeScript engine"]
-        ADAPTER["Adapter\ne.g. node/nestjs · node/express\nruby/rails · react · vue"]
+        ADAPTER["Adapter\ne.g. node/nestjs · node/express\nruby/rails · python/fastapi · react · vue"]
         SUBADAPTER["Sub-adapter\ne.g. drizzle ORM · auth0 · stripe"]
         CELL -->|"dispatches to"| ADAPTER
         ADAPTER -->|"optional plugin"| SUBADAPTER
@@ -196,6 +196,7 @@ The `api-cell` supports multiple adapters that produce the same API surface from
 | `node/nestjs` | Static code generation — typed controllers, services, DTOs | 3000 | `output/lending-api-nestjs/` |
 | `node/express` | Dynamic runtime interpreter — reads DNA at startup, hot-reloads on DNA file changes | 3001 | `output/lending-api/` |
 | `ruby/rails` | Static code generation — Rails API-mode app with controllers, models, migrations | 3000 | `output/lending-api-rails/` |
+| `python/fastapi` | Static code generation — FastAPI app with Pydantic schemas, SQLAlchemy models, APIRouters | 8000 | `output/lending-api-fastapi/` |
 
 The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON (`/api-json`).
 
@@ -267,6 +268,31 @@ Generated structure:
 - **Auth** — `ApplicationController` with JWKS-based JWT verification (same IDP-agnostic pattern as Node adapters)
 - **Routes** — explicit route declarations matching every DNA endpoint
 - **Dockerfile** — multi-stage Ruby 3.3 build with Puma
+
+#### FastAPI adapter
+
+The `python/fastapi` adapter generates a complete FastAPI application with SQLAlchemy 2.0 and Pydantic v2:
+
+```bash
+# Generate the FastAPI app from DNA
+cba develop lending --cell api-cell-fastapi
+
+# Run the FastAPI app
+cd output/lending-api-fastapi
+pip install -r requirements.txt
+uvicorn app.main:app --reload    # http://localhost:8000/docs
+```
+
+Generated structure:
+- **Routers** — one per resource with FastAPI dependency injection for auth and DB sessions
+- **Models** — SQLAlchemy 2.0 declarative models (one per Operational DNA Noun) with `Mapped` type annotations
+- **Schemas** — Pydantic v2 request/response models with `from_attributes` for ORM compatibility
+- **Auth** — JWKS-based JWT verification via `python-jose`, exposed as FastAPI dependencies (`get_current_user`, `require_roles`)
+- **Database** — SQLAlchemy engine + session factory with FastAPI `Depends` integration
+- **Alembic** — migration configuration wired to the SQLAlchemy models
+- **Dockerfile** — multi-stage Python 3.12 build with uvicorn
+
+FastAPI's native `/docs` (Swagger UI) and `/redoc` endpoints are available automatically.
 
 #### Using Postgres (via db-cell)
 

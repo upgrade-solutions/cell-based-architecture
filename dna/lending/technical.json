@@ -340,6 +340,43 @@
       ]
     },
     {
+      "name": "api-cell-fastapi",
+      "description": "Reads Product API DNA and generates a FastAPI application with typed routers, Pydantic schemas, and SQLAlchemy models.",
+      "dna": "lending/product.api",
+      "adapter": {
+        "type": "python/fastapi",
+        "config": {
+          "operational_dna": "lending/operational",
+          "port": 8000
+        }
+      },
+      "constructs": [
+        "primary-db",
+        "session-cache",
+        "auth-provider",
+        "api-gateway",
+        "api-server"
+      ],
+      "variables": [
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_DOMAIN",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "AUTH0_AUDIENCE",
+          "source": "literal",
+          "value": "https://api.acme.finance",
+          "required": true
+        }
+      ]
+    },
+    {
       "name": "db-cell",
       "description": "Provisions the Postgres database and lending_app role (infra-only — schema is owned by api-cell).",
       "dna": "lending/operational",

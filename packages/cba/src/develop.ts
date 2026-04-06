@@ -20,6 +20,7 @@ interface CellPlan {
 function workspaceForAdapter(adapterType: string): string | undefined {
   if (adapterType.startsWith('node/')) return '@cell/api-cell'
   if (adapterType.startsWith('ruby/')) return '@cell/api-cell'
+  if (adapterType.startsWith('python/')) return '@cell/api-cell'
   if (adapterType === 'postgres') return '@cell/db-cell'
   if (adapterType.startsWith('vite/') || adapterType.startsWith('next/')) return '@cell/ui-cell'
   return undefined
