@@ -18,16 +18,6 @@
       "config": {
         "account_id": "123456789012"
       }
-    },
-    {
-      "name": "auth0",
-      "type": "auth",
-      "description": "Identity provider for authentication and role-based access control.",
-      "config": {
-        "domain": "acme.auth0.com",
-        "audience": "https://api.acme.finance",
-        "roleClaim": "https://acme.finance/roles"
-      }
     }
   ],
   "constructs": [
@@ -55,71 +45,6 @@
         "version": "15",
         "instance_class": "db.t3.micro"
       }
-    },
-    {
-      "name": "session-cache",
-      "category": "storage",
-      "type": "cache",
-      "provider": "aws",
-      "description": "Redis cache for session state and short-lived tokens.",
-      "config": {
-        "engine": "redis",
-        "version": "7"
-      }
-    },
-    {
-      "name": "auth-provider",
-      "category": "storage",
-      "type": "database",
-      "provider": "auth0",
-      "description": "Auth0 tenant providing JWT issuance and role management."
-    },
-    {
-      "name": "api-gateway",
-      "category": "network",
-      "type": "gateway",
-      "provider": "aws",
-      "description": "AWS API Gateway fronting the API server.",
-      "config": {
-        "type": "HTTP"
-      }
-    },
-    {
-      "name": "api-server",
-      "category": "compute",
-      "type": "container",
-      "provider": "aws",
-      "description": "ECS Fargate container running the NestJS API.",
-      "config": {
-        "cpu": 512,
-        "memory": 1024,
-        "port": 3000
-      }
-    },
-    {
-      "name": "api-server",
-      "category": "compute",
-      "type": "container",
-      "provider": "aws",
-      "environment": "dev",
-      "description": "Dev API server — minimal resources.",
-      "config": {
-        "cpu": 256,
-        "memory": 512,
-        "port": 3000
-      }
-    },
-    {
-      "name": "ui-server",
-      "category": "compute",
-      "type": "container",
-      "provider": "aws",
-      "description": "ECS Fargate container running the Next.js UI.",
-      "config": {
-        "cpu": 256,
-        "memory": 512,
-        "port": 3001
-      }
     }
   ],
   "variables": [
@@ -130,210 +55,34 @@
       "required": true
     },
     {
-      "name": "REDIS_URL",
-      "source": "secret",
-      "description": "Redis connection URL for the session cache.",
-      "required": true
-    },
-    {
-      "name": "AUTH0_DOMAIN",
-      "source": "secret",
-      "description": "Auth0 domain for JWT verification.",
-      "required": true
-    },
-    {
-      "name": "AUTH0_AUDIENCE",
-      "source": "literal",
-      "value": "https://api.acme.finance",
-      "description": "Expected JWT audience claim.",
-      "required": true
-    },
-    {
-      "name": "AUTH0_CLIENT_ID",
-      "source": "secret",
-      "description": "Auth0 client ID for the API.",
-      "required": true
-    },
-    {
-      "name": "AUTH0_CLIENT_SECRET",
-      "source": "secret",
-      "description": "Auth0 client secret for the API.",
-      "required": true
-    },
-    {
-      "name": "NEXT_PUBLIC_API_URL",
-      "source": "output",
-      "value": "api-cell.api_url",
-      "description": "Public API base URL injected into the Next.js UI at build time.",
-      "required": true
-    },
-    {
-      "name": "NODE_ENV",
+      "name": "RAILS_ENV",
       "source": "literal",
       "value": "development",
       "environment": "dev",
       "required": false
     },
     {
-      "name": "NODE_ENV",
+      "name": "RAILS_ENV",
       "source": "literal",
       "value": "production",
       "environment": "prod",
       "required": false
+    },
+    {
+      "name": "VITE_API_URL",
+      "source": "output",
+      "value": "api-cell-rails.api_url",
+      "description": "API base URL injected into the React UI at build time.",
+      "required": true
     }
   ],
   "profiles": {
-    "express-stack": [
-      "api-cell",
-      "db-cell",
-      "ui-cell"
-    ],
-    "nestjs-stack": [
-      "api-cell-nestjs",
-      "db-cell",
-      "ui-cell"
-    ],
-    "rails-stack": [
+    "default": [
       "api-cell-rails",
-      "db-cell",
       "ui-cell"
-    ],
-    "python-stack": [
-      "api-cell-fastapi",
-      "db-cell",
-      "ui-cell"
-    ],
-    "full": [
-      "api-cell",
-      "api-cell-nestjs",
-      "api-cell-rails",
-      "api-cell-fastapi",
-      "db-cell",
-      "ui-cell",
-      "vue-ui-cell",
-      "ui-cell-next"
     ]
   },
   "cells": [
-    {
-      "name": "api-cell",
-      "description": "Reads Product API DNA and runs a dynamic Express API — routes and OpenAPI spec are interpreted from DNA at startup.",
-      "dna": "lending/product.api",
-      "adapter": {
-        "type": "node/express",
-        "config": {
-          "operational_dna": "lending/operational"
-        }
-      },
-      "constructs": [
-        "primary-db",
-        "session-cache",
-        "auth-provider",
-        "api-gateway",
-        "api-server"
-      ],
-      "variables": [
-        {
-          "name": "DATABASE_URL",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "REDIS_URL",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_DOMAIN",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_AUDIENCE",
-          "source": "literal",
-          "value": "https://api.acme.finance",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_ID",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_SECRET",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "NODE_ENV",
-          "source": "env",
-          "required": false
-        }
-      ],
-      "outputs": [
-        {
-          "name": "api_url",
-          "cell": "api-cell",
-          "value": "api-gateway.url"
-        }
-      ]
-    },
-    {
-      "name": "api-cell-nestjs",
-      "description": "Reads Product API DNA and generates a NestJS API with static typed controllers, services, and DTOs.",
-      "dna": "lending/product.api",
-      "adapter": {
-        "type": "node/nestjs",
-        "config": {
-          "operational_dna": "lending/operational"
-        }
-      },
-      "constructs": [
-        "primary-db",
-        "session-cache",
-        "auth-provider",
-        "api-gateway",
-        "api-server"
-      ],
-      "variables": [
-        {
-          "name": "DATABASE_URL",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "REDIS_URL",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_DOMAIN",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_AUDIENCE",
-          "source": "literal",
-          "value": "https://api.acme.finance",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_ID",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_SECRET",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "NODE_ENV",
-          "source": "env",
-          "required": false
-        }
-      ]
-    },
     {
       "name": "api-cell-rails",
       "description": "Reads Product API DNA and generates a Rails API-mode application with controllers, models, and migrations.",
@@ -342,83 +91,7 @@
         "type": "ruby/rails",
         "config": {
           "operational_dna": "lending/operational",
-          "port": 3002
-        }
-      },
-      "constructs": [
-        "primary-db",
-        "session-cache",
-        "auth-provider",
-        "api-gateway",
-        "api-server"
-      ],
-      "variables": [
-        {
-          "name": "DATABASE_URL",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_DOMAIN",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_AUDIENCE",
-          "source": "literal",
-          "value": "https://api.acme.finance",
-          "required": true
-        }
-      ]
-    },
-    {
-      "name": "api-cell-fastapi",
-      "description": "Reads Product API DNA and generates a FastAPI application with typed routers, Pydantic schemas, and SQLAlchemy models.",
-      "dna": "lending/product.api",
-      "adapter": {
-        "type": "python/fastapi",
-        "config": {
-          "operational_dna": "lending/operational",
-          "port": 8000
-        }
-      },
-      "constructs": [
-        "primary-db",
-        "session-cache",
-        "auth-provider",
-        "api-gateway",
-        "api-server"
-      ],
-      "variables": [
-        {
-          "name": "DATABASE_URL",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_DOMAIN",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_AUDIENCE",
-          "source": "literal",
-          "value": "https://api.acme.finance",
-          "required": true
-        }
-      ]
-    },
-    {
-      "name": "db-cell",
-      "description": "Provisions the Postgres database and lending_app role (infra-only — schema is owned by api-cell).",
-      "dna": "lending/operational",
-      "adapter": {
-        "type": "postgres",
-        "config": {
-          "construct": "primary-db",
-          "database": "lending",
-          "app_role": "lending_app",
-          "port": 5433
+          "port": 3000
         }
       },
       "constructs": [
@@ -429,6 +102,18 @@
           "name": "DATABASE_URL",
           "source": "secret",
           "required": true
+        },
+        {
+          "name": "RAILS_ENV",
+          "source": "env",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "api_url",
+          "cell": "api-cell-rails",
+          "value": "http://localhost:3000"
         }
       ]
     },
@@ -442,131 +127,16 @@
         "config": {
           "operational_dna": "lending/operational",
           "api_dna": "lending/product.api",
-          "api_base": "http://localhost:3001"
+          "api_base": "http://localhost:3000"
         }
       },
-      "constructs": [
-        "auth-provider",
-        "ui-server"
-      ],
+      "constructs": [],
       "variables": [
         {
-          "name": "AUTH0_DOMAIN",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_ID",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_SECRET",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "NEXT_PUBLIC_API_URL",
+          "name": "VITE_API_URL",
           "source": "output",
-          "value": "api-cell.api_url",
+          "value": "api-cell-rails.api_url",
           "required": true
-        },
-        {
-          "name": "NODE_ENV",
-          "source": "env",
-          "required": false
-        }
-      ]
-    },
-    {
-      "name": "vue-ui-cell",
-      "description": "Reads Product UI DNA and produces the Vite + Vue loan dashboard.",
-      "dna": "lending/product.ui",
-      "adapter": {
-        "type": "vite/vue",
-        "version": "5",
-        "config": {
-          "operational_dna": "lending/operational",
-          "api_dna": "lending/product.api",
-          "api_base": "http://localhost:3001"
-        }
-      },
-      "constructs": [
-        "auth-provider",
-        "ui-server"
-      ],
-      "variables": [
-        {
-          "name": "AUTH0_DOMAIN",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_ID",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_SECRET",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "NEXT_PUBLIC_API_URL",
-          "source": "output",
-          "value": "api-cell.api_url",
-          "required": true
-        },
-        {
-          "name": "NODE_ENV",
-          "source": "env",
-          "required": false
-        }
-      ]
-    },
-    {
-      "name": "ui-cell-next",
-      "description": "Reads Product UI DNA and produces a Next.js App Router loan dashboard with SSR.",
-      "dna": "lending/product.ui",
-      "adapter": {
-        "type": "next/react",
-        "version": "14",
-        "config": {
-          "operational_dna": "lending/operational",
-          "api_dna": "lending/product.api",
-          "api_base": "http://localhost:3001"
-        }
-      },
-      "constructs": [
-        "auth-provider",
-        "ui-server"
-      ],
-      "variables": [
-        {
-          "name": "AUTH0_DOMAIN",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_ID",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "AUTH0_CLIENT_SECRET",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "NEXT_PUBLIC_API_URL",
-          "source": "output",
-          "value": "api-cell.api_url",
-          "required": true
-        },
-        {
-          "name": "NODE_ENV",
-          "source": "env",
-          "required": false
         }
       ]
     }
@@ -574,437 +144,54 @@
   "views": [
     {
       "name": "deployment",
-      "description": "Cell deployment topology with infrastructure constructs and providers.",
+      "description": "Cell deployment topology — Rails API, React UI, Postgres DB.",
       "layout": {
         "type": "hierarchical",
         "direction": "TB"
       },
       "nodes": [
         {
-          "id": "aws",
-          "name": "AWS",
-          "type": "provider",
-          "source": "technical:provider:aws",
-          "position": {
-            "x": 400,
-            "y": 20
-          },
-          "metadata": {
-            "region": "us-east-1"
-          }
-        },
-        {
-          "id": "auth0",
-          "name": "Auth0",
-          "type": "provider",
-          "source": "technical:provider:auth0",
-          "position": {
-            "x": 700,
-            "y": 20
-          },
-          "metadata": {
-            "domain": "acme.auth0.com"
-          }
-        },
-        {
-          "id": "api-gateway",
-          "name": "API Gateway",
-          "type": "construct",
-          "source": "technical:construct:api-gateway",
-          "position": {
-            "x": 400,
-            "y": 120
-          },
-          "metadata": {
-            "category": "network"
-          }
-        },
-        {
-          "id": "api-cell",
-          "name": "API Cell (Express)",
-          "type": "cell",
-          "source": "technical:cell:api-cell",
-          "position": {
-            "x": 100,
-            "y": 240
-          },
-          "metadata": {
-            "adapter": "node/express"
-          }
-        },
-        {
-          "id": "api-cell-nestjs",
-          "name": "API Cell (NestJS)",
-          "type": "cell",
-          "source": "technical:cell:api-cell-nestjs",
-          "position": {
-            "x": 300,
-            "y": 240
-          },
-          "metadata": {
-            "adapter": "node/nestjs"
-          }
-        },
-        {
           "id": "api-cell-rails",
           "name": "API Cell (Rails)",
           "type": "cell",
+          "status": "planned",
           "source": "technical:cell:api-cell-rails",
-          "position": {
-            "x": 500,
-            "y": 240
-          },
-          "metadata": {
-            "adapter": "ruby/rails"
-          }
-        },
-        {
-          "id": "api-cell-fastapi",
-          "name": "API Cell (FastAPI)",
-          "type": "cell",
-          "source": "technical:cell:api-cell-fastapi",
-          "position": {
-            "x": 700,
-            "y": 240
-          },
-          "metadata": {
-            "adapter": "python/fastapi"
-          }
-        },
-        {
-          "id": "api-server",
-          "name": "API Server (ECS)",
-          "type": "construct",
-          "source": "technical:construct:api-server",
-          "position": {
-            "x": 400,
-            "y": 360
-          },
-          "metadata": {
-            "category": "compute"
-          }
-        },
-        {
-          "id": "db-cell",
-          "name": "DB Cell",
-          "type": "cell",
-          "source": "technical:cell:db-cell",
-          "position": {
-            "x": 200,
-            "y": 480
-          },
-          "metadata": {
-            "adapter": "postgres"
-          }
-        },
-        {
-          "id": "primary-db",
-          "name": "Primary DB",
-          "type": "construct",
-          "source": "technical:construct:primary-db",
-          "position": {
-            "x": 200,
-            "y": 600
-          },
-          "metadata": {
-            "category": "storage",
-            "engine": "postgres"
-          }
-        },
-        {
-          "id": "session-cache",
-          "name": "Session Cache",
-          "type": "construct",
-          "source": "technical:construct:session-cache",
-          "position": {
-            "x": 500,
-            "y": 600
-          },
-          "metadata": {
-            "category": "storage",
-            "engine": "redis"
-          }
-        },
-        {
-          "id": "auth-provider",
-          "name": "Auth Provider",
-          "type": "construct",
-          "source": "technical:construct:auth-provider",
-          "position": {
-            "x": 700,
-            "y": 480
-          },
-          "metadata": {
-            "category": "storage",
-            "provider": "auth0"
-          }
+          "position": { "x": 100, "y": 160 },
+          "metadata": { "adapter": "ruby/rails" }
         },
         {
           "id": "ui-cell",
           "name": "UI Cell (React)",
           "type": "cell",
+          "status": "planned",
           "source": "technical:cell:ui-cell",
-          "position": {
-            "x": 900,
-            "y": 240
-          },
-          "metadata": {
-            "adapter": "vite/react"
-          }
+          "position": { "x": 500, "y": 160 },
+          "metadata": { "adapter": "vite/react" }
         },
         {
-          "id": "vue-ui-cell",
-          "name": "UI Cell (Vue)",
-          "type": "cell",
-          "source": "technical:cell:vue-ui-cell",
-          "position": {
-            "x": 1100,
-            "y": 240
-          },
-          "metadata": {
-            "adapter": "vite/vue"
-          }
-        },
-        {
-          "id": "ui-cell-next",
-          "name": "UI Cell (Next.js)",
-          "type": "cell",
-          "source": "technical:cell:ui-cell-next",
-          "position": {
-            "x": 1000,
-            "y": 360
-          },
-          "metadata": {
-            "adapter": "next/react"
-          }
-        },
-        {
-          "id": "ui-server",
-          "name": "UI Server (ECS)",
+          "id": "primary-db",
+          "name": "Primary DB",
           "type": "construct",
-          "source": "technical:construct:ui-server",
-          "position": {
-            "x": 1000,
-            "y": 480
-          },
-          "metadata": {
-            "category": "compute"
-          }
+          "status": "planned",
+          "source": "technical:construct:primary-db",
+          "position": { "x": 100, "y": 480 },
+          "metadata": { "category": "storage", "engine": "postgres" }
         }
       ],
       "connections": [
         {
-          "id": "gw-to-api-express",
-          "source": "api-gateway",
-          "target": "api-cell",
-          "type": "data-flow",
-          "label": "routes"
+          "id": "rails-to-db",
+          "source": "api-cell-rails",
+          "target": "primary-db",
+          "type": "depends-on",
+          "label": "reads/writes"
         },
         {
-          "id": "gw-to-api-nestjs",
-          "source": "api-gateway",
-          "target": "api-cell-nestjs",
-          "type": "data-flow",
-          "label": "routes"
-        },
-        {
-          "id": "gw-to-api-rails",
-          "source": "api-gateway",
+          "id": "ui-to-rails",
+          "source": "ui-cell",
           "target": "api-cell-rails",
-          "type": "data-flow",
-          "label": "routes"
-        },
-        {
-          "id": "gw-to-api-fastapi",
-          "source": "api-gateway",
-          "target": "api-cell-fastapi",
-          "type": "data-flow",
-          "label": "routes"
-        },
-        {
-          "id": "api-express-to-db",
-          "source": "api-cell",
-          "target": "primary-db",
-          "type": "depends-on",
-          "label": "reads/writes"
-        },
-        {
-          "id": "api-nestjs-to-db",
-          "source": "api-cell-nestjs",
-          "target": "primary-db",
-          "type": "depends-on",
-          "label": "reads/writes"
-        },
-        {
-          "id": "api-rails-to-db",
-          "source": "api-cell-rails",
-          "target": "primary-db",
-          "type": "depends-on",
-          "label": "reads/writes"
-        },
-        {
-          "id": "api-fastapi-to-db",
-          "source": "api-cell-fastapi",
-          "target": "primary-db",
-          "type": "depends-on",
-          "label": "reads/writes"
-        },
-        {
-          "id": "api-express-to-cache",
-          "source": "api-cell",
-          "target": "session-cache",
-          "type": "depends-on",
-          "label": "sessions"
-        },
-        {
-          "id": "api-nestjs-to-cache",
-          "source": "api-cell-nestjs",
-          "target": "session-cache",
-          "type": "depends-on",
-          "label": "sessions"
-        },
-        {
-          "id": "api-express-to-auth",
-          "source": "api-cell",
-          "target": "auth-provider",
-          "type": "depends-on",
-          "label": "JWT"
-        },
-        {
-          "id": "api-nestjs-to-auth",
-          "source": "api-cell-nestjs",
-          "target": "auth-provider",
-          "type": "depends-on",
-          "label": "JWT"
-        },
-        {
-          "id": "api-rails-to-auth",
-          "source": "api-cell-rails",
-          "target": "auth-provider",
-          "type": "depends-on",
-          "label": "JWT"
-        },
-        {
-          "id": "api-fastapi-to-auth",
-          "source": "api-cell-fastapi",
-          "target": "auth-provider",
-          "type": "depends-on",
-          "label": "JWT"
-        },
-        {
-          "id": "db-cell-to-db",
-          "source": "db-cell",
-          "target": "primary-db",
-          "type": "depends-on",
-          "label": "provisions"
-        },
-        {
-          "id": "ui-to-api",
-          "source": "ui-cell",
-          "target": "api-gateway",
           "type": "communicates-with",
           "label": "REST"
-        },
-        {
-          "id": "vue-to-api",
-          "source": "vue-ui-cell",
-          "target": "api-gateway",
-          "type": "communicates-with",
-          "label": "REST"
-        },
-        {
-          "id": "next-to-api",
-          "source": "ui-cell-next",
-          "target": "api-gateway",
-          "type": "communicates-with",
-          "label": "REST"
-        },
-        {
-          "id": "ui-to-auth",
-          "source": "ui-cell",
-          "target": "auth-provider",
-          "type": "depends-on",
-          "label": "auth"
-        },
-        {
-          "id": "vue-to-auth",
-          "source": "vue-ui-cell",
-          "target": "auth-provider",
-          "type": "depends-on",
-          "label": "auth"
-        },
-        {
-          "id": "next-to-auth",
-          "source": "ui-cell-next",
-          "target": "auth-provider",
-          "type": "depends-on",
-          "label": "auth"
-        },
-        {
-          "id": "ui-to-server",
-          "source": "ui-cell",
-          "target": "ui-server",
-          "type": "depends-on"
-        },
-        {
-          "id": "vue-to-server",
-          "source": "vue-ui-cell",
-          "target": "ui-server",
-          "type": "depends-on"
-        },
-        {
-          "id": "next-to-server",
-          "source": "ui-cell-next",
-          "target": "ui-server",
-          "type": "depends-on"
-        },
-        {
-          "id": "api-express-to-server",
-          "source": "api-cell",
-          "target": "api-server",
-          "type": "depends-on"
-        },
-        {
-          "id": "api-nestjs-to-server",
-          "source": "api-cell-nestjs",
-          "target": "api-server",
-          "type": "depends-on"
-        },
-        {
-          "id": "api-rails-to-server",
-          "source": "api-cell-rails",
-          "target": "api-server",
-          "type": "depends-on"
-        },
-        {
-          "id": "api-fastapi-to-server",
-          "source": "api-cell-fastapi",
-          "target": "api-server",
-          "type": "depends-on"
-        },
-        {
-          "id": "auth-provider-to-auth0",
-          "source": "auth-provider",
-          "target": "auth0",
-          "type": "depends-on"
-        },
-        {
-          "id": "primary-db-to-aws",
-          "source": "primary-db",
-          "target": "aws",
-          "type": "depends-on"
-        },
-        {
-          "id": "session-cache-to-aws",
-          "source": "session-cache",
-          "target": "aws",
-          "type": "depends-on"
-        },
-        {
-          "id": "api-gateway-to-aws",
-          "source": "api-gateway",
-          "target": "aws",
-          "type": "depends-on"
         }
       ],
       "zones": [
@@ -1012,48 +199,15 @@
           "id": "compute-tier",
           "name": "Compute",
           "type": "tier",
-          "nodes": [
-            "api-cell",
-            "api-cell-nestjs",
-            "api-cell-rails",
-            "api-cell-fastapi",
-            "api-server",
-            "ui-cell",
-            "vue-ui-cell",
-            "ui-cell-next",
-            "ui-server"
-          ],
-          "description": "Application cells and their compute constructs."
+          "nodes": ["api-cell-rails", "ui-cell"],
+          "description": "Application cells."
         },
         {
           "id": "storage-tier",
           "name": "Storage",
           "type": "tier",
-          "nodes": [
-            "db-cell",
-            "primary-db",
-            "session-cache"
-          ],
-          "description": "Persistent and ephemeral storage constructs."
-        },
-        {
-          "id": "network-tier",
-          "name": "Network",
-          "type": "tier",
-          "nodes": [
-            "api-gateway"
-          ],
-          "description": "Network and routing constructs."
-        },
-        {
-          "id": "identity-boundary",
-          "name": "Identity",
-          "type": "boundary",
-          "nodes": [
-            "auth-provider",
-            "auth0"
-          ],
-          "description": "Authentication and authorization boundary."
+          "nodes": ["primary-db"],
+          "description": "Database cell and construct."
         }
       ]
     }

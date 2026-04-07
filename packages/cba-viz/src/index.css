@@ -30,3 +30,26 @@ body {
 .joint-paper svg {
   background: transparent !important;
 }
+
+/* Running node pulse animation — applied to SVG rect body via class attr */
+@keyframes cba-pulse-blue {
+  0%, 100% { filter: drop-shadow(0 0 2px #3b82f6); stroke-opacity: 1; }
+  50%      { filter: drop-shadow(0 0 12px #3b82f6); stroke-opacity: 0.6; }
+}
+@keyframes cba-pulse-purple {
+  0%, 100% { filter: drop-shadow(0 0 2px #8b5cf6); stroke-opacity: 1; }
+  50%      { filter: drop-shadow(0 0 12px #8b5cf6); stroke-opacity: 0.6; }
+}
+@keyframes cba-pulse-amber {
+  0%, 100% { filter: drop-shadow(0 0 2px #f59e0b); stroke-opacity: 1; }
+  50%      { filter: drop-shadow(0 0 12px #f59e0b); stroke-opacity: 0.6; }
+}
+@keyframes cba-pulse-gray {
+  0%, 100% { filter: drop-shadow(0 0 2px #64748b); stroke-opacity: 1; }
+  50%      { filter: drop-shadow(0 0 12px #64748b); stroke-opacity: 0.6; }
+}
+
+.cba-running-cell     { animation: cba-pulse-blue 2s ease-in-out infinite; }
+.cba-running-construct { animation: cba-pulse-purple 2s ease-in-out infinite; }
+.cba-running-provider  { animation: cba-pulse-amber 2s ease-in-out infinite; }
+.cba-running-default   { animation: cba-pulse-gray 2s ease-in-out infinite; }

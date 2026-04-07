@@ -5,10 +5,13 @@
  * transforms. For a production build you'd swap this for an API fetch.
  */
 
+export type NodeStatus = 'proposed' | 'planned' | 'deployed' | 'running'
+
 export interface ArchNode {
   id: string
   name: string
   type: 'cell' | 'construct' | 'provider' | 'domain' | 'noun' | 'external' | 'custom'
+  status?: NodeStatus
   source?: string
   position?: { x: number; y: number }
   size?: { width: number; height: number }

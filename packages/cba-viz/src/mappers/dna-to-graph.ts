@@ -42,6 +42,7 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
       id: node.id,
       name: node.name,
       type: node.type,
+      status: node.status,
       source: node.source,
       description: node.description,
       metadata: node.metadata,

@@ -1,5 +1,5 @@
 import { dia, shapes } from '@joint/plus'
-import type { ArchNode, ArchConnection, ArchZone } from '../loaders/dna-loader.ts'
+import type { ArchNode, ArchConnection, ArchZone, NodeStatus } from '../loaders/dna-loader.ts'
 import { CellShape } from './CellShape.ts'
 import { ConstructShape } from './ConstructShape.ts'
 import { ProviderShape } from './ProviderShape.ts'
@@ -12,10 +12,56 @@ const CONNECTION_STYLES: Record<string, { stroke: string; strokeDasharray?: stri
   'publishes-to':       { stroke: '#f59e0b', strokeDasharray: '4,4' },
 }
 
+/**
+ * Status-based style overrides.
+ * - proposed: dashed stroke, very dim
+ * - planned: solid stroke, greyed out
+ * - deployed: full color (default)
+ * - running: full color + CSS pulse class
+ */
+function statusBodyAttrs(status: NodeStatus | undefined, baseStroke: string, nodeType: string): Record<string, unknown> {
+  switch (status) {
+    case 'proposed':
+      return {
+        stroke: '#475569',
+        strokeDasharray: '6,4',
+        opacity: 0.45,
+      }
+    case 'planned':
+      return {
+        stroke: '#64748b',
+        strokeDasharray: undefined,
+        opacity: 0.6,
+      }
+    case 'running': {
+      const cssClass = `cba-running-${nodeType === 'cell' ? 'cell' : nodeType === 'construct' ? 'construct' : nodeType === 'provider' ? 'provider' : 'default'}`
+      return {
+        stroke: baseStroke,
+        class: cssClass,
+      }
+    }
+    case 'deployed':
+    default:
+      return {}
+  }
+}
+
+function statusLabelAttrs(status: NodeStatus | undefined): Record<string, unknown> {
+  switch (status) {
+    case 'proposed':
+      return { fill: '#475569' }
+    case 'planned':
+      return { fill: '#94a3b8' }
+    default:
+      return {}
+  }
+}
+
 export class ShapesFactory {
   createNode(node: ArchNode): dia.Element {
     const pos = node.position ?? { x: 0, y: 0 }
     const adapter = (node.metadata?.adapter as string) ?? ''
+    const status = node.status
 
     switch (node.type) {
       case 'cell': {
@@ -25,8 +71,9 @@ export class ShapesFactory {
           position: pos,
           size,
           attrs: {
-            label: { text: node.name },
-            adapterLabel: { text: adapter },
+            label: { text: node.name, ...statusLabelAttrs(status) },
+            adapterLabel: { text: adapter, ...statusLabelAttrs(status) },
+            body: statusBodyAttrs(status, '#3b82f6', 'cell'),
           },
         })
       }
@@ -38,8 +85,9 @@ export class ShapesFactory {
           position: pos,
           size,
           attrs: {
-            label: { text: node.name },
-            categoryLabel: { text: category },
+            label: { text: node.name, ...statusLabelAttrs(status) },
+            categoryLabel: { text: category, ...statusLabelAttrs(status) },
+            body: statusBodyAttrs(status, '#8b5cf6', 'construct'),
           },
         })
       }
@@ -50,7 +98,8 @@ export class ShapesFactory {
           position: pos,
           size,
           attrs: {
-            label: { text: node.name },
+            label: { text: node.name, ...statusLabelAttrs(status) },
+            body: statusBodyAttrs(status, '#f59e0b', 'provider'),
           },
         })
       }
@@ -68,12 +117,14 @@ export class ShapesFactory {
               strokeWidth: 2,
               rx: 6,
               ry: 6,
+              ...statusBodyAttrs(status, '#64748b', 'default'),
             },
             label: {
               text: node.name,
               fill: '#f8fafc',
               fontSize: 12,
               fontWeight: '600',
+              ...statusLabelAttrs(status),
             },
           },
         })

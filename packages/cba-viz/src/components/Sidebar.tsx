@@ -18,6 +18,7 @@ export const Sidebar = observer(function Sidebar({ model }: SidebarProps) {
         <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>
           Click a node or connection to inspect it.
         </div>
+        <StatusLegend />
       </div>
     )
   }
@@ -39,6 +40,7 @@ export const Sidebar = observer(function Sidebar({ model }: SidebarProps) {
             model.setDirty(true)
           }} />
           <Field label="Type" value={dna.type as string} />
+          {dna.status ? <Field label="Status" value={dna.status as string} /> : null}
           {dna.source ? <Field label="Source" value={dna.source as string} /> : null}
         </Section>
 
@@ -135,6 +137,44 @@ function Field({
           {value}
         </span>
       )}
+    </div>
+  )
+}
+
+const STATUS_LEGEND = [
+  { status: 'Running', color: '#3b82f6', dash: false, note: 'full color + pulse' },
+  { status: 'Deployed', color: '#3b82f6', dash: false, note: 'full color, solid' },
+  { status: 'Planned', color: '#64748b', dash: false, note: 'greyed out, solid' },
+  { status: 'Proposed', color: '#475569', dash: true, note: 'dashed, dim' },
+]
+
+function StatusLegend() {
+  return (
+    <div style={{ padding: '12px 16px', borderTop: '1px solid #334155' }}>
+      <div style={{
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        color: '#64748b',
+        marginBottom: 10,
+      }}>
+        Status Legend
+      </div>
+      {STATUS_LEGEND.map(({ status, color, dash, note }) => (
+        <div key={status} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{
+            width: 24,
+            height: 14,
+            borderRadius: 3,
+            border: `2px ${dash ? 'dashed' : 'solid'} ${color}`,
+            background: '#1e293b',
+            opacity: status === 'Proposed' ? 0.45 : status === 'Planned' ? 0.6 : 1,
+          }} />
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>{status}</span>
+          <span style={{ fontSize: 10, color: '#475569', marginLeft: 'auto' }}>{note}</span>
+        </div>
+      ))}
     </div>
   )
 }

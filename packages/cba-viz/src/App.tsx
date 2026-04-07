@@ -1,25 +1,66 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
 import { GraphModel } from './models/GraphModel.ts'
-import { parseArchitectureDNA, type ArchitectureDNA } from './loaders/dna-loader.ts'
+import { parseArchitectureDNA, type ArchitectureDNA, type NodeStatus } from './loaders/dna-loader.ts'
 import { graphToArchView, saveViews } from './features/persistence.ts'
 import { Canvas } from './components/Canvas.tsx'
 import { Toolbar } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
 
+const DOMAIN = 'lending'
+const STATUS_POLL_MS = 5000
+
 const App = observer(function App() {
   const graphModel = useMemo(() => new GraphModel(), [])
   const [saving, setSaving] = useState(false)
   const [dna, setDna] = useState<ArchitectureDNA | null>(null)
   const [currentViewName, setCurrentViewName] = useState('deployment')
+  const dockerStatus = useRef<Record<string, string>>({})
 
   // Load DNA from the dev server API at runtime
   useEffect(() => {
-    fetch('/api/load-views/lending')
+    fetch(`/api/load-views/${DOMAIN}`)
       .then(r => r.json())
       .then(json => setDna(parseArchitectureDNA(json)))
       .catch(err => console.error('Failed to load DNA:', err))
+  }, [])
+
+  // Poll Docker status and merge into DNA
+  useEffect(() => {
+    let active = true
+    const poll = () => {
+      fetch(`/api/status/${DOMAIN}`)
+        .then(r => r.json())
+        .then((statuses: Record<string, string>) => {
+          if (!active) return
+          const prev = dockerStatus.current
+          // Only update if statuses actually changed
+          const changed = Object.keys(statuses).some(k => statuses[k] !== prev[k])
+            || Object.keys(prev).some(k => !(k in statuses))
+          if (changed) {
+            dockerStatus.current = statuses
+            // Merge into DNA — Docker status overrides static status
+            setDna(current => {
+              if (!current) return current
+              return {
+                ...current,
+                views: current.views.map(view => ({
+                  ...view,
+                  nodes: view.nodes.map(node => {
+                    const live = statuses[node.id] as NodeStatus | undefined
+                    return live ? { ...node, status: live } : node
+                  }),
+                })),
+              }
+            })
+          }
+        })
+        .catch(() => { /* Docker not available — keep static statuses */ })
+    }
+    poll()
+    const interval = setInterval(poll, STATUS_POLL_MS)
+    return () => { active = false; clearInterval(interval) }
   }, [])
 
   const viewNames = dna?.views.map(v => v.name) ?? []
@@ -34,10 +75,11 @@ const App = observer(function App() {
 
       // Update the view in-place
       const updatedDna = {
+        ...dna!,
         views: dna!.views.map(v => v.name === currentViewName ? updatedView : v),
       }
 
-      await saveViews('lending', updatedDna)
+      await saveViews(DOMAIN, updatedDna)
       graphModel.setDirty(false)
     } catch (err) {
       console.error('Save failed:', err)

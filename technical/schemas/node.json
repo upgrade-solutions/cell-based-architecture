@@ -22,6 +22,12 @@
       "enum": ["cell", "construct", "provider", "domain", "noun", "external", "custom"],
       "examples": ["cell", "construct", "provider"]
     },
+    "status": {
+      "type": "string",
+      "description": "Lifecycle status of this component. Drives visual styling in the viewer: proposed (dashed/dim), planned (solid/greyed), deployed (full color), running (full color + pulse).",
+      "enum": ["proposed", "planned", "deployed", "running"],
+      "default": "deployed"
+    },
     "source": {
       "type": "string",
       "description": "Reference to a DNA primitive in another layer. Format: `<layer>:<primitive-type>:<name>`. Used for cross-layer traceability and auto-derivation.",
@@ -60,6 +66,7 @@
       "id": "api-cell",
       "name": "API Cell",
       "type": "cell",
+      "status": "running",
       "source": "technical:cell:api-cell",
       "position": { "x": 200, "y": 100 },
       "size": { "width": 160, "height": 80 },
