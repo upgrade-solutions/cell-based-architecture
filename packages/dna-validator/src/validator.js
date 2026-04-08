@@ -71,6 +71,10 @@ const operationalDnaSchema = __importStar(require("../../../operational/schemas/
 const productApiDnaSchema = __importStar(require("../../../product/schemas/product.api.json"));
 const productUiDnaSchema = __importStar(require("../../../product/schemas/product.ui.json"));
 const technicalDnaSchema = __importStar(require("../../../technical/schemas/technical.json"));
+const nodeSchema = __importStar(require("../../../technical/schemas/node.json"));
+const connectionSchema = __importStar(require("../../../technical/schemas/connection.json"));
+const zoneSchema = __importStar(require("../../../technical/schemas/zone.json"));
+const viewSchema = __importStar(require("../../../technical/schemas/view.json"));
 class DnaValidator {
     constructor() {
         this.validators = new Map();
@@ -112,6 +116,10 @@ class DnaValidator {
             productApiDnaSchema,
             productUiDnaSchema,
             technicalDnaSchema,
+            nodeSchema,
+            connectionSchema,
+            zoneSchema,
+            viewSchema,
         ];
         for (const schema of schemas) {
             this.ajv.addSchema(schema);

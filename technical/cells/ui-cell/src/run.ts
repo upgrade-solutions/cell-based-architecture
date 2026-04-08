@@ -87,6 +87,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   const apiRef = cell.adapter.config?.api_dna as string | undefined
   const apiFetchPath = apiRef ? `/dna/${apiRef}.json` : undefined
   const apiBase = (cell.adapter.config?.api_base as string) ?? ''
+  const vendorComponents = (cell.adapter.config?.vendorComponents as boolean | undefined) ?? true
 
   // ── Build cell context ──────────────────────────────────────────────────────
   const ctx: UiCellContext = {
@@ -95,6 +96,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     operationalFetchPath: operationalRef ? `/dna/${operationalRef}.json` : undefined,
     apiBase,
     dnaSourceDir: dnaBase,
+    vendorComponents,
   }
 
   // ── Resolve adapter and generate ────────────────────────────────────────────

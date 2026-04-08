@@ -11,6 +11,7 @@ import {
   generateMain,
 } from './generators/scaffold'
 import {
+  rendererGlobalsCss,
   rendererTypes,
   rendererContext,
   rendererDnaLoader,
@@ -24,6 +25,8 @@ import {
   rendererDetailBlock,
   rendererActionsBlock,
   rendererEmptyStateBlock,
+  rendererLayoutMachine,
+  rendererUniversalLayout,
 } from './generators/renderer'
 
 function write(outputDir: string, relPath: string, content: string): void {
@@ -39,6 +42,10 @@ export const generate: UiCellAdapter['generate'] = (
   ctx?: UiCellContext,
 ): void => {
   const appName = ui.layout.name.toLowerCase().replace(/[^a-z0-9-]/g, '-') + '-ui'
+
+  // ── Vendor mode + primitives path ───────────────────────────────────────────
+  const vendorComponents = ctx?.vendorComponents ?? true
+  const primitivesPath = vendorComponents ? '../primitives' : '@cell/ui-cell/primitives'
 
   // ── config.json — tells the renderer where to fetch DNA at runtime ───────────
   write(outputDir, 'public/config.json', JSON.stringify({
@@ -67,6 +74,19 @@ export const generate: UiCellAdapter['generate'] = (
     }
   }
 
+  // ── Vendor primitives (copy source files into output) ───────────────────────
+  if (vendorComponents) {
+    const primitivesDir = path.join(__dirname, '../../../primitives')
+    if (fs.existsSync(primitivesDir)) {
+      const files = fs.readdirSync(primitivesDir)
+      for (const file of files) {
+        if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          write(outputDir, `src/primitives/${file}`, fs.readFileSync(path.join(primitivesDir, file), 'utf-8'))
+        }
+      }
+    }
+  }
+
   // ── Scaffold ────────────────────────────────────────────────────────────────
   const relDnaPath = ctx
     ? path.relative(outputDir, ctx.dnaSourceDir).replace(/\\/g, '/')
@@ -80,12 +100,15 @@ export const generate: UiCellAdapter['generate'] = (
   write(outputDir, 'src/main.tsx', generateMain())
 
   // ── Renderer — fetches DNA at runtime, no DNA bundled in the build ──────────
+  write(outputDir, 'src/globals.css',                           rendererGlobalsCss(ui.layout))
   write(outputDir, 'src/renderer/types.ts',                     rendererTypes())
   write(outputDir, 'src/renderer/context.ts',                   rendererContext())
   write(outputDir, 'src/renderer/dna-loader.ts',                rendererDnaLoader())
   write(outputDir, 'src/renderer/useApi.ts',                    rendererApiHook())
   write(outputDir, 'src/renderer/App.tsx',                      rendererApp())
   write(outputDir, 'src/renderer/Layout.tsx',                   rendererLayout())
+  write(outputDir, 'src/renderer/layout-machine.ts',            rendererLayoutMachine())
+  write(outputDir, 'src/renderer/UniversalLayout.tsx',          rendererUniversalLayout(primitivesPath))
   write(outputDir, 'src/renderer/Page.tsx',                     rendererPage())
   write(outputDir, 'src/renderer/Block.tsx',                    rendererBlock())
   write(outputDir, 'src/renderer/blocks/FormBlock.tsx',         rendererFormBlock())

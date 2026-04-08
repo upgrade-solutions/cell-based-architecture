@@ -2,19 +2,125 @@
 // These are emitted once per generated app. They contain no DNA-derived values —
 // all DNA is fetched at runtime from the source dna/ directory.
 
+export function rendererGlobalsCss(layout: any): string {
+  const theme = layout.theme ?? {}
+  const colors: Record<string, string> = theme.colors ?? {
+    'background': '#ffffff',
+    'foreground': '#0a0a0a',
+    'primary': '#171717',
+    'primary-foreground': '#fafafa',
+    'secondary': '#f5f5f5',
+    'secondary-foreground': '#171717',
+    'muted': '#f5f5f5',
+    'muted-foreground': '#737373',
+    'accent': '#f5f5f5',
+    'accent-foreground': '#171717',
+    'destructive': '#ef4444',
+    'destructive-foreground': '#fafafa',
+    'border': '#e5e5e5',
+    'input': '#e5e5e5',
+    'ring': '#171717',
+    'card': '#ffffff',
+    'card-foreground': '#0a0a0a',
+    'popover': '#ffffff',
+    'popover-foreground': '#0a0a0a',
+    'sidebar-background': '#fafafa',
+    'sidebar-foreground': '#0a0a0a',
+    'sidebar-border': '#e5e5e5',
+    'sidebar-accent': '#f5f5f5',
+    'sidebar-accent-foreground': '#171717',
+  }
+  const dark: Record<string, string> = theme.dark ?? {
+    'background': '#0a0a0a',
+    'foreground': '#fafafa',
+    'primary': '#fafafa',
+    'primary-foreground': '#171717',
+    'secondary': '#262626',
+    'secondary-foreground': '#fafafa',
+    'muted': '#262626',
+    'muted-foreground': '#a3a3a3',
+    'accent': '#262626',
+    'accent-foreground': '#fafafa',
+    'destructive': '#7f1d1d',
+    'destructive-foreground': '#fafafa',
+    'border': '#262626',
+    'input': '#262626',
+    'ring': '#d4d4d4',
+    'card': '#0a0a0a',
+    'card-foreground': '#fafafa',
+    'popover': '#0a0a0a',
+    'popover-foreground': '#fafafa',
+    'sidebar-background': '#171717',
+    'sidebar-foreground': '#fafafa',
+    'sidebar-border': '#262626',
+    'sidebar-accent': '#262626',
+    'sidebar-accent-foreground': '#fafafa',
+  }
+  const radius = theme.radius ?? '0.5rem'
+  const font = theme.font ?? 'system-ui, sans-serif'
+
+  const lightVars = Object.entries(colors).map(([k, v]) => `  --${k}: ${v};`).join('\n')
+  const darkVars = Object.entries(dark).map(([k, v]) => `  --${k}: ${v};`).join('\n')
+
+  return `@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar-background: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: ${radius};
+${lightVars}
+}
+
+.dark {
+${darkVars}
+}
+
+body {
+  font-family: ${font};
+  background-color: var(--background);
+  color: var(--foreground);
+}
+`
+}
+
 export function rendererContext(): string {
   return `import { createContext, useContext } from 'react'
 import type { ProductUiDNA, ProductApiDNA } from './types'
-
-export type Theme = 'light' | 'dark'
 
 export interface DnaContextValue {
   dna: ProductUiDNA
   api: ProductApiDNA | null
   apiBase: string
   stubs: Record<string, Record<string, unknown>[]>
-  theme: Theme
-  toggleTheme: () => void
 }
 
 export const DnaContext = createContext<DnaContextValue | null>(null)
@@ -25,50 +131,29 @@ export function useDna(): DnaContextValue {
   return ctx
 }
 
-// ── Theme color tokens ───────────────────────────────────────────────────────
+// ── Legacy theme tokens (CSS variable bridge for blocks — Phase 5 will remove) ──
 
-export const tokens = {
-  light: {
-    bg: '#ffffff',
-    bgAlt: '#f9fafb',
-    bgHover: '#f3f4f6',
-    text: '#111827',
-    textSecondary: '#6b7280',
-    textMuted: '#9ca3af',
-    border: '#e5e7eb',
-    borderStrong: '#d1d5db',
-    primary: '#1d4ed8',
-    primaryBg: '#eff6ff',
-    success: '#16a34a',
-    successBg: '#f0fdf4',
-    danger: '#dc2626',
-    dangerBg: '#fef2f2',
-    inputBg: '#ffffff',
-    rowStripe: '#f9fafb',
-  },
-  dark: {
-    bg: '#111827',
-    bgAlt: '#1f2937',
-    bgHover: '#374151',
-    text: '#f9fafb',
-    textSecondary: '#9ca3af',
-    textMuted: '#6b7280',
-    border: '#374151',
-    borderStrong: '#4b5563',
-    primary: '#60a5fa',
-    primaryBg: '#1e3a5f',
-    success: '#4ade80',
-    successBg: '#14532d',
-    danger: '#f87171',
-    dangerBg: '#7f1d1d',
-    inputBg: '#1f2937',
-    rowStripe: '#1f2937',
-  },
+const cssVarTokens = {
+  bg: 'var(--background)',
+  bgAlt: 'var(--sidebar-background)',
+  bgHover: 'var(--accent)',
+  text: 'var(--foreground)',
+  textSecondary: 'var(--muted-foreground)',
+  textMuted: 'var(--muted-foreground)',
+  border: 'var(--border)',
+  borderStrong: 'var(--border)',
+  primary: 'var(--primary)',
+  primaryBg: 'var(--accent)',
+  success: '#16a34a',
+  successBg: '#f0fdf4',
+  danger: 'var(--destructive)',
+  dangerBg: '#fef2f2',
+  inputBg: 'var(--background)',
+  rowStripe: 'var(--muted)',
 }
 
 export function useThemeTokens() {
-  const { theme } = useDna()
-  return tokens[theme]
+  return cssVarTokens
 }
 `
 }
@@ -102,6 +187,33 @@ export interface Layout {
   name: string
   type: string
   description?: string
+  features?: {
+    sidebar?: boolean
+    profileDropdown?: boolean
+    tenantPicker?: boolean
+    themeToggle?: boolean
+  }
+  tenants?: { id: string; name: string }[]
+  navigation?: NavGroup[]
+  theme?: {
+    colors?: Record<string, string>
+    dark?: Record<string, string>
+    radius?: string
+    font?: string
+  }
+}
+
+export interface NavChild {
+  route: string
+  label: string
+  icon?: string
+}
+
+export interface NavGroup {
+  label: string
+  icon?: string
+  route?: string
+  children?: NavChild[]
 }
 
 export interface Route {
@@ -325,24 +437,20 @@ function collectStubs(op: unknown): Record<string, Record<string, unknown>[]> {
   return stubs
 }
 
-function getInitialTheme(): 'light' | 'dark' {
-  const stored = localStorage.getItem('theme')
-  if (stored === 'light' || stored === 'dark') return stored
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
 export default function App() {
   const [dna, setDna] = useState<ProductUiDNA | null>(null)
   const [api, setApi] = useState<ProductApiDNA | null>(null)
   const [apiBase, setApiBase] = useState('')
   const [stubs, setStubs] = useState<Record<string, Record<string, unknown>[]>>({})
   const [error, setError] = useState<string | null>(null)
-  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
-  const toggleTheme = () => setTheme(t => {
-    const next = t === 'light' ? 'dark' : 'light'
-    localStorage.setItem('theme', next)
-    return next
-  })
+
+  // Initialize dark mode class on document
+  useEffect(() => {
+    const stored = localStorage.getItem('theme')
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isDark = stored === 'dark' || (!stored && prefersDark)
+    document.documentElement.classList.toggle('dark', isDark)
+  }, [])
 
   useEffect(() => {
     fetch('/config.json')
@@ -366,11 +474,9 @@ export default function App() {
       .catch(err => setError(String(err)))
   }, [])
 
-  const bg = theme === 'dark' ? '#111827' : '#ffffff'
-
   if (error) {
     return (
-      <div style={{ padding: '2rem', color: '#dc2626', fontFamily: 'system-ui', background: bg, minHeight: '100vh' }}>
+      <div style={{ padding: '2rem', color: '#dc2626', fontFamily: 'system-ui', minHeight: '100vh' }}>
         Failed to load DNA: {error}
       </div>
     )
@@ -378,14 +484,14 @@ export default function App() {
 
   if (!dna) {
     return (
-      <div style={{ padding: '2rem', color: '#6b7280', fontFamily: 'system-ui', background: bg, minHeight: '100vh' }}>
+      <div style={{ padding: '2rem', color: '#6b7280', fontFamily: 'system-ui', minHeight: '100vh' }}>
         Loading...
       </div>
     )
   }
 
   return (
-    <DnaContext.Provider value={{ dna, api, apiBase, stubs, theme, toggleTheme }}>
+    <DnaContext.Provider value={{ dna, api, apiBase, stubs }}>
       <BrowserRouter>
         <Routes>
           <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
@@ -414,7 +520,7 @@ export function rendererLayout(): string {
   return `import { useState, useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import type { Layout as LayoutDNA, Route } from './types'
-import { useDna, useThemeTokens } from './context'
+import UniversalLayout from './UniversalLayout'
 
 interface Props {
   layout: LayoutDNA
@@ -437,25 +543,8 @@ function useIsMobile(breakpoint = 768) {
   return mobile
 }
 
-function ThemeToggle() {
-  const { theme, toggleTheme } = useDna()
-  const t = useThemeTokens()
-  return (
-    <button
-      onClick={toggleTheme}
-      aria-label="Toggle theme"
-      style={{
-        background: 'none', border: \`1px solid \${t.borderStrong}\`, borderRadius: '0.375rem',
-        padding: '0.375rem 0.625rem', cursor: 'pointer', fontSize: '1rem', lineHeight: 1,
-        color: t.text,
-      }}
-    >
-      {theme === 'light' ? '\\u263E' : '\\u2600'}
-    </button>
-  )
-}
-
 export default function Layout({ layout, routes }: Props) {
+  if (layout.type === 'universal') return <UniversalLayout routes={routes} />
   if (layout.type === 'sidebar') return <SidebarLayout routes={routes} />
   return <FullWidthLayout routes={routes} />
 }
@@ -463,7 +552,6 @@ export default function Layout({ layout, routes }: Props) {
 function SidebarLayout({ routes }: { routes: Route[] }) {
   const isMobile = useIsMobile()
   const [menuOpen, setMenuOpen] = useState(false)
-  const t = useThemeTokens()
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
     display: 'block',
@@ -471,31 +559,28 @@ function SidebarLayout({ routes }: { routes: Route[] }) {
     borderRadius: '0.375rem',
     textDecoration: 'none',
     fontSize: '0.875rem',
-    color: isActive ? t.primary : t.text,
-    background: isActive ? t.primaryBg : 'transparent',
+    color: isActive ? 'var(--primary)' : 'var(--foreground)',
+    background: isActive ? 'var(--accent)' : 'transparent',
     fontWeight: isActive ? 600 : 400,
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', background: t.bg, color: t.text }}>
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', background: 'var(--background)', color: 'var(--foreground)' }}>
       {/* Mobile header */}
       {isMobile && (
         <header style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0.75rem 1rem', borderBottom: \`1px solid \${t.border}\`, background: t.bgAlt,
+          padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', background: 'var(--sidebar-background)',
           position: 'sticky', top: 0, zIndex: 20,
         }}>
           <span style={{ fontWeight: 600, fontSize: '1rem' }}>Menu</span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <ThemeToggle />
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              style={{ background: 'none', border: \`1px solid \${t.borderStrong}\`, borderRadius: '0.375rem', padding: '0.375rem 0.625rem', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1, color: t.text }}
-              aria-label="Toggle navigation"
-            >
-              {menuOpen ? '\\u2715' : '\\u2630'}
-            </button>
-          </div>
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '0.375rem', padding: '0.375rem 0.625rem', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1, color: 'var(--foreground)' }}
+            aria-label="Toggle navigation"
+          >
+            {menuOpen ? '\\u2715' : '\\u2630'}
+          </button>
         </header>
       )}
 
@@ -503,18 +588,13 @@ function SidebarLayout({ routes }: { routes: Route[] }) {
       {(!isMobile || menuOpen) && (
         <nav style={{
           width: isMobile ? '100%' : 240,
-          borderRight: isMobile ? 'none' : \`1px solid \${t.border}\`,
-          borderBottom: isMobile ? \`1px solid \${t.border}\` : 'none',
+          borderRight: isMobile ? 'none' : '1px solid var(--border)',
+          borderBottom: isMobile ? '1px solid var(--border)' : 'none',
           padding: isMobile ? '0.5rem 1rem' : '1.5rem 1rem',
-          background: t.bgAlt,
+          background: 'var(--sidebar-background)',
           flexShrink: 0,
           ...(isMobile ? {} : { position: 'sticky' as const, top: 0, height: '100vh', overflowY: 'auto' as const }),
         }}>
-          {!isMobile && (
-            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <ThemeToggle />
-            </div>
-          )}
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             {routes.map(route => (
               <li key={route.path}>
@@ -536,7 +616,6 @@ function SidebarLayout({ routes }: { routes: Route[] }) {
 
 function FullWidthLayout({ routes }: { routes: Route[] }) {
   const isMobile = useIsMobile()
-  const t = useThemeTokens()
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
     display: 'block',
@@ -544,21 +623,20 @@ function FullWidthLayout({ routes }: { routes: Route[] }) {
     borderRadius: '0.375rem',
     textDecoration: 'none',
     fontSize: '0.875rem',
-    color: isActive ? t.primary : t.text,
-    background: isActive ? t.primaryBg : 'transparent',
+    color: isActive ? 'var(--primary)' : 'var(--foreground)',
+    background: isActive ? 'var(--accent)' : 'transparent',
     fontWeight: isActive ? 600 : 400,
   })
 
   return (
-    <div style={{ minHeight: '100vh', fontFamily: 'system-ui, sans-serif', background: t.bg, color: t.text }}>
-      <header style={{ borderBottom: \`1px solid \${t.border}\`, background: t.bgAlt, padding: isMobile ? '0 1rem' : '0 2rem' }}>
+    <div style={{ minHeight: '100vh', fontFamily: 'system-ui, sans-serif', background: 'var(--background)', color: 'var(--foreground)' }}>
+      <header style={{ borderBottom: '1px solid var(--border)', background: 'var(--sidebar-background)', padding: isMobile ? '0 1rem' : '0 2rem' }}>
         <nav style={{ display: 'flex', gap: '0.25rem', height: 56, alignItems: 'center', overflowX: 'auto' }}>
           {routes.map(route => (
             <NavLink key={route.path} to={route.path} style={navLinkStyle}>
               {toLabel(route.page)}
             </NavLink>
           ))}
-          <div style={{ marginLeft: 'auto' }}><ThemeToggle /></div>
         </nav>
       </header>
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '1rem' : '2rem' }}>
@@ -1053,6 +1131,661 @@ export default function EmptyStateBlock({ block }: { block: Block }) {
       <p style={{ margin: 0 }}>{block.description ?? 'No results found.'}</p>
     </div>
   )
+}
+`
+}
+
+export function rendererLayoutMachine(): string {
+  return `import { setup, assign } from 'xstate'
+import { useMachine } from '@xstate/react'
+import { useEffect } from 'react'
+
+// ── Layout chrome state machine (XState v5) ──────────────────────────────────
+
+export interface LayoutFeatures {
+  sidebar?: boolean
+  profileDropdown?: boolean
+  tenantPicker?: boolean
+  themeToggle?: boolean
+}
+
+export interface LayoutContext {
+  sidebarCollapsed: boolean
+  sidebarOpen: boolean
+  profileOpen: boolean
+  tenantPickerOpen: boolean
+  currentTenantId: string | null
+  expandedGroups: string[]
+  theme: 'light' | 'dark'
+  viewport: 'mobile' | 'desktop'
+  features: LayoutFeatures
+}
+
+type LayoutEvent =
+  | { type: 'TOGGLE_SIDEBAR' }
+  | { type: 'TOGGLE_MOBILE_MENU' }
+  | { type: 'CLOSE_MOBILE_MENU' }
+  | { type: 'TOGGLE_PROFILE' }
+  | { type: 'CLOSE_PROFILE' }
+  | { type: 'TOGGLE_TENANT_PICKER' }
+  | { type: 'CLOSE_TENANT_PICKER' }
+  | { type: 'SELECT_TENANT'; tenantId: string }
+  | { type: 'CLOSE_ALL_DROPDOWNS' }
+  | { type: 'TOGGLE_NAV_GROUP'; label: string }
+  | { type: 'TOGGLE_THEME' }
+  | { type: 'SET_VIEWPORT'; viewport: 'mobile' | 'desktop' }
+
+function loadPersistedSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem('sidebarCollapsed') === 'true'
+  } catch {
+    return false
+  }
+}
+
+function loadPersistedTenantId(): string | null {
+  try {
+    return localStorage.getItem('currentTenantId')
+  } catch {
+    return null
+  }
+}
+
+function loadPersistedExpandedGroups(): string[] {
+  try {
+    const stored = localStorage.getItem('expandedGroups')
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+function loadPersistedTheme(): 'light' | 'dark' {
+  try {
+    const stored = localStorage.getItem('theme')
+    if (stored === 'light' || stored === 'dark') return stored
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  } catch {
+    return 'light'
+  }
+}
+
+function getInitialViewport(breakpoint = 768): 'mobile' | 'desktop' {
+  return typeof window !== 'undefined' && window.innerWidth < breakpoint ? 'mobile' : 'desktop'
+}
+
+export const layoutMachine = setup({
+  types: {
+    context: {} as LayoutContext,
+    events: {} as LayoutEvent,
+  },
+  actions: {
+    persistSidebar: assign({
+      sidebarCollapsed: ({ context }) => {
+        const next = !context.sidebarCollapsed
+        try { localStorage.setItem('sidebarCollapsed', String(next)) } catch {}
+        return next
+      },
+    }),
+    toggleMobileMenu: assign({
+      sidebarOpen: ({ context }) => !context.sidebarOpen,
+    }),
+    closeMobileMenu: assign({
+      sidebarOpen: () => false,
+    }),
+    toggleProfile: assign({
+      profileOpen: ({ context }) => !context.profileOpen,
+      tenantPickerOpen: () => false,
+    }),
+    closeProfile: assign({
+      profileOpen: () => false,
+    }),
+    toggleTenantPicker: assign({
+      tenantPickerOpen: ({ context }) => !context.tenantPickerOpen,
+      profileOpen: () => false,
+    }),
+    closeTenantPicker: assign({
+      tenantPickerOpen: () => false,
+    }),
+    selectTenant: assign({
+      currentTenantId: ({ event }) => {
+        const id = (event as { type: 'SELECT_TENANT'; tenantId: string }).tenantId
+        try { localStorage.setItem('currentTenantId', id) } catch {}
+        return id
+      },
+      tenantPickerOpen: () => false,
+    }),
+    closeAllDropdowns: assign({
+      profileOpen: () => false,
+      tenantPickerOpen: () => false,
+    }),
+    toggleNavGroup: assign({
+      expandedGroups: ({ context, event }) => {
+        const label = (event as { type: 'TOGGLE_NAV_GROUP'; label: string }).label
+        const next = context.expandedGroups.includes(label)
+          ? context.expandedGroups.filter(g => g !== label)
+          : [...context.expandedGroups, label]
+        try { localStorage.setItem('expandedGroups', JSON.stringify(next)) } catch {}
+        return next
+      },
+    }),
+    toggleTheme: assign({
+      theme: ({ context }) => {
+        const next = context.theme === 'light' ? 'dark' : 'light'
+        try {
+          localStorage.setItem('theme', next)
+          document.documentElement.classList.toggle('dark', next === 'dark')
+        } catch {}
+        return next
+      },
+    }),
+    setViewport: assign({
+      viewport: ({ event }) => (event as { type: 'SET_VIEWPORT'; viewport: 'mobile' | 'desktop' }).viewport,
+    }),
+  },
+}).createMachine({
+  id: 'layout',
+  initial: 'active',
+  context: {
+    sidebarCollapsed: loadPersistedSidebarCollapsed(),
+    sidebarOpen: false,
+    profileOpen: false,
+    tenantPickerOpen: false,
+    currentTenantId: loadPersistedTenantId(),
+    expandedGroups: loadPersistedExpandedGroups(),
+    theme: loadPersistedTheme(),
+    viewport: getInitialViewport(),
+    features: {},
+  },
+  states: {
+    active: {
+      on: {
+        TOGGLE_SIDEBAR: { actions: 'persistSidebar' },
+        TOGGLE_MOBILE_MENU: { actions: 'toggleMobileMenu' },
+        CLOSE_MOBILE_MENU: { actions: 'closeMobileMenu' },
+        TOGGLE_PROFILE: { actions: 'toggleProfile' },
+        CLOSE_PROFILE: { actions: 'closeProfile' },
+        TOGGLE_TENANT_PICKER: { actions: 'toggleTenantPicker' },
+        CLOSE_TENANT_PICKER: { actions: 'closeTenantPicker' },
+        SELECT_TENANT: { actions: 'selectTenant' },
+        CLOSE_ALL_DROPDOWNS: { actions: 'closeAllDropdowns' },
+        TOGGLE_NAV_GROUP: { actions: 'toggleNavGroup' },
+        TOGGLE_THEME: { actions: 'toggleTheme' },
+        SET_VIEWPORT: { actions: 'setViewport' },
+      },
+    },
+  },
+})
+
+export function useLayoutMachine(initialTenantId?: string, initialFeatures?: LayoutFeatures) {
+  const [state, send] = useMachine(layoutMachine)
+
+  // Set initial tenant from DNA if nothing persisted
+  useEffect(() => {
+    if (initialTenantId && !state.context.currentTenantId) {
+      send({ type: 'SELECT_TENANT', tenantId: initialTenantId })
+    }
+  }, [initialTenantId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Resize listener for viewport
+  useEffect(() => {
+    const breakpoint = 768
+    const handler = () => {
+      const next = window.innerWidth < breakpoint ? 'mobile' : 'desktop'
+      send({ type: 'SET_VIEWPORT', viewport: next })
+    }
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [send])
+
+  return {
+    state,
+    send,
+    sidebarCollapsed: state.context.sidebarCollapsed,
+    sidebarOpen: state.context.sidebarOpen,
+    profileOpen: state.context.profileOpen,
+    tenantPickerOpen: state.context.tenantPickerOpen,
+    currentTenantId: state.context.currentTenantId,
+    expandedGroups: state.context.expandedGroups,
+    theme: state.context.theme,
+    viewport: state.context.viewport,
+    features: initialFeatures ?? state.context.features,
+  }
+}
+`
+}
+
+export function rendererUniversalLayout(primitivesPath: string): string {
+  return `import { useEffect } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import type { Route, Layout } from './types'
+import { useDna } from './context'
+import { useLayoutMachine } from './layout-machine'
+import { cn } from '${primitivesPath}/utils'
+import { Button } from '${primitivesPath}/button'
+import { Avatar, AvatarFallback } from '${primitivesPath}/avatar'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '${primitivesPath}/dropdown-menu'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '${primitivesPath}/collapsible'
+import { Sheet, SheetTrigger, SheetContent } from '${primitivesPath}/sheet'
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '${primitivesPath}/tooltip'
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+const SunIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+  </svg>
+)
+
+const MoonIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+)
+
+const ChevronIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m9 18 6-6-6-6"/>
+  </svg>
+)
+
+const HamburgerIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" x2="20" y1="12" y2="12"/>
+    <line x1="4" x2="20" y1="6" y2="6"/>
+    <line x1="4" x2="20" y1="18" y2="18"/>
+  </svg>
+)
+
+// ── Shared nav content (used in both desktop sidebar and mobile sheet) ────────
+
+function NavContent({
+  navigation,
+  routes,
+  expandedGroups,
+  sidebarCollapsed,
+  send,
+  onNavigate,
+}: {
+  navigation: Layout['navigation']
+  routes: Route[]
+  expandedGroups: string[]
+  sidebarCollapsed: boolean
+  send: (event: any) => void
+  onNavigate?: () => void
+}) {
+  if (navigation && !sidebarCollapsed) {
+    return (
+      <ul className="list-none p-0 m-0 flex flex-col gap-0.5">
+        {navigation.map(group => group.route ? (
+          <li key={group.label}>
+            <NavLink
+              to={group.route}
+              end
+              onClick={onNavigate}
+              className={({ isActive }) => cn(
+                'block px-3 py-2 text-sm rounded-md transition-colors no-underline',
+                isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+              )}
+            >
+              {group.label}
+            </NavLink>
+          </li>
+        ) : (
+          <li key={group.label}>
+            <Collapsible
+              open={expandedGroups.includes(group.label)}
+              onOpenChange={() => send({ type: 'TOGGLE_NAV_GROUP', label: group.label })}
+            >
+              <CollapsibleTrigger className="flex items-center w-full px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground rounded-md hover:text-foreground transition-colors">
+                <span className="flex-1 text-left">{group.label}</span>
+                <ChevronIcon className={cn('transition-transform duration-150', expandedGroups.includes(group.label) && 'rotate-90')} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="space-y-0.5">
+                  {group.children?.map(child => (
+                    <li key={child.route}>
+                      <NavLink
+                        to={child.route}
+                        end
+                        onClick={onNavigate}
+                        className={({ isActive }) => cn(
+                          'block pl-6 pr-3 py-1.5 text-sm rounded-md transition-colors no-underline',
+                          isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                        )}
+                      >
+                        {child.label}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  if (navigation && sidebarCollapsed) {
+    return (
+      <TooltipProvider delayDuration={0}>
+        <ul className="list-none p-0 m-0 flex flex-col gap-0.5">
+          {navigation.map(group => (
+            <li key={group.label}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center justify-center p-2 rounded-md text-sidebar-foreground/60 cursor-default">
+                    <span className="text-xs font-bold uppercase">{group.label.charAt(0)}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">{group.label}</TooltipContent>
+              </Tooltip>
+            </li>
+          ))}
+        </ul>
+      </TooltipProvider>
+    )
+  }
+
+  if (!navigation) {
+    return (
+      <ul className="list-none p-0 m-0 flex flex-col gap-0.5">
+        {routes.map(route => (
+          <li key={route.path}>
+            <NavLink
+              to={route.path}
+              onClick={onNavigate}
+              className={({ isActive }) => cn(
+                'block px-3 py-2 text-sm rounded-md transition-colors no-underline',
+                isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+              )}
+            >
+              {route.page.replace(/([A-Z])/g, (c: string, _m: string, offset: number) => (offset === 0 ? '' : ' ') + c)}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  return null
+}
+
+// ── Profile dropdown ──────────────────────────────────────────────────────────
+
+function ProfileDropdown({
+  showTenantPicker,
+  currentTenant,
+}: {
+  showTenantPicker: boolean
+  currentTenant?: { id: string; name: string }
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full h-7 w-7">
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="text-xs">U</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="start" className="w-48">
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+          {showTenantPicker && currentTenant ? currentTenant.name : 'User'}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => console.log('Settings')}>Settings</DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive" onClick={() => console.log('Sign out')}>Sign out</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// ── Tenant picker dropdown ────────────────────────────────────────────────────
+
+function TenantPicker({
+  tenants,
+  currentTenantId,
+  currentTenant,
+  send,
+}: {
+  tenants: { id: string; name: string }[]
+  currentTenantId: string | null
+  currentTenant?: { id: string; name: string }
+  send: (event: any) => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex-1 text-left text-xs truncate px-1 py-0.5 rounded hover:bg-sidebar-accent/50 transition-colors">
+          {currentTenant?.name ?? 'Select tenant'}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="start" className="w-48">
+        {tenants.map(tn => (
+          <DropdownMenuItem
+            key={tn.id}
+            onClick={() => send({ type: 'SELECT_TENANT', tenantId: tn.id })}
+            className={cn(tn.id === currentTenantId && 'bg-accent font-medium')}
+          >
+            {tn.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// ── Mobile layout ─────────────────────────────────────────────────────────────
+
+function MobileLayout({
+  routes, navigation, expandedGroups, send,
+  sidebarOpen, showProfile, showTenantPicker, showThemeToggle,
+  tenants, currentTenantId, currentTenant, appName, theme,
+}: {
+  routes: Route[]
+  navigation: Layout['navigation']
+  expandedGroups: string[]
+  send: (event: any) => void
+  sidebarOpen: boolean
+  showProfile: boolean
+  showTenantPicker: boolean
+  showThemeToggle: boolean
+  tenants: { id: string; name: string }[]
+  currentTenantId: string | null
+  currentTenant?: { id: string; name: string }
+  appName: string
+  theme: 'light' | 'dark'
+}) {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Mobile header */}
+      <header className="flex items-center justify-between px-4 h-14 border-b border-border bg-sidebar-background sticky top-0 z-30">
+        <Sheet open={sidebarOpen} onOpenChange={(open: boolean) => send(open ? { type: 'TOGGLE_MOBILE_MENU' } : { type: 'CLOSE_MOBILE_MENU' })}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Toggle menu">
+              <HamburgerIcon />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0">
+            <nav className="flex-1 overflow-y-auto p-3 pt-10">
+              <NavContent
+                navigation={navigation}
+                routes={routes}
+                expandedGroups={expandedGroups}
+                sidebarCollapsed={false}
+                send={send}
+                onNavigate={() => send({ type: 'CLOSE_MOBILE_MENU' })}
+              />
+            </nav>
+            <div className="border-t border-sidebar-border p-2 space-y-1">
+              <div className="flex items-center gap-1.5">
+                {showProfile && (
+                  <ProfileDropdown showTenantPicker={showTenantPicker} currentTenant={currentTenant} />
+                )}
+                {showTenantPicker && (
+                  <TenantPicker tenants={tenants} currentTenantId={currentTenantId} currentTenant={currentTenant} send={send} />
+                )}
+              </div>
+              <div className="flex items-center gap-1 justify-end">
+                {showThemeToggle && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => send({ type: 'TOGGLE_THEME' })} title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
+                    {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+        <span className="font-bold text-base">{appName}</span>
+        {showProfile ? (
+          <ProfileDropdown showTenantPicker={showTenantPicker} currentTenant={currentTenant} />
+        ) : <div className="w-8" />}
+      </header>
+
+      <main className="p-4 overflow-auto">
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+
+// ── Desktop layout ────────────────────────────────────────────────────────────
+
+function DesktopLayout({
+  routes, navigation, expandedGroups, send,
+  sidebarCollapsed, showSidebar, showProfile, showTenantPicker, showThemeToggle,
+  tenants, currentTenantId, currentTenant, appName, theme,
+}: {
+  routes: Route[]
+  navigation: Layout['navigation']
+  expandedGroups: string[]
+  send: (event: any) => void
+  sidebarCollapsed: boolean
+  showSidebar: boolean
+  showProfile: boolean
+  showTenantPicker: boolean
+  showThemeToggle: boolean
+  tenants: { id: string; name: string }[]
+  currentTenantId: string | null
+  currentTenant?: { id: string; name: string }
+  appName: string
+  theme: 'light' | 'dark'
+}) {
+  return (
+    <div className="flex min-h-screen bg-background text-foreground">
+      {showSidebar && (
+        <aside className={cn(
+          'flex-shrink-0 transition-[width] duration-200 ease-in-out border-r border-sidebar-border bg-sidebar-background flex flex-col sticky top-0 h-screen',
+          sidebarCollapsed ? 'w-16' : 'w-60',
+          'overflow-x-visible overflow-y-hidden'
+        )}>
+          {/* App name */}
+          <div className={cn('border-b border-sidebar-border font-bold text-sm truncate', sidebarCollapsed ? 'text-center py-4 px-0' : 'p-4')}>
+            {sidebarCollapsed ? appName.charAt(0).toUpperCase() : appName}
+          </div>
+
+          {/* Nav links */}
+          <nav className={cn('flex-1 overflow-y-auto', sidebarCollapsed ? 'p-1' : 'p-2')}>
+            <NavContent
+              navigation={navigation}
+              routes={routes}
+              expandedGroups={expandedGroups}
+              sidebarCollapsed={sidebarCollapsed}
+              send={send}
+            />
+          </nav>
+
+          {/* Bottom section */}
+          <div className="border-t border-sidebar-border p-2 space-y-1">
+            {/* Profile + tenant row */}
+            {(showProfile || showTenantPicker) && (
+              <div className="flex items-center gap-1.5">
+                {showProfile && (
+                  <ProfileDropdown showTenantPicker={showTenantPicker} currentTenant={currentTenant} />
+                )}
+                {!sidebarCollapsed && showTenantPicker && (
+                  <TenantPicker tenants={tenants} currentTenantId={currentTenantId} currentTenant={currentTenant} send={send} />
+                )}
+              </div>
+            )}
+            {/* Theme + collapse row */}
+            <div className={cn('flex items-center gap-1', sidebarCollapsed ? 'justify-center' : 'justify-end')}>
+              {showThemeToggle && (
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => send({ type: 'TOGGLE_THEME' })} title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
+                  {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => send({ type: 'TOGGLE_SIDEBAR' })} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+                <ChevronIcon className={cn('transition-transform', sidebarCollapsed ? '' : 'rotate-180')} />
+              </Button>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* Main content */}
+      <main className="flex-1 p-8 overflow-auto">
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function UniversalLayout({ routes }: { routes: Route[] }) {
+  const { dna } = useDna()
+  const layout = dna.layout as Layout
+  const features = layout.features ?? {}
+  const tenants = layout.tenants ?? []
+  const navigation = layout.navigation
+  const initialTenantId = tenants.length > 0 ? tenants[0].id : undefined
+
+  const {
+    send,
+    sidebarCollapsed,
+    sidebarOpen,
+    currentTenantId,
+    expandedGroups,
+    theme,
+    viewport,
+  } = useLayoutMachine(initialTenantId, features)
+
+  const location = useLocation()
+  const currentTenant = tenants.find(tn => tn.id === currentTenantId)
+  const appName = dna.layout.name
+  const isMobile = viewport === 'mobile'
+  const showSidebar = features.sidebar !== false
+  const showProfile = features.profileDropdown !== false
+  const showTenantPicker = features.tenantPicker !== false && tenants.length > 0
+  const showThemeToggle = features.themeToggle !== false
+
+  // Auto-expand nav groups containing the active route
+  useEffect(() => {
+    if (!navigation) return
+    for (const group of navigation) {
+      if (group.children?.some(child => location.pathname === child.route || location.pathname.startsWith(child.route + '/'))) {
+        if (!expandedGroups.includes(group.label)) {
+          send({ type: 'TOGGLE_NAV_GROUP', label: group.label })
+        }
+      }
+    }
+  }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shared = {
+    routes, navigation, expandedGroups, send,
+    showProfile, showTenantPicker, showThemeToggle,
+    tenants, currentTenantId, currentTenant, appName, theme,
+  }
+
+  if (isMobile) {
+    return <MobileLayout {...shared} sidebarOpen={sidebarOpen} />
+  }
+
+  return <DesktopLayout {...shared} sidebarCollapsed={sidebarCollapsed} showSidebar={showSidebar} />
 }
 `
 }

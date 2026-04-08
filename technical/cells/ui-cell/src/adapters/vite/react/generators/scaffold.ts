@@ -14,6 +14,16 @@ export function generatePackageJson(appName: string): string {
         react: '^18.3.0',
         'react-dom': '^18.3.0',
         'react-router-dom': '^6.24.0',
+        'xstate': '^5.18.0',
+        '@xstate/react': '^4.1.0',
+        '@radix-ui/react-avatar': '^1.1.0',
+        '@radix-ui/react-collapsible': '^1.1.0',
+        '@radix-ui/react-dialog': '^1.1.0',
+        '@radix-ui/react-dropdown-menu': '^2.1.0',
+        '@radix-ui/react-tooltip': '^1.1.0',
+        'class-variance-authority': '^0.7.0',
+        'clsx': '^2.1.0',
+        'tailwind-merge': '^2.5.0',
       },
       devDependencies: {
         '@types/react': '^18.3.0',
@@ -21,6 +31,8 @@ export function generatePackageJson(appName: string): string {
         '@vitejs/plugin-react': '^4.3.0',
         typescript: '^5.4.0',
         vite: '^5.3.0',
+        'tailwindcss': '^4.1.0',
+        '@tailwindcss/vite': '^4.1.0',
       },
     },
     null,
@@ -86,12 +98,14 @@ export function generateViteConfig(appName: string, dnaRelPath = '../../dna', ap
 
   return `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import fs from 'fs'
 
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     {
       name: 'dna-static',
       configureServer(server) {
@@ -127,7 +141,6 @@ export function generateIndexHtml(appName: string): string {
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${appName}</title>
-    <style>*, *::before, *::after { box-sizing: border-box; } body { margin: 0; }</style>
   </head>
   <body>
     <div id="root"></div>
@@ -138,7 +151,8 @@ export function generateIndexHtml(appName: string): string {
 }
 
 export function generateMain(): string {
-  return `import { StrictMode } from 'react'
+  return `import './globals.css'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './renderer/App'
 

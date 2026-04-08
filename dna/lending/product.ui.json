@@ -1,8 +1,98 @@
 {
   "layout": {
     "name": "LendingDashboard",
-    "type": "sidebar",
-    "description": "Primary shell for the lending application with left sidebar navigation."
+    "type": "universal",
+    "description": "Primary shell for the lending application with collapsible sidebar, user profile, and tenant picker.",
+    "features": {
+      "sidebar": true,
+      "profileDropdown": true,
+      "tenantPicker": true,
+      "themeToggle": true
+    },
+    "tenants": [
+      { "id": "acme-lending", "name": "Acme Lending" },
+      { "id": "globex-finance", "name": "Globex Finance" },
+      { "id": "initech-loans", "name": "Initech Loans" }
+    ],
+    "navigation": [
+      {
+        "label": "Loans",
+        "children": [
+          { "route": "/loans", "label": "All Loans" },
+          { "route": "/loans/apply", "label": "Apply" },
+          { "route": "/review", "label": "Review Queue" }
+        ]
+      },
+      {
+        "label": "Borrowers",
+        "children": [
+          { "route": "/borrowers", "label": "All Borrowers" }
+        ]
+      },
+      {
+        "label": "Lenders",
+        "children": [
+          { "route": "/lenders", "label": "All Lenders" },
+          { "route": "/lenders/onboard", "label": "Onboard" }
+        ]
+      }
+    ],
+    "theme": {
+      "colors": {
+        "background": "#ffffff",
+        "foreground": "#0a0a0a",
+        "primary": "#171717",
+        "primary-foreground": "#fafafa",
+        "secondary": "#f5f5f5",
+        "secondary-foreground": "#171717",
+        "muted": "#f5f5f5",
+        "muted-foreground": "#737373",
+        "accent": "#f5f5f5",
+        "accent-foreground": "#171717",
+        "destructive": "#ef4444",
+        "destructive-foreground": "#fafafa",
+        "border": "#e5e5e5",
+        "input": "#e5e5e5",
+        "ring": "#171717",
+        "card": "#ffffff",
+        "card-foreground": "#0a0a0a",
+        "popover": "#ffffff",
+        "popover-foreground": "#0a0a0a",
+        "sidebar-background": "#fafafa",
+        "sidebar-foreground": "#0a0a0a",
+        "sidebar-border": "#e5e5e5",
+        "sidebar-accent": "#f5f5f5",
+        "sidebar-accent-foreground": "#171717"
+      },
+      "dark": {
+        "background": "#0a0a0a",
+        "foreground": "#fafafa",
+        "primary": "#fafafa",
+        "primary-foreground": "#171717",
+        "secondary": "#262626",
+        "secondary-foreground": "#fafafa",
+        "muted": "#262626",
+        "muted-foreground": "#a3a3a3",
+        "accent": "#262626",
+        "accent-foreground": "#fafafa",
+        "destructive": "#7f1d1d",
+        "destructive-foreground": "#fafafa",
+        "border": "#262626",
+        "input": "#262626",
+        "ring": "#d4d4d4",
+        "card": "#0a0a0a",
+        "card-foreground": "#fafafa",
+        "popover": "#0a0a0a",
+        "popover-foreground": "#fafafa",
+        "sidebar-background": "#171717",
+        "sidebar-foreground": "#fafafa",
+        "sidebar-border": "#262626",
+        "sidebar-accent": "#262626",
+        "sidebar-accent-foreground": "#fafafa"
+      },
+      "radius": "0.5rem",
+      "font": "system-ui, sans-serif"
+    }
   },
 
   "pages": [

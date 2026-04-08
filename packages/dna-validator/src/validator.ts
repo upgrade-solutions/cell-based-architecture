@@ -120,14 +120,14 @@ export class DnaValidator {
       environmentSchema,
       cellSchema,
       scriptSchema,
-      operationalDnaSchema,
-      productApiDnaSchema,
-      productUiDnaSchema,
-      technicalDnaSchema,
       nodeSchema,
       connectionSchema,
       zoneSchema,
       viewSchema,
+      operationalDnaSchema,
+      productApiDnaSchema,
+      productUiDnaSchema,
+      technicalDnaSchema,
     ]
 
     for (const schema of schemas) {

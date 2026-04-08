@@ -103,6 +103,7 @@ export interface UiCellContext {
   operationalFetchPath?: string // e.g. /dna/lending/operational.json
   apiBase?: string              // e.g. http://localhost:3001
   dnaSourceDir: string          // absolute path to the dna/ directory
+  vendorComponents?: boolean    // copy primitives into output instead of importing from package
 }
 
 // ── Adapter interface ─────────────────────────────────────────────────────────

@@ -378,6 +378,77 @@ The `ui-cell` supports multiple adapters that produce the same DNA-driven UI fro
 
 All adapters fetch all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from the Product API DNA and the `useApi` composable/hook handles data fetching, form submission, and action dispatch.
 
+#### Layout system
+
+Layouts are DNA-driven structural shells that wrap pages. The layout `type` in Product UI DNA selects which shell the adapter generates:
+
+| Layout Type | Description |
+|-------------|-------------|
+| `universal` | Production-ready shell — collapsible sidebar, user profile dropdown, tenant picker, theme toggle. State managed by XState v5 |
+| `sidebar` | Simple fixed sidebar with nav links and theme toggle |
+| `full-width` | Horizontal header nav with centered content area |
+| `split-panel` | (planned) |
+| `centered` | (planned) |
+| `blank` | (planned) |
+
+The **universal layout** is the recommended default. Built on **Radix UI** + **Tailwind CSS v4** with a **DNA-driven white-label theme system**. It includes:
+
+- **Radix UI primitives** — DropdownMenu (profile, tenant picker), Collapsible (nav groups), Sheet (mobile drawer), Tooltip (collapsed sidebar), Avatar (user profile), Button (all actions). Keyboard accessible, focus-managed, auto-dismissing
+- **Tailwind CSS v4** — all styling via utility classes referencing CSS custom properties. Zero inline styles
+- **White-label theme** — `theme` object in DNA defines 24 shadcn-compatible color tokens (light + dark), border radius, font family. Colors emit as CSS variables in `globals.css`. Change colors in DNA, regenerate, done
+- **Collapsible sidebar** — 240px expanded / 64px collapsed, animated via Tailwind transitions
+- **Nested navigation** — `navigation` groups with Radix Collapsible expand/collapse, Tooltip labels when collapsed, auto-expand on active route
+- **XState v5 state machine** — manages all layout state: sidebar, dropdowns, nav groups, tenant, theme (light/dark with `.dark` class toggle), viewport (mobile/desktop via resize observer), feature flags
+- **Vendor mode** — Radix primitives are vendored into `src/primitives/` by default (self-contained output). Set `vendorComponents: false` to import from `@cell/ui-cell/primitives` within the monorepo
+
+Layout configuration in DNA:
+
+```json
+{
+  "layout": {
+    "name": "LendingDashboard",
+    "type": "universal",
+    "features": {
+      "sidebar": true,
+      "profileDropdown": true,
+      "tenantPicker": true,
+      "themeToggle": true
+    },
+    "tenants": [
+      { "id": "acme-lending", "name": "Acme Lending" },
+      { "id": "globex-finance", "name": "Globex Finance" }
+    ],
+    "navigation": [
+      {
+        "label": "Loans",
+        "children": [
+          { "route": "/loans", "label": "All Loans" },
+          { "route": "/loans/apply", "label": "Apply" }
+        ]
+      }
+    ],
+    "theme": {
+      "colors": {
+        "background": "#ffffff",
+        "foreground": "#0a0a0a",
+        "primary": "#171717",
+        "primary-foreground": "#fafafa",
+        "sidebar-background": "#fafafa",
+        "sidebar-foreground": "#0a0a0a"
+      },
+      "dark": {
+        "background": "#0a0a0a",
+        "foreground": "#fafafa",
+        "primary": "#fafafa",
+        "primary-foreground": "#171717"
+      },
+      "radius": "0.5rem",
+      "font": "system-ui, sans-serif"
+    }
+  }
+}
+```
+
 #### Generate and run
 
 ```bash
