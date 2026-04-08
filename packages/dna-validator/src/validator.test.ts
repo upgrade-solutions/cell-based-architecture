@@ -207,6 +207,90 @@ describe('DnaValidator — technical/environment', () => {
   })
 })
 
+describe('DnaValidator — operational/signal', () => {
+  it('validates a valid Signal', () => {
+    const result = validator.validate({
+      name: 'lending.Loan.Disbursed',
+      capability: 'Loan.Disburse',
+      description: 'Published when funds are released.',
+      payload: [
+        { name: 'loan_id', type: 'string' },
+        { name: 'amount', type: 'number' }
+      ]
+    }, 'operational/signal')
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('rejects a Signal missing required payload', () => {
+    const result = validator.validate({
+      name: 'lending.Loan.Disbursed',
+      capability: 'Loan.Disburse'
+    }, 'operational/signal')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'payload')).toBe(true)
+  })
+
+  it('rejects a Signal with empty payload', () => {
+    const result = validator.validate({
+      name: 'lending.Loan.Disbursed',
+      capability: 'Loan.Disburse',
+      payload: []
+    }, 'operational/signal')
+    expect(result.valid).toBe(false)
+  })
+
+  it('rejects a Signal with invalid name pattern', () => {
+    const result = validator.validate({
+      name: 'LoanDisbursed',
+      capability: 'Loan.Disburse',
+      payload: [{ name: 'loan_id', type: 'string' }]
+    }, 'operational/signal')
+    expect(result.valid).toBe(false)
+  })
+})
+
+describe('DnaValidator — operational/cause (signal source)', () => {
+  it('validates a Cause with signal source', () => {
+    const result = validator.validate({
+      capability: 'PaymentSchedule.Create',
+      source: 'signal',
+      signal: 'lending.Loan.Disbursed',
+      description: 'Triggered when a loan is disbursed.'
+    }, 'operational/cause')
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects a Cause with signal source but missing signal field', () => {
+    const result = validator.validate({
+      capability: 'PaymentSchedule.Create',
+      source: 'signal'
+    }, 'operational/cause')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'signal')).toBe(true)
+  })
+})
+
+describe('DnaValidator — operational/outcome (emits)', () => {
+  it('validates an Outcome with emits', () => {
+    const result = validator.validate({
+      capability: 'Loan.Disburse',
+      changes: [{ attribute: 'loan.status', set: 'active' }],
+      emits: ['lending.Loan.Disbursed']
+    }, 'operational/outcome')
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects an Outcome with invalid emits signal pattern', () => {
+    const result = validator.validate({
+      capability: 'Loan.Disburse',
+      changes: [{ attribute: 'loan.status', set: 'active' }],
+      emits: ['BadSignalName']
+    }, 'operational/outcome')
+    expect(result.valid).toBe(false)
+  })
+})
+
 describe('DnaValidator — composite: operational', () => {
   it('validates the lending operational DNA document', () => {
     const doc = loadDna('dna/lending/operational.json')
@@ -285,6 +369,7 @@ describe('DnaValidator — availableSchemas', () => {
     expect(schemas).toContain('operational/outcome')
     expect(schemas).toContain('operational/lifecycle')
     expect(schemas).toContain('operational/equation')
+    expect(schemas).toContain('operational/signal')
     expect(schemas).toContain('product/core/resource')
     expect(schemas).toContain('product/core/action')
     expect(schemas).toContain('product/core/operation')
@@ -436,6 +521,50 @@ describe('DnaValidator — cross-layer validation', () => {
 
   it('works with only technical layer', () => {
     const result = validator.validateCrossLayer({ technical })
+    expect(result.valid).toBe(true)
+  })
+
+  it('detects invalid Signal capability reference', () => {
+    const badOp = {
+      ...operational,
+      signals: [
+        { name: 'lending.Loan.Teleported', capability: 'Loan.Teleport', payload: [{ name: 'id', type: 'string' }] }
+      ]
+    }
+    const result = validator.validateCrossLayer({ operational: badOp })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Capability "Loan.Teleport"'))).toBe(true)
+    expect(result.errors.some(e => e.layer === 'operational')).toBe(true)
+  })
+
+  it('detects invalid Outcome emits reference', () => {
+    const badOp = {
+      ...operational,
+      outcomes: [
+        ...operational.outcomes,
+        { capability: 'Loan.Apply', changes: [{ attribute: 'loan.status', set: 'under_review' }], emits: ['lending.Loan.Vanished'] }
+      ]
+    }
+    const result = validator.validateCrossLayer({ operational: badOp })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Signal "lending.Loan.Vanished"'))).toBe(true)
+  })
+
+  it('detects invalid Cause signal reference', () => {
+    const badOp = {
+      ...operational,
+      causes: [
+        ...operational.causes,
+        { capability: 'Loan.Apply', source: 'signal', signal: 'payments.Payment.Ghosted' }
+      ]
+    }
+    const result = validator.validateCrossLayer({ operational: badOp })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Signal "payments.Payment.Ghosted"'))).toBe(true)
+  })
+
+  it('passes signal validation for valid lending DNA with signals', () => {
+    const result = validator.validateCrossLayer({ operational })
     expect(result.valid).toBe(true)
   })
 })

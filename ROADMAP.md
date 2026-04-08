@@ -44,12 +44,12 @@ Build the planned cells that extend the architecture beyond API and UI.
 
 Introduce the `Signal` primitive and extend existing primitives to support cross-domain event-driven communication. A Signal is a named domain event published after a Capability executes — it crosses domain boundaries and carries a typed payload contract.
 
-- [ ] Define `Signal` schema (`operational/schemas/signal.json`) — name, capability, description, typed payload fields
-- [ ] Add `signals` array to operational composite schema (`operational/schemas/operational.json`)
-- [ ] Extend `Outcome` schema with `emits` field — array of Signal names published when outcome completes (cross-domain, async; distinct from `initiates` which is intra-domain, sync)
-- [ ] Extend `Cause` schema with `source: "signal"` and `signal` field — subscribe to Signals from any domain
-- [ ] Cross-layer validation: `Outcome.emits` references valid Signal names, `Signal.capability` references valid Capability
-- [ ] Author lending domain reference Signals (`lending.Loan.Disbursed`, `lending.Loan.Defaulted`) with typed payloads
+- [x] Define `Signal` schema (`operational/schemas/signal.json`) — name, capability, description, typed payload fields
+- [x] Add `signals` array to operational composite schema (`operational/schemas/operational.json`)
+- [x] Extend `Outcome` schema with `emits` field — array of Signal names published when outcome completes (cross-domain, async; distinct from `initiates` which is intra-domain, sync)
+- [x] Extend `Cause` schema with `source: "signal"` and `signal` field — subscribe to Signals from any domain
+- [x] Cross-layer validation: `Outcome.emits` references valid Signal names, `Signal.capability` references valid Capability
+- [x] Author lending domain reference Signals (`lending.Loan.Disbursed`, `lending.Loan.Defaulted`) with typed payloads
 
 ### Phase 3b: Event Bus Cell
 

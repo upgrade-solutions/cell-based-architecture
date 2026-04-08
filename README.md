@@ -34,7 +34,7 @@ Cause → Rule → [Capability executes] → Outcome (→ Signal) → Lifecycle
 | `Cause` | What initiates a Capability (user action, webhook, schedule, chained Capability, or Signal) |
 | `Rule` | A constraint on a Capability — who may perform it (`type: access`) or what conditions must be met (`type: condition`) |
 | `Outcome` | State changes and side effects after execution. Can `initiate` downstream Capabilities (intra-domain, sync) or `emit` Signals (cross-domain, async) |
-| `Signal` | A named domain event published after a Capability executes — crosses domain boundaries with a typed payload contract. Other domains subscribe via `Cause` with `source: "signal"` (Planned) |
+| `Signal` | A named domain event published after a Capability executes — crosses domain boundaries with a typed payload contract. Other domains subscribe via `Cause` with `source: "signal"` |
 | `Lifecycle` | The valid sequence of Capabilities across the life of a Noun |
 | `Equation` | A named, technology-agnostic computation — pure function with typed inputs and output. Implemented concretely by a Script in Technical DNA |
 

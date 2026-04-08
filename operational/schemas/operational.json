@@ -39,6 +39,11 @@
       "type": "array",
       "description": "Named, technology-agnostic computations that cannot be expressed as declarative Rules or Outcomes. Implemented concretely by Scripts in Technical DNA.",
       "items": { "$ref": "https://dna.local/operational/equation" }
+    },
+    "signals": {
+      "type": "array",
+      "description": "Named domain events published after a Capability executes. Signals cross domain boundaries and carry typed payload contracts.",
+      "items": { "$ref": "https://dna.local/operational/signal" }
     }
   },
   "examples": [

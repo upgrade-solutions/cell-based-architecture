@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/operational/signal",
+  "title": "Signal",
+  "description": "A Signal is a named domain event published after a Capability executes. Signals cross domain boundaries and carry a typed payload contract that subscribers depend on.",
+  "type": "object",
+  "required": ["name", "capability", "payload"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Fully qualified signal name: domain.Noun.PastTenseVerb.",
+      "pattern": "^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*)*\\.[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
+      "examples": ["lending.Loan.Disbursed", "lending.Loan.Defaulted", "payments.Payment.Completed"]
+    },
+    "capability": {
+      "type": "string",
+      "description": "The Capability whose successful execution publishes this signal, expressed as Noun.Verb.",
+      "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$",
+      "examples": ["Loan.Disburse", "Loan.Default", "Payment.Complete"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this signal represents."
+    },
+    "payload": {
+      "type": "array",
+      "description": "Typed fields carried by this signal — the contract that subscribers depend on.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Field name in snake_case.",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "type": {
+            "type": "string",
+            "description": "Field type.",
+            "enum": ["string", "text", "number", "boolean", "date", "datetime"]
+          },
+          "description": {
+            "type": "string",
+            "description": "A human-readable explanation of this payload field."
+          }
+        }
+      }
+    }
+  }
+}

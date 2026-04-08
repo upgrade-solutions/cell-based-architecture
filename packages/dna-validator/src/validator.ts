@@ -9,6 +9,7 @@ import * as ruleSchema from '../../../operational/schemas/rule.json'
 import * as outcomeSchema from '../../../operational/schemas/outcome.json'
 import * as lifecycleSchema from '../../../operational/schemas/lifecycle.json'
 import * as equationSchema from '../../../operational/schemas/equation.json'
+import * as signalSchema from '../../../operational/schemas/signal.json'
 import * as fieldSchema from '../../../product/schemas/core/field.json'
 import * as actionSchema from '../../../product/schemas/core/action.json'
 import * as resourceSchema from '../../../product/schemas/core/resource.json'
@@ -60,6 +61,9 @@ interface OperationalDNA {
     nouns?: { name: string; verbs?: { name: string }[] }[]
   }
   capabilities?: { name: string; noun: string; verb: string }[]
+  signals?: { name: string; capability: string }[]
+  outcomes?: { capability: string; emits?: string[] }[]
+  causes?: { capability: string; source: string; signal?: string }[]
 }
 
 interface ProductApiDNA {
@@ -120,6 +124,7 @@ export class DnaValidator {
       environmentSchema,
       cellSchema,
       scriptSchema,
+      signalSchema,
       nodeSchema,
       connectionSchema,
       zoneSchema,
@@ -177,6 +182,47 @@ export class DnaValidator {
     const api = layers.productApi as ProductApiDNA | undefined
     const ui = layers.productUi as ProductUiDNA | undefined
     const tech = layers.technical as TechnicalDNA | undefined
+
+    // ── Operational: Signal consistency ──────────────────────────────────
+    if (op) {
+      const capabilityNames = new Set((op.capabilities ?? []).map(c => c.name))
+      const signalNames = new Set((op.signals ?? []).map(s => s.name))
+
+      // Signal.capability must reference a valid Capability
+      for (const signal of op.signals ?? []) {
+        if (!capabilityNames.has(signal.capability)) {
+          errors.push({
+            layer: 'operational',
+            path: `signals/${signal.name}/capability`,
+            message: `Signal "${signal.name}" references Capability "${signal.capability}" which does not exist. Available: ${[...capabilityNames].join(', ')}`,
+          })
+        }
+      }
+
+      // Outcome.emits must reference valid Signal names
+      for (const outcome of op.outcomes ?? []) {
+        for (const signalRef of outcome.emits ?? []) {
+          if (!signalNames.has(signalRef)) {
+            errors.push({
+              layer: 'operational',
+              path: `outcomes/${outcome.capability}/emits/${signalRef}`,
+              message: `Outcome for "${outcome.capability}" emits Signal "${signalRef}" which does not exist. Available: ${[...signalNames].join(', ')}`,
+            })
+          }
+        }
+      }
+
+      // Cause with source "signal" must reference a valid Signal name
+      for (const cause of op.causes ?? []) {
+        if (cause.source === 'signal' && cause.signal && !signalNames.has(cause.signal)) {
+          errors.push({
+            layer: 'operational',
+            path: `causes/${cause.capability}/signal`,
+            message: `Cause for "${cause.capability}" references Signal "${cause.signal}" which does not exist. Available: ${[...signalNames].join(', ')}`,
+          })
+        }
+      }
+    }
 
     // ── Product API → Operational ──────────────────────────────────────────
     if (op && api) {

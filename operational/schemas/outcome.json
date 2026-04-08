@@ -34,10 +34,18 @@
     },
     "initiates": {
       "type": "array",
-      "description": "Downstream capabilities to initiate after this capability completes.",
+      "description": "Downstream capabilities to initiate after this capability completes (intra-domain, synchronous).",
       "items": {
         "type": "string",
         "pattern": "^[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$"
+      }
+    },
+    "emits": {
+      "type": "array",
+      "description": "Signal names published when this outcome completes (cross-domain, asynchronous). Each entry must reference a Signal defined in the signals array.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*)*\\.[A-Z][a-zA-Z]*\\.[A-Z][a-zA-Z]*$"
       }
     }
   }

@@ -345,7 +345,8 @@
         { "attribute": "loan.status", "set": "active" },
         { "attribute": "loan.disbursed_at", "set": "now" },
         { "attribute": "loan.amount_paid", "set": 0 }
-      ]
+      ],
+      "emits": ["lending.Loan.Disbursed"]
     },
     {
       "capability": "Loan.Repay",
@@ -360,13 +361,44 @@
       "description": "Loan is closed as defaulted.",
       "changes": [
         { "attribute": "loan.status", "set": "defaulted" }
-      ]
+      ],
+      "emits": ["lending.Loan.Defaulted"]
     },
     {
       "capability": "Borrower.Suspend",
       "description": "Borrower account is deactivated.",
       "changes": [
         { "attribute": "borrower.status", "set": "suspended" }
+      ]
+    }
+  ],
+
+  "signals": [
+    {
+      "name": "lending.Loan.Disbursed",
+      "capability": "Loan.Disburse",
+      "description": "Published when funds are released to the borrower. Downstream domains (e.g. payments) can subscribe to schedule repayment collection.",
+      "payload": [
+        { "name": "loan_id", "type": "string", "description": "The disbursed loan's identifier." },
+        { "name": "borrower_id", "type": "string", "description": "The borrower receiving funds." },
+        { "name": "lender_id", "type": "string", "description": "The lender funding the loan." },
+        { "name": "amount", "type": "number", "description": "Principal amount disbursed." },
+        { "name": "interest_rate", "type": "number", "description": "Annual interest rate locked at approval." },
+        { "name": "term_months", "type": "number", "description": "Loan duration in months." },
+        { "name": "disbursed_at", "type": "datetime", "description": "Timestamp when funds were released." }
+      ]
+    },
+    {
+      "name": "lending.Loan.Defaulted",
+      "capability": "Loan.Default",
+      "description": "Published when a loan is marked as defaulted. Downstream domains can trigger collections, credit reporting, or risk adjustments.",
+      "payload": [
+        { "name": "loan_id", "type": "string", "description": "The defaulted loan's identifier." },
+        { "name": "borrower_id", "type": "string", "description": "The borrower who defaulted." },
+        { "name": "lender_id", "type": "string", "description": "The lender who funded the loan." },
+        { "name": "amount", "type": "number", "description": "Original principal amount." },
+        { "name": "amount_paid", "type": "number", "description": "Total repayments received before default." },
+        { "name": "due_date", "type": "date", "description": "The due date that was missed." }
       ]
     }
   ],
