@@ -128,6 +128,14 @@ export interface Outcome {
   description?: string
   changes: Change[]
   initiates?: string[]
+  emits?: string[]
+}
+
+export interface Signal {
+  name: string
+  capability: string
+  description?: string
+  payload: { name: string; type: string; description?: string }[]
 }
 
 export interface OperationalDNA {
@@ -137,6 +145,7 @@ export interface OperationalDNA {
   rules?: Rule[]
   outcomes?: Outcome[]
   lifecycles?: unknown[]
+  signals?: Signal[]
 }
 
 // ── Auth config (extracted from Technical DNA auth provider) ──────────────────

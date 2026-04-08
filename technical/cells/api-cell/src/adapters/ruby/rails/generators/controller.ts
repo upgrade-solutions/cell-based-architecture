@@ -1,4 +1,4 @@
-import { Resource, Endpoint, Operation, Rule, Outcome, Namespace } from '../../../../types'
+import { Resource, Endpoint, Operation, Rule, Outcome, Signal, Namespace } from '../../../../types'
 import { resolveCapability } from '../../../../utils'
 import { toSnakeCase, toPlural, toActionMethod } from './naming'
 
@@ -32,6 +32,7 @@ function buildCreateBody(
   resource: Resource,
   outcomes: Outcome[],
   capability: string,
+  signals?: Signal[],
 ): string[] {
   const modelName = resource.name
   const entityFields = new Set(resource.fields.map(f => f.name))
@@ -54,8 +55,10 @@ function buildCreateBody(
     }
   }
 
+  const emitLines = buildEmitLines(outcome, signals)
   lines.push(
     `      if record.save`,
+    ...emitLines.map(l => `  ${l}`),
     `        render json: record, status: :created`,
     `      else`,
     `        render json: { errors: record.errors.full_messages }, status: :unprocessable_entity`,
@@ -95,6 +98,7 @@ function buildUpdateBody(
   resource: Resource,
   outcomes: Outcome[],
   capability: string,
+  signals?: Signal[],
 ): string[] {
   const entityFields = new Set(resource.fields.map(f => f.name))
   const dtoFields = (ep.request?.fields ?? []).filter(f => entityFields.has(f.name))
@@ -120,13 +124,27 @@ function buildUpdateBody(
     }
   }
 
+  const emitLines = buildEmitLines(outcome, signals, varName)
   lines.push(
     `      if ${varName}.save`,
+    ...emitLines.map(l => `  ${l}`),
     `        render json: ${varName}`,
     `      else`,
     `        render json: { errors: ${varName}.errors.full_messages }, status: :unprocessable_entity`,
     `      end`,
   )
+  return lines
+}
+
+function buildEmitLines(outcome: Outcome | undefined, signals?: Signal[], varName = 'record'): string[] {
+  if (!outcome?.emits?.length) return []
+  const lines: string[] = []
+  for (const signalName of outcome.emits) {
+    const signal = (signals ?? []).find(s => s.name === signalName)
+    if (!signal) continue
+    const payloadFields = signal.payload.map(f => `${f.name}: ${varName}.${f.name}`).join(', ')
+    lines.push(`        EventBus.publish('${signalName}', { ${payloadFields} }) rescue nil`)
+  }
   return lines
 }
 
@@ -137,6 +155,7 @@ export function generateController(
   rules: Rule[],
   outcomes: Outcome[],
   namespace: Namespace,
+  signals?: Signal[],
 ): string {
   const className = `${resource.name}sController`
   const methods: string[] = []
@@ -152,10 +171,10 @@ export function generateController(
     const requiresOwnership = accessRule?.allow?.some(a => a.ownership) ?? false
 
     let body: string[]
-    if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability)
+    if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability, signals)
     else if (kind === 'view') body = buildViewBody(resource)
     else if (kind === 'list') body = buildListBody(ep, resource)
-    else body = buildUpdateBody(ep, resource, outcomes, capability)
+    else body = buildUpdateBody(ep, resource, outcomes, capability, signals)
 
     const roleComment = roles.length ? `      # Roles: ${roles.join(', ')}` : null
     const ownerComment = requiresOwnership ? '      # Requires ownership' : null

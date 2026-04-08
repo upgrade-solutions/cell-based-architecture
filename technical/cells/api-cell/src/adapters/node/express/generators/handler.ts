@@ -1,6 +1,7 @@
 export function generateHandler(): string {
   return `import { Request, Response } from 'express'
 import { getDataStore } from './store'
+import { emitSignals } from './event-bus'
 
 type OpKind = 'create' | 'view' | 'list' | 'update'
 
@@ -75,6 +76,7 @@ export function createHandler(endpoint: any, api: any, operational: any) {
         }
         applyEffects(entity, capability, operational, req.body)
         const created = await store.create(resourceKey, entity)
+        await emitSignals(capability, operational, created)
         return res.status(201).json(created)
       }
 
@@ -114,6 +116,7 @@ export function createHandler(endpoint: any, api: any, operational: any) {
         const merged = { ...existing, ...req.body, updated_at: now }
         applyEffects(merged, capability, operational, req.body)
         const updated = await store.update(resourceKey, req.params.id, merged)
+        await emitSignals(capability, operational, updated)
         return res.json(updated)
       }
     } catch (err: any) {

@@ -57,7 +57,7 @@ Build the `event-bus-cell` — a platform-level cell that reads Operational DNA 
 
 - [x] Build `event-bus-cell` (`technical/cells/event-bus-cell/`)
 - [x] `node/event-bus` adapter: generates schema registry, typed publisher libraries, subscriber routing config
-- [ ] Publisher integration in `api-cell`: Outcome handlers call publisher when `emits` is present
+- [x] Publisher integration in `api-cell`: Outcome handlers call publisher when `emits` is present
 - [x] Subscriber worker stub generation — skeleton consumer code for api-cells or future worker-cells
 
 ### Phase 3c: Event Bus Delivery

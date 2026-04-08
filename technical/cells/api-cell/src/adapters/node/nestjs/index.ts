@@ -52,7 +52,7 @@ export const generate: ApiCellAdapter['generate'] = (
 
     // Service
     write(outputDir, `${dir}/${fileName}.service.ts`,
-      generateService(resource, endpoints, operations, rules, outcomes))
+      generateService(resource, endpoints, operations, rules, outcomes, operational.signals))
 
     // Module
     write(outputDir, `${dir}/${fileName}.module.ts`,

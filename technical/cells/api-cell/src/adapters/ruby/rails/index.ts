@@ -60,7 +60,7 @@ export const generate: ApiCellAdapter['generate'] = (
   for (const resource of resources) {
     const endpoints = endpointsForResource(resource.name, api.endpoints)
     write(outputDir, `app/controllers/${toControllerFileName(resource.name)}`,
-      generateController(resource, endpoints, operations, rules, outcomes, api.namespace))
+      generateController(resource, endpoints, operations, rules, outcomes, api.namespace, operational.signals))
   }
 
   // ── Models (one per Noun) ─────────────────────────────────────────────────

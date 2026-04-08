@@ -1,4 +1,4 @@
-import { Resource, Endpoint, Operation, Rule, Outcome, Namespace } from '../../../../types'
+import { Resource, Endpoint, Operation, Rule, Outcome, Signal, Namespace } from '../../../../types'
 import { resolveCapability } from '../../../../utils'
 import { toSnakeCase, toPlural, toActionMethod } from './naming'
 
@@ -41,6 +41,7 @@ function buildCreateBody(
   resource: Resource,
   outcomes: Outcome[],
   capability: string,
+  signals?: Signal[],
 ): string[] {
   const modelName = resource.name
   const entityFields = new Set(resource.fields.map(f => f.name))
@@ -66,8 +67,12 @@ function buildCreateBody(
     `    db.add(record)`,
     `    db.commit()`,
     `    db.refresh(record)`,
-    `    return record`,
   )
+
+  const emitLines = buildEmitLines(outcome, signals, 'record')
+  lines.push(...emitLines)
+
+  lines.push(`    return record`)
   return lines
 }
 
@@ -104,6 +109,7 @@ function buildUpdateBody(
   resource: Resource,
   outcomes: Outcome[],
   capability: string,
+  signals?: Signal[],
 ): string[] {
   const entityFields = new Set(resource.fields.map(f => f.name))
   const outcome = outcomes.find(o => o.capability === capability)
@@ -133,8 +139,24 @@ function buildUpdateBody(
   lines.push(
     `    db.commit()`,
     `    db.refresh(${varName})`,
-    `    return ${varName}`,
   )
+
+  const emitLines = buildEmitLines(outcome, signals, varName)
+  lines.push(...emitLines)
+
+  lines.push(`    return ${varName}`)
+  return lines
+}
+
+function buildEmitLines(outcome: Outcome | undefined, signals?: Signal[], varName = 'record'): string[] {
+  if (!outcome?.emits?.length) return []
+  const lines: string[] = []
+  for (const signalName of outcome.emits) {
+    const signal = (signals ?? []).find(s => s.name === signalName)
+    if (!signal) continue
+    const payloadFields = signal.payload.map(f => `"${f.name}": ${varName}.${f.name}`).join(', ')
+    lines.push(`    emit_signal("${signalName}", {${payloadFields}})`)
+  }
   return lines
 }
 
@@ -184,6 +206,7 @@ export function generateRouter(
   rules: Rule[],
   outcomes: Outcome[],
   namespace: Namespace,
+  signals?: Signal[],
 ): string {
   const plural = toPlural(resource.name)
   const routerVar = 'router'
@@ -193,10 +216,12 @@ export function generateRouter(
     o.changes.some(c => c.set === 'now')
   )
   const needsUuid = endpoints.some(ep => classifyEndpoint(ep) === 'create')
+  const needsEventBus = outcomes.some(o => o.emits?.length)
 
   const extraImports: string[] = []
   if (needsDatetime) extraImports.push('from datetime import datetime')
   if (needsUuid) extraImports.push('from uuid import uuid4')
+  if (needsEventBus) extraImports.push('from app.event_bus import emit_signal')
 
   // Collect request schema imports
   const schemaImports = new Set<string>()
@@ -234,10 +259,10 @@ export function generateRouter(
     const params = buildRouteParams(ep, kind, resource, requestClass, roles)
 
     let body: string[]
-    if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability)
+    if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability, signals)
     else if (kind === 'view') body = buildViewBody(resource)
     else if (kind === 'list') body = buildListBody(ep, resource)
-    else body = buildUpdateBody(ep, resource, outcomes, capability)
+    else body = buildUpdateBody(ep, resource, outcomes, capability, signals)
 
     const docstring = ep.description ? `    """${ep.description}"""` : `    """${ep.operation}"""`
 

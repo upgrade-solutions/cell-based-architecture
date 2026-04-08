@@ -18,6 +18,16 @@
       "config": {
         "account_id": "123456789012"
       }
+    },
+    {
+      "name": "auth0",
+      "type": "auth",
+      "description": "Auth0 identity provider for JWT-based authentication.",
+      "config": {
+        "domain": "acme.auth0.com",
+        "audience": "https://api.acme.finance",
+        "roleClaim": "https://acme.finance/roles"
+      }
     }
   ],
   "constructs": [
@@ -100,6 +110,50 @@
           "name": "EVENT_BUS_URL",
           "source": "literal",
           "value": "amqp://localhost:5672",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "api-cell",
+      "description": "Reads Product API DNA and generates a dynamic Express runtime interpreter.",
+      "dna": "lending/product.api",
+      "adapter": {
+        "type": "node/express",
+        "config": {
+          "operational_dna": "lending/operational",
+          "port": 3001
+        }
+      },
+      "constructs": [
+        "primary-db"
+      ],
+      "variables": [
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "api-cell-nestjs",
+      "description": "Reads Product API DNA and generates a NestJS application with controllers, services, and modules.",
+      "dna": "lending/product.api",
+      "adapter": {
+        "type": "node/nestjs",
+        "config": {
+          "operational_dna": "lending/operational",
+          "port": 3002
+        }
+      },
+      "constructs": [
+        "primary-db"
+      ],
+      "variables": [
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
           "required": true
         }
       ]

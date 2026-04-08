@@ -1,4 +1,4 @@
-import { Resource, Endpoint, Operation, Rule, Outcome } from '../../../../types'
+import { Resource, Endpoint, Operation, Rule, Outcome, Signal } from '../../../../types'
 import { toCamelCase, resolveCapability } from '../../../../utils'
 import { dtoClassName, dtoFileName } from './dto'
 import { toFileName } from '../../../../utils'
@@ -128,7 +128,13 @@ function buildCreateBody(
   }
 
   lines.push('      created_at: now,', '      updated_at: now,', '    }')
-  lines.push(`    store.set(entity.id, entity)`, `    return entity`)
+  lines.push(`    store.set(entity.id, entity)`)
+
+  if (outcome?.emits?.length) {
+    lines.push(`    await emitSignals('${capability}', entity)`)
+  }
+
+  lines.push(`    return entity`)
   return lines
 }
 
@@ -190,8 +196,13 @@ function buildUpdateBody(
   lines.push(
     `    const updated = { ...${varName}, ...updates }`,
     `    store.set(id, updated)`,
-    `    return updated`,
   )
+
+  if (outcome?.emits?.length) {
+    lines.push(`    await emitSignals('${capability}', updated)`)
+  }
+
+  lines.push(`    return updated`)
   return lines
 }
 
@@ -201,6 +212,7 @@ export function generateService(
   operations: Operation[],
   rules: Rule[],
   outcomes: Outcome[],
+  signals?: Signal[],
 ): string {
   const className = `${resource.name}sService`
   const dtosNeeded = endpoints
@@ -230,6 +242,15 @@ export function generateService(
 
   const iface = generateInterface(resource)
 
+  // Check if any endpoint's outcome emits signals
+  const hasEmits = endpoints.some(ep => {
+    const capability = resolveCapability(ep.operation, operations)
+    const outcome = outcomes.find(o => o.capability === capability)
+    return outcome?.emits?.length
+  })
+
+  const emitHelper = hasEmits ? generateEmitHelper(outcomes, signals ?? []) : ''
+
   return [
     `import { Injectable, NotFoundException } from '@nestjs/common'`,
     ...dtoImports,
@@ -244,5 +265,53 @@ export function generateService(
     methods.join('\n\n'),
     '}',
     '',
+    emitHelper,
   ].join('\n')
+}
+
+function generateEmitHelper(outcomes: Outcome[], signals: Signal[]): string {
+  // Build a static mapping of capability → signal names + payload fields
+  const emitMap: Record<string, { signalName: string; fields: string[] }[]> = {}
+  for (const outcome of outcomes) {
+    if (!outcome.emits?.length) continue
+    emitMap[outcome.capability] = outcome.emits.map(signalName => {
+      const signal = signals.find(s => s.name === signalName)
+      return { signalName, fields: (signal?.payload ?? []).map(f => f.name) }
+    })
+  }
+
+  if (Object.keys(emitMap).length === 0) return ''
+
+  const mapEntries = Object.entries(emitMap).map(([cap, sigs]) => {
+    const sigEntries = sigs.map(s =>
+      `    { signal: '${s.signalName}', fields: [${s.fields.map(f => `'${f}'`).join(', ')}] }`
+    ).join(',\n')
+    return `  '${cap}': [\n${sigEntries}\n  ]`
+  }).join(',\n')
+
+  return `
+const EVENT_BUS_URL = process.env.EVENT_BUS_URL || ''
+
+const EMIT_MAP: Record<string, { signal: string; fields: string[] }[]> = {
+${mapEntries}
+}
+
+async function emitSignals(capability: string, entity: Record<string, any>): Promise<void> {
+  const entries = EMIT_MAP[capability]
+  if (!entries?.length || !EVENT_BUS_URL) return
+  for (const { signal, fields } of entries) {
+    const payload: Record<string, any> = {}
+    for (const f of fields) {
+      if (entity[f] !== undefined) payload[f] = entity[f]
+    }
+    const message = JSON.stringify({ signal, capability, payload, timestamp: new Date().toISOString() })
+    console.log(\`[event-bus] Emitting \${signal}\`, JSON.stringify(payload))
+    fetch(EVENT_BUS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: message,
+    }).catch(err => console.error(\`[event-bus] Failed to emit \${signal}:\`, err.message))
+  }
+}
+`
 }

@@ -68,7 +68,7 @@ export const generate: ApiCellAdapter['generate'] = (
   for (const resource of resources) {
     const endpoints = endpointsForResource(resource.name, api.endpoints)
     write(outputDir, `app/routers/${toRouterFileName(resource.name)}`,
-      generateRouter(resource, endpoints, operations, rules, outcomes, api.namespace))
+      generateRouter(resource, endpoints, operations, rules, outcomes, api.namespace, operational.signals))
   }
   write(outputDir, 'app/routers/__init__.py', generateRoutersInit(resources, api.namespace))
 
