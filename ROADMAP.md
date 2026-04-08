@@ -64,9 +64,9 @@ Build the `event-bus-cell` — a platform-level cell that reads Operational DNA 
 
 Wire `storage/queue` Constructs through delivery adapters so the event bus is provisionable alongside other infrastructure.
 
-- [ ] `docker-compose` adapter: handle `storage/queue` with `engine: "rabbitmq"` as a compose service (management UI on :15672)
-- [ ] `terraform/aws` adapter: handle `storage/queue` with `engine: "sns+sqs"` — SNS topics per Signal, SQS queues per subscriber, subscriptions + IAM policies
-- [ ] `EVENT_BUS_URL` variable resolution in both adapters
+- [x] `docker-compose` adapter: handle `storage/queue` with `engine: "rabbitmq"` as a compose service (management UI on :15672)
+- [x] `terraform/aws` adapter: handle `storage/queue` with `engine: "sns+sqs"` — SNS topics per Signal, SQS queues per subscriber, subscriptions + IAM policies
+- [x] `EVENT_BUS_URL` variable resolution in both adapters
 
 ---
 

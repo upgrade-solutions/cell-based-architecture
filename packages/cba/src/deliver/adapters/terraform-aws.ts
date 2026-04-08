@@ -482,6 +482,58 @@ function buildStorageTf(plan: EnvironmentPlan, prefix: string): BuildResult {
         ]),
       ))
       resourceNames.push(`elasticache:${c.name}`)
+    } else if (c.type === 'queue' && c.config?.engine === 'sns+sqs') {
+      // SNS topic — single fan-out topic for all signals on this bus
+      blocks.push(hcl(
+        block('resource', ['"aws_sns_topic"', `"${rid}"`], [
+          assignment('name', `${prefix}-${c.name}`),
+          assignment('tags', objectLiteral({ Name: `${prefix}-${c.name}` })),
+        ]),
+      ))
+
+      // SQS queue — subscriber queue (dead-letter optional, omitted for now)
+      blocks.push(hcl(
+        block('resource', ['"aws_sqs_queue"', `"${rid}"`], [
+          assignment('name', `${prefix}-${c.name}-subscriber`),
+          assignment('visibility_timeout_seconds', raw('300')),
+          assignment('message_retention_seconds', raw('1209600')),
+          assignment('tags', objectLiteral({ Name: `${prefix}-${c.name}-subscriber` })),
+        ]),
+      ))
+
+      // SNS → SQS subscription
+      blocks.push(hcl(
+        block('resource', ['"aws_sns_topic_subscription"', `"${rid}"`], [
+          assignment('topic_arn', raw(`aws_sns_topic.${rid}.arn`)),
+          assignment('protocol', 'sqs'),
+          assignment('endpoint', raw(`aws_sqs_queue.${rid}.arn`)),
+          assignment('raw_message_delivery', raw('true')),
+        ]),
+      ))
+
+      // SQS queue policy — allow SNS to publish
+      blocks.push(hcl(
+        block('resource', ['"aws_sqs_queue_policy"', `"${rid}"`], [
+          assignment('queue_url', raw(`aws_sqs_queue.${rid}.id`)),
+          assignment('policy', raw(`jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "sns.amazonaws.com" }
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.${rid}.arn
+      Condition = {
+        ArnEquals = {
+          "aws:SourceArn" = aws_sns_topic.${rid}.arn
+        }
+      }
+    }]
+  })`)),
+        ]),
+      ))
+
+      resourceNames.push(`sns:${c.name}`)
+      resourceNames.push(`sqs:${c.name}`)
     } else {
       skipped.push({
         name: c.name,
@@ -1055,6 +1107,25 @@ function buildOutputsTf(plan: EnvironmentPlan, prefix: string): string {
         block('output', [`"rds_endpoint_${rid}"`], [
           assignment('description', `RDS endpoint for ${c.name}`),
           assignment('value', raw(`aws_db_instance.${rid}.endpoint`)),
+        ]),
+      ))
+    }
+  }
+
+  // SNS topic ARNs and SQS queue URLs for event bus constructs
+  for (const c of plan.constructs) {
+    if (c.category === 'storage' && c.type === 'queue' && c.config?.engine === 'sns+sqs' && c.provider === 'aws') {
+      const rid = tfId(c.name)
+      blocks.push(hcl(
+        block('output', [`"sns_topic_arn_${rid}"`], [
+          assignment('description', `SNS topic ARN for ${c.name}`),
+          assignment('value', raw(`aws_sns_topic.${rid}.arn`)),
+        ]),
+      ))
+      blocks.push(hcl(
+        block('output', [`"sqs_queue_url_${rid}"`], [
+          assignment('description', `SQS queue URL for ${c.name}`),
+          assignment('value', raw(`aws_sqs_queue.${rid}.id`)),
         ]),
       ))
     }

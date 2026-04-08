@@ -114,6 +114,28 @@ function buildConstructService(
       },
     }
   }
+  if (c.type === 'queue' && c.config?.engine === 'rabbitmq') {
+    return {
+      definition: {
+        image: `rabbitmq:${c.config.version ?? '3'}-management-alpine`,
+        restart: 'unless-stopped',
+        environment: {
+          RABBITMQ_DEFAULT_USER: 'guest',
+          RABBITMQ_DEFAULT_PASS: 'guest',
+        },
+        ports: [
+          `${c.config.port ?? 5672}:5672`,
+          `${c.config.management_port ?? 15672}:15672`,
+        ],
+        healthcheck: {
+          test: ['CMD', 'rabbitmq-diagnostics', 'ping'],
+          interval: '5s',
+          timeout: '3s',
+          retries: 10,
+        },
+      },
+    }
+  }
   if (c.type === 'cache' && c.config?.engine === 'redis') {
     return {
       definition: {
@@ -278,6 +300,12 @@ function devSecretDefault(name: string, plan: EnvironmentPlan): string {
     )
     if (cache) return `redis://${cache.name}:6379`
   }
+  if (name === 'EVENT_BUS_URL') {
+    const queue = plan.constructs.find(
+      (c) => c.category === 'storage' && c.type === 'queue' && c.config?.engine === 'rabbitmq',
+    )
+    if (queue) return `amqp://${queue.name}:${queue.config?.port ?? 5672}`
+  }
   // Unresolved secrets → passthrough from deployer's env
   return `\${${name}:-}`
 }
@@ -342,7 +370,8 @@ function dependsOn(cell: ResolvedCell, plan: EnvironmentPlan): Record<string, { 
     if (c.category !== 'storage') continue
     const isPostgres = c.type === 'database' && c.config?.engine === 'postgres'
     const isRedis = c.type === 'cache' && c.config?.engine === 'redis'
-    if (isPostgres || isRedis) deps[c.name] = { condition: 'service_healthy' }
+    const isRabbitMQ = c.type === 'queue' && c.config?.engine === 'rabbitmq'
+    if (isPostgres || isRedis || isRabbitMQ) deps[c.name] = { condition: 'service_healthy' }
   }
   // Depend on producer cells of any `output`-sourced variable — only need
   // them started, not healthy (no healthcheck defined for app containers).

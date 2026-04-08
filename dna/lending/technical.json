@@ -55,6 +55,30 @@
         "version": "15",
         "instance_class": "db.t3.micro"
       }
+    },
+    {
+      "name": "event-bus",
+      "category": "storage",
+      "type": "queue",
+      "provider": "aws",
+      "description": "Event bus for cross-domain async Signals — SNS fan-out to SQS subscriber queues.",
+      "config": {
+        "engine": "sns+sqs"
+      }
+    },
+    {
+      "name": "event-bus",
+      "category": "storage",
+      "type": "queue",
+      "provider": "aws",
+      "environment": "dev",
+      "description": "Local RabbitMQ for event bus in development.",
+      "config": {
+        "engine": "rabbitmq",
+        "version": "3",
+        "port": 5672,
+        "management_port": 15672
+      }
     }
   ],
   "variables": [
@@ -104,12 +128,13 @@
           "engine": "rabbitmq"
         }
       },
-      "constructs": [],
+      "constructs": [
+        "event-bus"
+      ],
       "variables": [
         {
           "name": "EVENT_BUS_URL",
-          "source": "literal",
-          "value": "amqp://localhost:5672",
+          "source": "secret",
           "required": true
         }
       ]
@@ -126,13 +151,19 @@
         }
       },
       "constructs": [
-        "primary-db"
+        "primary-db",
+        "event-bus"
       ],
       "variables": [
         {
           "name": "DATABASE_URL",
           "source": "secret",
           "required": true
+        },
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "secret",
+          "required": false
         }
       ]
     },
@@ -148,13 +179,19 @@
         }
       },
       "constructs": [
-        "primary-db"
+        "primary-db",
+        "event-bus"
       ],
       "variables": [
         {
           "name": "DATABASE_URL",
           "source": "secret",
           "required": true
+        },
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "secret",
+          "required": false
         }
       ]
     },
@@ -170,7 +207,8 @@
         }
       },
       "constructs": [
-        "primary-db"
+        "primary-db",
+        "event-bus"
       ],
       "variables": [
         {
@@ -181,6 +219,11 @@
         {
           "name": "RAILS_ENV",
           "source": "env",
+          "required": false
+        },
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "secret",
           "required": false
         }
       ],
