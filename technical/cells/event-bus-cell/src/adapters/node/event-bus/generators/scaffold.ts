@@ -1,7 +1,17 @@
 /**
  * Generates the package.json and tsconfig.json for the event bus output.
  */
-export function generatePackageJson(name: string): string {
+export function generatePackageJson(name: string, engine?: string): string {
+  const deps: Record<string, string> = {}
+  const devDeps: Record<string, string> = {
+    'typescript': '^5.4.0',
+    'ts-node': '^10.9.0',
+    '@types/node': '^20.0.0',
+  }
+  if (engine === 'rabbitmq') {
+    deps['amqplib'] = '^0.10.0'
+    devDeps['@types/amqplib'] = '^0.10.0'
+  }
   const pkg = {
     name,
     version: '0.0.1',
@@ -10,12 +20,8 @@ export function generatePackageJson(name: string): string {
       start: 'ts-node src/subscriber.ts',
       build: 'tsc',
     },
-    dependencies: {},
-    devDependencies: {
-      'typescript': '^5.4.0',
-      'ts-node': '^10.9.0',
-      '@types/node': '^20.0.0',
-    },
+    dependencies: deps,
+    devDependencies: devDeps,
   }
   return JSON.stringify(pkg, null, 2)
 }

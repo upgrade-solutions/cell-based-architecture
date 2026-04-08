@@ -329,8 +329,7 @@
         { "attribute": "loan.status", "set": "approved" },
         { "attribute": "loan.approved_at", "set": "now" },
         { "attribute": "loan.reviewed_by", "set": "actor.id" }
-      ],
-      "emits": ["lending.Loan.Disbursed"]
+      ]
     },
     {
       "capability": "Loan.Reject",

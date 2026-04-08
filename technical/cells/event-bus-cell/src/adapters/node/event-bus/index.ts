@@ -38,6 +38,6 @@ export const generate: EventBusCellAdapter['generate'] = (
   write(outputDir, 'src/client.ts', generateClient(engine))
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
-  write(outputDir, 'package.json', generatePackageJson(appName))
+  write(outputDir, 'package.json', generatePackageJson(appName, engine))
   write(outputDir, 'tsconfig.json', generateTsConfig())
 }

@@ -253,6 +253,8 @@ The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw
 
 The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at runtime. When either file changes, routes and the OpenAPI spec are rebuilt in-process — no restart needed. Edit the DNA, the API updates immediately.
 
+**Signal middleware**: The Express adapter generates signal emission middleware driven by Operational DNA. For each route whose Outcome declares `emits`, the middleware intercepts the response and publishes typed signals to RabbitMQ (via amqplib) using a `signals` topic exchange. Routes with no `emits` get a zero-overhead pass-through. The middleware chain per route is: `auth → requestValidator → ruleValidator → signalMiddleware → handler`.
+
 **Dual-mode storage**: The Express adapter supports both in-memory and PostgreSQL (Drizzle ORM) storage. Without `DATABASE_URL`, it runs with in-memory Maps seeded from Operational DNA examples. With `DATABASE_URL`, it connects to Postgres, runs migrations on startup, and seeds from DNA.
 
 **Authentication and authorization**: Both adapters generate IDP-agnostic JWT verification using JWKS (JSON Web Key Sets). The auth middleware:

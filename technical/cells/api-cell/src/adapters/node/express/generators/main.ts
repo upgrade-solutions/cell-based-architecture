@@ -12,6 +12,7 @@ import swaggerUi from 'swagger-ui-express'
 import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
 import { seedFromOperationalDna, getStoreMode } from './interpreter/store'
+import { connectEventBus, disconnectEventBus } from './interpreter/signal-middleware'
 
 const DNA_API = path.resolve(__dirname, 'dna/api.json')
 const DNA_OPS = path.resolve(__dirname, 'dna/operational.json')
@@ -57,6 +58,9 @@ async function bootstrap() {
   await runMigrations()
 
   reload('loaded')
+
+  // Connect to event bus (RabbitMQ) for signal emission
+  await connectEventBus()
 
   // Seed store with examples from Operational DNA
   const { operational } = loadDNA()
@@ -109,6 +113,14 @@ async function bootstrap() {
     console.log(\`[dna] watching \${DNA_API}\`)
     console.log(\`[dna] watching \${DNA_OPS}\`)
   })
+
+  // Graceful shutdown — close event bus connection
+  for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+    process.on(sig, async () => {
+      await disconnectEventBus()
+      process.exit(0)
+    })
+  }
 }
 
 bootstrap()

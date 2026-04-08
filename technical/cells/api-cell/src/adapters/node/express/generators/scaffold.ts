@@ -20,6 +20,7 @@ export function generatePackageJson(appName: string): string {
         'jwks-rsa': '^3.1.0',
         pg: '^8.11.0',
         'swagger-ui-express': '^5.0.0',
+        amqplib: '^0.10.0',
       },
       devDependencies: {
         '@types/cors': '^2.8.0',

@@ -18,6 +18,7 @@ interface CellPlan {
  * Convention: adapter-type prefix identifies the cell package.
  */
 function workspaceForAdapter(adapterType: string): string | undefined {
+  if (adapterType === 'node/event-bus') return '@cell/event-bus-cell'
   if (adapterType.startsWith('node/')) return '@cell/api-cell'
   if (adapterType.startsWith('ruby/')) return '@cell/api-cell'
   if (adapterType.startsWith('python/')) return '@cell/api-cell'

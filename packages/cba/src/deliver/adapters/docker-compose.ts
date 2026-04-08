@@ -178,6 +178,9 @@ function buildCellService(cell: ResolvedCell, plan: EnvironmentPlan): CellServic
   const svcName = serviceNameForCell(cell.name)
   const relBuildContext = path.relative(plan.deployDir, cell.outputDir)
 
+  // event-bus-cell is a build-time code generator, not a runtime service
+  if (cell.adapterType === 'node/event-bus') return null
+
   if (cell.adapterType.startsWith('node/')) {
     const port = guessApiPort(cell, plan)
     const env = resolveEnv(cell, plan, port)
@@ -229,7 +232,7 @@ function buildCellService(cell: ResolvedCell, plan: EnvironmentPlan): CellServic
     return { name: svcName, definition: def }
   }
 
-  // db-cell is init/migration logic, not a runtime service — skip
+  // db-cell and event-bus-cell are build-time generators, not runtime services — skip
   return null
 }
 
