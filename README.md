@@ -26,14 +26,15 @@ Operational DNA captures pure business logic: domain concepts, processes, rules,
 
 **Behavior primitives** — evaluated in order:
 ```
-Cause → Rule → [Capability executes] → Outcome → Lifecycle
+Cause → Rule → [Capability executes] → Outcome (→ Signal) → Lifecycle
 ```
 
 | Primitive | Description |
 |-----------|-------------|
-| `Cause` | What initiates a Capability (user action, webhook, schedule, chained Capability) |
+| `Cause` | What initiates a Capability (user action, webhook, schedule, chained Capability, or Signal) |
 | `Rule` | A constraint on a Capability — who may perform it (`type: access`) or what conditions must be met (`type: condition`) |
-| `Outcome` | State changes and side effects after execution |
+| `Outcome` | State changes and side effects after execution. Can `initiate` downstream Capabilities (intra-domain, sync) or `emit` Signals (cross-domain, async) |
+| `Signal` | A named domain event published after a Capability executes — crosses domain boundaries with a typed payload contract. Other domains subscribe via `Cause` with `source: "signal"` (Planned) |
 | `Lifecycle` | The valid sequence of Capabilities across the life of a Noun |
 | `Equation` | A named, technology-agnostic computation — pure function with typed inputs and output. Implemented concretely by a Script in Technical DNA |
 
@@ -170,7 +171,7 @@ npm run dev                                # http://localhost:5174
 
 | Layer | Primitives |
 |-------|-----------|
-| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Cause`, `Rule`, `Outcome`, `Lifecycle`, `Equation` |
+| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Cause`, `Rule`, `Outcome`, `Signal`, `Lifecycle`, `Equation` |
 | Product | `Resource`, `Action`, `Operation`, `Layout`, `Page`, `Route`, `Block`, `Field`, `Namespace`, `Endpoint`, `Schema`, `Param` |
 | Technical | `Environment`, `Cell`, `Construct`, `Provider`, `Variable`, `Output`, `Script`, `View`, `Node`, `Connection`, `Zone` |
 
@@ -233,6 +234,7 @@ A cell is a **TypeScript package** that:
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
 | `db-cell` | Technical | Construct config (infra-only — no application schema) | Database provisioning (Docker, roles, permissions) | **Built** — `technical/cells/db-cell/` |
+| `event-bus-cell` | Operational → Technical | Signals across all domains + queue Construct config | Schema registry, typed publisher libs, routing config, worker stubs | Planned |
 | `workflow-cell` | Technical | Causes, Lifecycles, Outcomes, Constructs | Event-driven workflows | Planned |
 
 ### `api-cell` adapters
@@ -521,6 +523,69 @@ This keeps superuser operations (role creation, grants) separate from applicatio
 }
 ```
 
+### `event-bus-cell` (Planned)
+
+The `event-bus-cell` is a platform-level cell that reads Operational DNA Signals across all domains and generates event infrastructure code. It mirrors the `db-cell` / `api-cell` split: the `storage/queue` Construct declares the bus infrastructure (RabbitMQ for dev, SNS+SQS for prod), while the `event-bus-cell` generates application-level event handling code.
+
+**What it generates:**
+
+| Artifact | Description |
+|----------|-------------|
+| Schema registry | Compiled catalog of all Signals across all domains with typed payloads |
+| Publisher libraries | Typed functions per domain, per adapter language (e.g. `publishLoanDisbursed(payload)`) |
+| Routing config | Maps each Signal to subscribing Capabilities and their queues |
+| Worker stubs | Skeleton consumer code for api-cells or future worker-cells |
+| Infrastructure config | RabbitMQ definitions (exchanges, queues, bindings) or equivalent |
+
+**Signal → Cause flow:**
+
+A domain publishes a Signal after a Capability's Outcome completes. Another domain subscribes to that Signal via a Cause with `source: "signal"`:
+
+```json
+// Lending domain — Outcome emits a Signal
+{
+  "capability": "Loan.Disburse",
+  "changes": [{ "attribute": "loan.status", "set": "active" }],
+  "emits": ["lending.Loan.Disbursed"]
+}
+
+// Lending domain — Signal definition with typed payload contract
+{
+  "name": "lending.Loan.Disbursed",
+  "capability": "Loan.Disburse",
+  "payload": [
+    { "name": "loan_id", "type": "string", "required": true },
+    { "name": "amount", "type": "number", "required": true },
+    { "name": "term_months", "type": "number", "required": true }
+  ]
+}
+
+// Payments domain — Cause subscribes to the Signal
+{
+  "capability": "PaymentSchedule.Create",
+  "source": "signal",
+  "signal": "lending.Loan.Disbursed",
+  "description": "When a loan is disbursed, automatically create a payment schedule."
+}
+```
+
+**Multi-stack platform model:**
+
+A platform (e.g. `dna/lending/`) hosts multiple domain stacks — each with its own api-cell, ui-cell, and db-cell — all declared in the same `technical.json` alongside a shared event-bus-cell:
+
+```
+dna/lending/
+  operational.json    # acme.finance.lending + acme.finance.payments domains
+  product.api.json    # lending + payments API surfaces
+  product.ui.json     # lending + payments UI surfaces
+  technical.json      # all cells:
+                      #   event-bus-cell (platform-level, shared)
+                      #   lending-api-cell, lending-ui-cell, lending-db-cell
+                      #   payments-api-cell, payments-ui-cell, payments-db-cell
+```
+
+See [ROADMAP.md](ROADMAP.md) Phase 3a–3c and Phase 6 for the implementation plan.
+
 ## Cell Interface Contract
 
 - **Input**: a DNA document conforming to the relevant layer's JSON schema
@@ -781,7 +846,7 @@ Conformance tests verify that all adapters for a given cell produce the same ext
 cell-based-architecture/
   dna/                              # DNA documents organized by application instance
     lending/
-      operational.json              # Full Operational DNA: domain, nouns, capabilities, causes, rules, outcomes, lifecycles
+      operational.json              # Full Operational DNA: domain, nouns, capabilities, causes, rules, outcomes, signals, lifecycles
       product.api.json              # Product API DNA: namespace, resources, operations, endpoints
       product.ui.json               # Product UI DNA: layout, pages, routes, blocks
       technical.json                # Technical DNA: providers, constructs, variables, cells, environments
@@ -812,6 +877,7 @@ cell-based-architecture/
               docker.ts               # Shared Dockerfile, nginx.conf, .dockerignore generation
               react/                  # React adapter: JSX components, React Router, React Context
               vue/                    # Vue adapter: SFC components, Vue Router, provide/inject
+      event-bus-cell/               # (planned) Consumes Signals across domains → schema registry, publishers, routing
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
     cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)
@@ -826,6 +892,8 @@ cell-based-architecture/
 - **Adapters bridge DNA and frameworks.** The cell engine is generic; the adapter carries all framework-specific knowledge.
 - **DNA is the source of truth at every layer.** Cells must not encode domain, product, or framework logic beyond what is needed to interpret their layer's DNA.
 - **JSON in, infrastructure out.** The full path from business concept to deployed software is driven by JSON documents and TypeScript engines.
+- **Signals are the cross-domain contract.** Domains communicate asynchronously via Signals — named events with typed payloads. `Outcome.emits` publishes; `Cause.source: "signal"` subscribes. The event bus infrastructure is a Construct; the event-bus-cell generates the application-level code.
+- **A platform hosts multiple stacks.** A platform directory (e.g. `dna/lending/`) can declare multiple domain stacks (each with api-cell + ui-cell + db-cell) in one Technical DNA, sharing infrastructure like the event bus.
 
 ---
 

@@ -40,6 +40,34 @@ Build the planned cells that extend the architecture beyond API and UI.
 
 > **Note:** Infrastructure is not a cell. Cells produce deployable artifacts (API, UI, DB, worker, event bus, etc.). The deployment topology (Constructs, Providers, Environments) lives in Technical DNA and is consumed by `cba deploy` via delivery adapters — see Phase 5.
 
+### Phase 3a: Event Bus Foundation (Schemas + DNA)
+
+Introduce the `Signal` primitive and extend existing primitives to support cross-domain event-driven communication. A Signal is a named domain event published after a Capability executes — it crosses domain boundaries and carries a typed payload contract.
+
+- [ ] Define `Signal` schema (`operational/schemas/signal.json`) — name, capability, description, typed payload fields
+- [ ] Add `signals` array to operational composite schema (`operational/schemas/operational.json`)
+- [ ] Extend `Outcome` schema with `emits` field — array of Signal names published when outcome completes (cross-domain, async; distinct from `initiates` which is intra-domain, sync)
+- [ ] Extend `Cause` schema with `source: "signal"` and `signal` field — subscribe to Signals from any domain
+- [ ] Cross-layer validation: `Outcome.emits` references valid Signal names, `Signal.capability` references valid Capability
+- [ ] Author lending domain reference Signals (`lending.Loan.Disbursed`, `lending.Loan.Defaulted`) with typed payloads
+
+### Phase 3b: Event Bus Cell
+
+Build the `event-bus-cell` — a platform-level cell that reads Operational DNA Signals across all domains and generates event infrastructure code.
+
+- [ ] Build `event-bus-cell` (`technical/cells/event-bus-cell/`)
+- [ ] `node/event-bus` adapter: generates schema registry, typed publisher libraries, subscriber routing config
+- [ ] Publisher integration in `api-cell`: Outcome handlers call publisher when `emits` is present
+- [ ] Subscriber worker stub generation — skeleton consumer code for api-cells or future worker-cells
+
+### Phase 3c: Event Bus Delivery
+
+Wire `storage/queue` Constructs through delivery adapters so the event bus is provisionable alongside other infrastructure.
+
+- [ ] `docker-compose` adapter: handle `storage/queue` with `engine: "rabbitmq"` as a compose service (management UI on :15672)
+- [ ] `terraform/aws` adapter: handle `storage/queue` with `engine: "sns+sqs"` — SNS topics per Signal, SQS queues per subscriber, subscriptions + IAM policies
+- [ ] `EVENT_BUS_URL` variable resolution in both adapters
+
 ---
 
 ## Phase 4: Multi-Adapter Expansion
@@ -111,11 +139,22 @@ A general-purpose application shell that works across web and mobile, with produ
 
 ---
 
-## Phase 6: Multi-Domain and Production Readiness
+## Phase 6: Multi-Domain, Multi-Stack, and Production Readiness
 
-Scale from a single reference domain to a production-grade platform.
+Scale from a single domain stack to multiple communicating stacks within a platform, then to production-grade operations.
 
-- [ ] **Second reference domain** — build a second DNA set (e.g. e-commerce, HR) to validate the architecture generalizes beyond lending
+### Multi-stack platforms
+
+A platform (e.g. `dna/lending/`) can host multiple domain stacks — each with its own api-cell, ui-cell, and db-cell — all declared in the same `technical.json`. Domains are expressed in Operational DNA's hierarchy; the platform's Technical DNA wires them into deployable cell stacks that share infrastructure like the event bus.
+
+- [ ] **Second reference domain (payments)** — add `acme.finance.payments` to operational DNA with Signal subscriptions (e.g. `PaymentSchedule.Create` triggered by `lending.Loan.Disbursed`)
+- [ ] **Multi-stack technical DNA** — declare multiple api-cell + ui-cell + db-cell stacks per platform alongside a shared event-bus-cell
+- [ ] **Cross-domain signal validation** — `validateCrossDomain` checks that `Cause.signal` references resolve to a Signal defined in any domain within the platform
+- [ ] **`cba deploy` multi-stack** — compose cells from all stacks + shared event bus into one deployment topology
+- [ ] **Auto-derive `publishes-to` connections** — architecture views generate `publishes-to` connections from Signal/Cause relationships across domains
+
+### Production readiness
+
 - [ ] **Cell composition** — enable cells to reference outputs from other cells (e.g. UI cell reads API cell's base URL output)
 - [ ] **Environment-scoped generation** — generate environment-specific configs, secrets, and resource sizing from Technical DNA
 - [ ] **CI/CD integration** — DNA change triggers regeneration, tests, and deployment in a pipeline
