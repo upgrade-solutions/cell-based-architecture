@@ -234,7 +234,7 @@ A cell is a **TypeScript package** that:
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
 | `db-cell` | Technical | Construct config (infra-only — no application schema) | Database provisioning (Docker, roles, permissions) | **Built** — `technical/cells/db-cell/` |
-| `event-bus-cell` | Operational → Technical | Signals across all domains + queue Construct config | Schema registry, typed publisher libs, routing config, worker stubs | Planned |
+| `event-bus-cell` | Operational → Technical | Signals across all domains + queue Construct config | Schema registry, typed publisher libs, routing config, worker stubs | **Built** — `technical/cells/event-bus-cell/` |
 | `workflow-cell` | Technical | Causes, Lifecycles, Outcomes, Constructs | Event-driven workflows | Planned |
 
 ### `api-cell` adapters
@@ -877,7 +877,7 @@ cell-based-architecture/
               docker.ts               # Shared Dockerfile, nginx.conf, .dockerignore generation
               react/                  # React adapter: JSX components, React Router, React Context
               vue/                    # Vue adapter: SFC components, Vue Router, provide/inject
-      event-bus-cell/               # (planned) Consumes Signals across domains → schema registry, publishers, routing
+      event-bus-cell/               # Consumes Signals across domains → schema registry, publishers, routing
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
     cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)

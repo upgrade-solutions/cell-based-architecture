@@ -79,10 +79,31 @@
   "profiles": {
     "default": [
       "api-cell-rails",
-      "ui-cell"
+      "ui-cell",
+      "event-bus-cell"
     ]
   },
   "cells": [
+    {
+      "name": "event-bus-cell",
+      "description": "Reads Operational DNA Signals and generates schema registry, typed publishers, routing config, and subscriber worker stubs.",
+      "dna": "lending/operational",
+      "adapter": {
+        "type": "node/event-bus",
+        "config": {
+          "engine": "rabbitmq"
+        }
+      },
+      "constructs": [],
+      "variables": [
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "literal",
+          "value": "amqp://localhost:5672",
+          "required": true
+        }
+      ]
+    },
     {
       "name": "api-cell-rails",
       "description": "Reads Product API DNA and generates a Rails API-mode application with controllers, models, and migrations.",
@@ -144,7 +165,7 @@
   "views": [
     {
       "name": "deployment",
-      "description": "Cell deployment topology — Rails API, React UI, Postgres DB.",
+      "description": "Cell deployment topology — Rails API, React UI, Postgres DB, Event Bus.",
       "layout": {
         "type": "hierarchical",
         "direction": "TB"
@@ -167,6 +188,15 @@
           "source": "technical:cell:ui-cell",
           "position": { "x": 500, "y": 160 },
           "metadata": { "adapter": "vite/react" }
+        },
+        {
+          "id": "event-bus-cell",
+          "name": "Event Bus",
+          "type": "cell",
+          "status": "planned",
+          "source": "technical:cell:event-bus-cell",
+          "position": { "x": 300, "y": 320 },
+          "metadata": { "adapter": "node/event-bus" }
         },
         {
           "id": "primary-db",
@@ -192,6 +222,13 @@
           "target": "api-cell-rails",
           "type": "communicates-with",
           "label": "REST"
+        },
+        {
+          "id": "rails-to-bus",
+          "source": "api-cell-rails",
+          "target": "event-bus-cell",
+          "type": "publishes-to",
+          "label": "Signals"
         }
       ],
       "zones": [
@@ -199,7 +236,7 @@
           "id": "compute-tier",
           "name": "Compute",
           "type": "tier",
-          "nodes": ["api-cell-rails", "ui-cell"],
+          "nodes": ["api-cell-rails", "ui-cell", "event-bus-cell"],
           "description": "Application cells."
         },
         {
