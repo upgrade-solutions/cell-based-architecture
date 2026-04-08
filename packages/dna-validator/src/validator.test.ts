@@ -291,6 +291,38 @@ describe('DnaValidator — operational/outcome (emits)', () => {
   })
 })
 
+describe('DnaValidator — operational/relationship', () => {
+  it('validates a valid Relationship', () => {
+    const result = validator.validate({
+      name: 'Loan.borrower',
+      from: 'Loan',
+      to: 'Borrower',
+      cardinality: 'many-to-one',
+      attribute: 'borrower_id',
+      description: 'Each loan belongs to one borrower.',
+      inverse: 'loans'
+    }, 'operational/relationship')
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('rejects a Relationship missing required fields', () => {
+    const result = validator.validate({ name: 'Loan.borrower' }, 'operational/relationship')
+    expect(result.valid).toBe(false)
+  })
+
+  it('rejects a Relationship with invalid cardinality', () => {
+    const result = validator.validate({
+      name: 'Loan.borrower',
+      from: 'Loan',
+      to: 'Borrower',
+      cardinality: 'some-to-some',
+      attribute: 'borrower_id'
+    }, 'operational/relationship')
+    expect(result.valid).toBe(false)
+  })
+})
+
 describe('DnaValidator — composite: operational', () => {
   it('validates the lending operational DNA document', () => {
     const doc = loadDna('dna/lending/operational.json')
@@ -370,6 +402,7 @@ describe('DnaValidator — availableSchemas', () => {
     expect(schemas).toContain('operational/lifecycle')
     expect(schemas).toContain('operational/equation')
     expect(schemas).toContain('operational/signal')
+    expect(schemas).toContain('operational/relationship')
     expect(schemas).toContain('product/core/resource')
     expect(schemas).toContain('product/core/action')
     expect(schemas).toContain('product/core/operation')
@@ -564,6 +597,47 @@ describe('DnaValidator — cross-layer validation', () => {
   })
 
   it('passes signal validation for valid lending DNA with signals', () => {
+    const result = validator.validateCrossLayer({ operational })
+    expect(result.valid).toBe(true)
+  })
+
+  it('detects invalid Relationship from noun reference', () => {
+    const badOp = {
+      ...operational,
+      relationships: [
+        { name: 'Ghost.borrower', from: 'Ghost', to: 'Borrower', cardinality: 'many-to-one', attribute: 'borrower_id' }
+      ]
+    }
+    const result = validator.validateCrossLayer({ operational: badOp })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Noun "Ghost"') && e.message.includes('(from)'))).toBe(true)
+  })
+
+  it('detects invalid Relationship to noun reference', () => {
+    const badOp = {
+      ...operational,
+      relationships: [
+        { name: 'Loan.phantom', from: 'Loan', to: 'Phantom', cardinality: 'many-to-one', attribute: 'borrower_id' }
+      ]
+    }
+    const result = validator.validateCrossLayer({ operational: badOp })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Noun "Phantom"') && e.message.includes('(to)'))).toBe(true)
+  })
+
+  it('detects invalid Relationship attribute reference', () => {
+    const badOp = {
+      ...operational,
+      relationships: [
+        { name: 'Loan.borrower', from: 'Loan', to: 'Borrower', cardinality: 'many-to-one', attribute: 'ghost_id' }
+      ]
+    }
+    const result = validator.validateCrossLayer({ operational: badOp })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Attribute "ghost_id"'))).toBe(true)
+  })
+
+  it('passes relationship validation for valid lending DNA', () => {
     const result = validator.validateCrossLayer({ operational })
     expect(result.valid).toBe(true)
   })

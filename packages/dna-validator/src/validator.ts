@@ -10,6 +10,7 @@ import * as outcomeSchema from '../../../operational/schemas/outcome.json'
 import * as lifecycleSchema from '../../../operational/schemas/lifecycle.json'
 import * as equationSchema from '../../../operational/schemas/equation.json'
 import * as signalSchema from '../../../operational/schemas/signal.json'
+import * as relationshipSchema from '../../../operational/schemas/relationship.json'
 import * as fieldSchema from '../../../product/schemas/core/field.json'
 import * as actionSchema from '../../../product/schemas/core/action.json'
 import * as resourceSchema from '../../../product/schemas/core/resource.json'
@@ -64,6 +65,7 @@ interface OperationalDNA {
   signals?: { name: string; capability: string }[]
   outcomes?: { capability: string; emits?: string[] }[]
   causes?: { capability: string; source: string; signal?: string }[]
+  relationships?: { name: string; from: string; to: string; attribute: string; cardinality: string }[]
 }
 
 interface ProductApiDNA {
@@ -125,6 +127,7 @@ export class DnaValidator {
       cellSchema,
       scriptSchema,
       signalSchema,
+      relationshipSchema,
       nodeSchema,
       connectionSchema,
       zoneSchema,
@@ -220,6 +223,37 @@ export class DnaValidator {
             path: `causes/${cause.capability}/signal`,
             message: `Cause for "${cause.capability}" references Signal "${cause.signal}" which does not exist. Available: ${[...signalNames].join(', ')}`,
           })
+        }
+      }
+
+      // Relationship validation: from/to must reference valid Nouns, attribute must exist on "from" Noun
+      const nouns = this.collectNouns(op.domain)
+      const nounNames = new Set(nouns.map(n => n.name))
+      for (const rel of op.relationships ?? []) {
+        if (!nounNames.has(rel.from)) {
+          errors.push({
+            layer: 'operational',
+            path: `relationships/${rel.name}/from`,
+            message: `Relationship "${rel.name}" references Noun "${rel.from}" (from) which does not exist. Available: ${[...nounNames].join(', ')}`,
+          })
+        }
+        if (!nounNames.has(rel.to)) {
+          errors.push({
+            layer: 'operational',
+            path: `relationships/${rel.name}/to`,
+            message: `Relationship "${rel.name}" references Noun "${rel.to}" (to) which does not exist. Available: ${[...nounNames].join(', ')}`,
+          })
+        }
+        if (nounNames.has(rel.from)) {
+          const fromNoun = nouns.find(n => n.name === rel.from) as any
+          const attrNames = new Set(((fromNoun?.attributes as any[]) ?? []).map((a: any) => a.name))
+          if (!attrNames.has(rel.attribute)) {
+            errors.push({
+              layer: 'operational',
+              path: `relationships/${rel.name}/attribute`,
+              message: `Relationship "${rel.name}" references Attribute "${rel.attribute}" which does not exist on Noun "${rel.from}". Available: ${[...attrNames].join(', ')}`,
+            })
+          }
         }
       }
     }

@@ -28,6 +28,7 @@ export const PRIMITIVES: PrimitiveSpec[] = [
   { type: 'Outcome', layer: 'operational', location: 'outcomes' },
   { type: 'Lifecycle', layer: 'operational', location: 'lifecycles' },
   { type: 'Equation', layer: 'operational', location: 'equations' },
+  { type: 'Relationship', layer: 'operational', location: 'relationships' },
 
   // product.api
   { type: 'Namespace', layer: 'product.api', location: 'namespace' },

@@ -42,8 +42,8 @@
                 "domain": "acme.finance.lending",
                 "attributes": [
                   { "name": "id", "type": "string", "required": true },
-                  { "name": "borrower_id", "type": "string", "required": true, "description": "Reference to the Borrower." },
-                  { "name": "lender_id", "type": "string", "required": true, "description": "Reference to the Lender that funds this Loan." },
+                  { "name": "borrower_id", "type": "reference", "noun": "Borrower", "required": true, "description": "Reference to the Borrower." },
+                  { "name": "lender_id", "type": "reference", "noun": "Lender", "required": true, "description": "Reference to the Lender that funds this Loan." },
                   { "name": "amount", "type": "number", "required": true, "description": "Requested principal in base currency." },
                   { "name": "interest_rate", "type": "number", "description": "Annual interest rate as a decimal, set on approval." },
                   { "name": "term_months", "type": "number", "required": true, "description": "Loan duration in months." },
@@ -329,7 +329,8 @@
         { "attribute": "loan.status", "set": "approved" },
         { "attribute": "loan.approved_at", "set": "now" },
         { "attribute": "loan.reviewed_by", "set": "actor.id" }
-      ]
+      ],
+      "emits": ["lending.Loan.Disbursed"]
     },
     {
       "capability": "Loan.Reject",
@@ -400,6 +401,27 @@
         { "name": "amount_paid", "type": "number", "description": "Total repayments received before default." },
         { "name": "due_date", "type": "date", "description": "The due date that was missed." }
       ]
+    }
+  ],
+
+  "relationships": [
+    {
+      "name": "Loan.borrower",
+      "from": "Loan",
+      "to": "Borrower",
+      "cardinality": "many-to-one",
+      "attribute": "borrower_id",
+      "description": "Each loan belongs to one borrower; a borrower can have many loans.",
+      "inverse": "loans"
+    },
+    {
+      "name": "Loan.lender",
+      "from": "Loan",
+      "to": "Lender",
+      "cardinality": "many-to-one",
+      "attribute": "lender_id",
+      "description": "Each loan is funded by one lender; a lender can fund many loans.",
+      "inverse": "loans"
     }
   ],
 

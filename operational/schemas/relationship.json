@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/operational/relationship",
+  "title": "Relationship",
+  "description": "A Relationship is a named, directed connection between two Nouns. It formalizes the semantic link that a reference Attribute implies — adding cardinality and a human-readable name. Relationships are declared at the Operational layer so that Product and Technical cells can derive foreign keys, join tables, nested routes, and navigation links.",
+  "type": "object",
+  "required": ["name", "from", "to", "cardinality", "attribute"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "A unique name for the relationship, typically From.to_noun (e.g. Loan.borrower).",
+      "examples": ["Loan.borrower", "Loan.lender", "Order.customer", "Post.author"]
+    },
+    "from": {
+      "type": "string",
+      "description": "The Noun that holds the reference Attribute.",
+      "examples": ["Loan", "Order", "Post"]
+    },
+    "to": {
+      "type": "string",
+      "description": "The Noun being referenced.",
+      "examples": ["Borrower", "Customer", "Author"]
+    },
+    "cardinality": {
+      "type": "string",
+      "description": "The cardinality of the relationship from the 'from' Noun's perspective.",
+      "enum": ["one-to-one", "many-to-one", "one-to-many", "many-to-many"]
+    },
+    "attribute": {
+      "type": "string",
+      "description": "The reference Attribute on the 'from' Noun that implements this relationship.",
+      "examples": ["borrower_id", "lender_id", "author_id"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this relationship represents."
+    },
+    "inverse": {
+      "type": "string",
+      "description": "Optional name for the inverse direction (e.g. 'loans' on Borrower when Loan.borrower is the forward direction).",
+      "examples": ["loans", "orders", "posts"]
+    }
+  },
+  "examples": [
+    {
+      "name": "Loan.borrower",
+      "from": "Loan",
+      "to": "Borrower",
+      "cardinality": "many-to-one",
+      "attribute": "borrower_id",
+      "description": "Each loan belongs to one borrower; a borrower can have many loans.",
+      "inverse": "loans"
+    }
+  ]
+}

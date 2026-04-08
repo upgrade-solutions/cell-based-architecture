@@ -23,6 +23,7 @@ Operational DNA captures pure business logic: domain concepts, processes, rules,
 | `Capability` | A Noun:Verb pair — the atomic unit of business activity (e.g. `Loan.Approve`) |
 | `Attribute` | A property on a Noun (name, type, constraints) |
 | `Domain` | Dot-separated hierarchy grouping Nouns into bounded contexts (e.g. `acme.finance.lending`) |
+| `Relationship` | A named, directed connection between two Nouns — formalizes the link a reference Attribute implies, adding cardinality (e.g. `Loan.borrower`: many-to-one from Loan to Borrower via `borrower_id`) |
 
 **Behavior primitives** — evaluated in order:
 ```
@@ -171,7 +172,7 @@ npm run dev                                # http://localhost:5174
 
 | Layer | Primitives |
 |-------|-----------|
-| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Cause`, `Rule`, `Outcome`, `Signal`, `Lifecycle`, `Equation` |
+| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Relationship`, `Cause`, `Rule`, `Outcome`, `Signal`, `Lifecycle`, `Equation` |
 | Product | `Resource`, `Action`, `Operation`, `Layout`, `Page`, `Route`, `Block`, `Field`, `Namespace`, `Endpoint`, `Schema`, `Param` |
 | Technical | `Environment`, `Cell`, `Construct`, `Provider`, `Variable`, `Output`, `Script`, `View`, `Node`, `Connection`, `Zone` |
 
@@ -185,7 +186,7 @@ No primitive name is shared across layers.
 flowchart LR
     subgraph Layers["DNA — Source of Truth (JSON)"]
         direction TB
-        OP["Operational DNA\nNouns · Verbs · Capabilities\nCauses · Rules · Outcomes · Lifecycles · Equations"]
+        OP["Operational DNA\nNouns · Verbs · Capabilities · Relationships\nCauses · Rules · Outcomes · Lifecycles · Equations"]
         PROD["Product DNA\nResources · Actions · Operations\nPages · Routes · Endpoints · Schemas"]
         TECH["Technical DNA\nCells · Constructs · Providers\nEnvironments · Variables · Scripts"]
         OP -->|"maps to"| PROD
@@ -846,7 +847,7 @@ Conformance tests verify that all adapters for a given cell produce the same ext
 cell-based-architecture/
   dna/                              # DNA documents organized by application instance
     lending/
-      operational.json              # Full Operational DNA: domain, nouns, capabilities, causes, rules, outcomes, signals, lifecycles
+      operational.json              # Full Operational DNA: domain, nouns, capabilities, relationships, causes, rules, outcomes, signals, lifecycles
       product.api.json              # Product API DNA: namespace, resources, operations, endpoints
       product.ui.json               # Product UI DNA: layout, pages, routes, blocks
       technical.json                # Technical DNA: providers, constructs, variables, cells, environments
