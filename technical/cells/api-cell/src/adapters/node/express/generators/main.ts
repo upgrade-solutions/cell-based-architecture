@@ -11,6 +11,7 @@ import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
 import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
+import { buildSignalReceiver } from './interpreter/signal-receiver'
 import { seedFromOperationalDna, getStoreMode } from './interpreter/store'
 import { connectEventBus, disconnectEventBus } from './interpreter/signal-middleware'
 
@@ -26,12 +27,14 @@ function loadDNA() {
 
 let currentSpec: object
 let currentRouter: Router
+let currentSignalReceiver: Router
 
 function reload(label = 'loaded') {
   try {
     const { api, operational } = loadDNA()
     currentSpec = buildOpenApiSpec(api, operational)
     currentRouter = buildRouter(api, operational)
+    currentSignalReceiver = buildSignalReceiver(api, operational)
     console.log(\`[dna] \${label}\`)
   } catch (err: any) {
     console.error(\`[dna] reload failed: \${err.message}\`)
@@ -93,6 +96,9 @@ async function bootstrap() {
 
   // Delegate to current router — swapped on each DNA reload
   app.use((req, res, next) => currentRouter(req, res, next))
+
+  // Signal receiver — accepts incoming Signals via HTTP POST (Pattern A)
+  app.use('/_signals', (req, res, next) => currentSignalReceiver(req, res, next))
 
   // Watch DNA files and hot-reload on change
   let reloadTimer: ReturnType<typeof setTimeout> | null = null

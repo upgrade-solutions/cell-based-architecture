@@ -156,8 +156,26 @@ export interface AuthProviderConfig {
   roleClaim: string
 }
 
+// ── Signal dispatch config ────────────────────────────────────────────────────
+
+/**
+ * Maps Signal names to arrays of subscriber base URLs.
+ * Used by the signal middleware to HTTP POST signals to subscriber APIs
+ * (Pattern A — HTTP push). Configured in Technical DNA under the cell's
+ * adapter config as `signal_dispatch`.
+ *
+ * Example:
+ * ```json
+ * {
+ *   "lending.Loan.Disbursed": ["http://payments-api:3002"],
+ *   "lending.Loan.Defaulted": ["http://collections-api:3003"]
+ * }
+ * ```
+ */
+export type SignalDispatchConfig = Record<string, string[]>
+
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface ApiCellAdapter {
-  generate(api: ProductApiDNA, operational: OperationalDNA, outputDir: string, authConfig?: AuthProviderConfig): void
+  generate(api: ProductApiDNA, operational: OperationalDNA, outputDir: string, authConfig?: AuthProviderConfig, signalDispatch?: SignalDispatchConfig): void
 }

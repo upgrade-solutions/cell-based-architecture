@@ -68,6 +68,28 @@ Wire `storage/queue` Constructs through delivery adapters so the event bus is pr
 - [x] `terraform/aws` adapter: handle `storage/queue` with `engine: "sns+sqs"` — SNS topics per Signal, SQS queues per subscriber, subscriptions + IAM policies
 - [x] `EVENT_BUS_URL` variable resolution in both adapters
 
+### Phase 3d: Signal Dispatch — HTTP Push (Pattern A)
+
+Add cross-API signal delivery via direct HTTP. Publisher APIs dispatch signals to subscriber APIs' `/_signals/:signalName` endpoints. Subscriber URLs are configured in Technical DNA (`signal_dispatch` in adapter config).
+
+- [x] Generate signal receiver endpoints in `api-cell` Express adapter — `POST /_signals/:signalName` routes for each Cause with `source: "signal"`
+- [x] Add HTTP dispatch to signal middleware — after event bus publish, HTTP POST to configured subscriber URLs (fire and forget)
+- [x] Pass `signal_dispatch` config from Technical DNA adapter config through to generated output (`dna/signal-dispatch.json`)
+- [x] Signal receiver validates payload against Signal definition and dispatches to Capability handler
+- [ ] Add signal receiver to NestJS, Rails, and FastAPI adapters
+- [ ] Add signal dispatch to NestJS, Rails, and FastAPI signal publisher code
+
+### Phase 3e: Signal Dispatch — Queue + Worker (Pattern B)
+
+Replace direct HTTP delivery with durable queue-based delivery. A worker process consumes from queues and dispatches to Capability handlers — same handler contract, different transport.
+
+- [ ] Generate standalone worker process from event-bus-cell — consumes from queues, calls Capability handlers
+- [ ] Worker reuses the same signal receiver handler interface (Pattern A handlers are reusable)
+- [ ] Dead-letter queue (DLQ) support for failed message handling
+- [ ] Retry policy configuration in Technical DNA (max retries, backoff)
+- [ ] Delivery adapter support: `docker-compose` adds worker service alongside queue; `terraform/aws` wires SQS → Lambda or ECS worker
+- [ ] Technical DNA `signal_delivery` config: `"mode": "http"` (Pattern A) or `"mode": "queue"` (Pattern B) per cell
+
 ---
 
 ## Phase 4: Multi-Adapter Expansion

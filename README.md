@@ -238,6 +238,8 @@ A cell is a **TypeScript package** that:
 | `event-bus-cell` | Operational → Technical | Signals across all domains + queue Construct config | Schema registry, typed publisher libs, routing config, worker stubs | **Built** — `technical/cells/event-bus-cell/` |
 | `workflow-cell` | Technical | Causes, Lifecycles, Outcomes, Constructs | Event-driven workflows | Planned |
 
+Signal delivery uses two patterns — **Pattern A (HTTP push)**: publisher API dispatches signals directly to subscriber API endpoints (`/_signals/:signalName`), configured via `signal_dispatch` in Technical DNA. **Pattern B (queue + worker)**: durable queue-based delivery with a standalone worker process (planned — see [ROADMAP.md](ROADMAP.md) Phase 3e).
+
 ### `api-cell` adapters
 
 The `api-cell` supports multiple adapters that produce the same API surface from the same DNA:
@@ -254,6 +256,40 @@ The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw
 The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at runtime. When either file changes, routes and the OpenAPI spec are rebuilt in-process — no restart needed. Edit the DNA, the API updates immediately.
 
 **Signal middleware**: The Express adapter generates signal emission middleware driven by Operational DNA. For each route whose Outcome declares `emits`, the middleware intercepts the response and publishes typed signals to RabbitMQ (via amqplib) using a `signals` topic exchange. Routes with no `emits` get a zero-overhead pass-through. The middleware chain per route is: `auth → requestValidator → ruleValidator → signalMiddleware → handler`.
+
+**Signal dispatch (Pattern A — HTTP push)**: After publishing to the event bus, the signal middleware also HTTP POSTs each signal to configured subscriber API URLs. Subscriber URLs are configured in Technical DNA under the cell's adapter config as `signal_dispatch` — a mapping of Signal names to arrays of subscriber base URLs. The middleware constructs `POST {baseUrl}/_signals/{signalName}` requests with the typed payload.
+
+**Signal receiver**: The Express adapter generates `POST /_signals/:signalName` endpoints for each Cause with `source: "signal"` in Operational DNA. Incoming signals are validated against the Signal definition's payload contract, then dispatched to the target Capability's handler (applying Outcome effects). This enables cross-domain communication where Domain A's Outcome emits a Signal and Domain B's Cause subscribes to it.
+
+```
+Publisher API (Domain A)                    Subscriber API (Domain B)
+────────────────────────                    ────────────────────────
+POST /loans/:id/disburse                    
+  → handler succeeds (200)                  
+  → signal middleware fires                 
+  → publishes to event bus                  
+  → HTTP POST ──────────────────────────→   POST /_signals/lending.Loan.Disbursed
+                                              → validates payload
+                                              → dispatches to PaymentSchedule.Create
+```
+
+Signal dispatch config in Technical DNA:
+
+```json
+{
+  "name": "api-cell",
+  "adapter": {
+    "config": {
+      "signal_dispatch": {
+        "lending.Loan.Disbursed": ["http://payments-api:3002"],
+        "lending.Loan.Defaulted": ["http://collections-api:3003"]
+      }
+    }
+  }
+}
+```
+
+Pattern B (queue + worker) is planned — same handler contract, different transport. See [ROADMAP.md](ROADMAP.md) Phase 3e.
 
 **Dual-mode storage**: The Express adapter supports both in-memory and PostgreSQL (Drizzle ORM) storage. Without `DATABASE_URL`, it runs with in-memory Maps seeded from Operational DNA examples. With `DATABASE_URL`, it connects to Postgres, runs migrations on startup, and seeds from DNA.
 
@@ -895,7 +931,7 @@ cell-based-architecture/
 - **Adapters bridge DNA and frameworks.** The cell engine is generic; the adapter carries all framework-specific knowledge.
 - **DNA is the source of truth at every layer.** Cells must not encode domain, product, or framework logic beyond what is needed to interpret their layer's DNA.
 - **JSON in, infrastructure out.** The full path from business concept to deployed software is driven by JSON documents and TypeScript engines.
-- **Signals are the cross-domain contract.** Domains communicate asynchronously via Signals — named events with typed payloads. `Outcome.emits` publishes; `Cause.source: "signal"` subscribes. The event bus infrastructure is a Construct; the event-bus-cell generates the application-level code.
+- **Signals are the cross-domain contract.** Domains communicate asynchronously via Signals — named events with typed payloads. `Outcome.emits` publishes; `Cause.source: "signal"` subscribes. Two delivery patterns: **Pattern A (HTTP push)** — publisher API dispatches directly to subscriber API's `/_signals/:signalName` endpoint; **Pattern B (queue + worker)** — event bus routes to a queue, a worker process consumes and dispatches. Same handler contract, different transport.
 - **A platform hosts multiple stacks.** A platform directory (e.g. `dna/lending/`) can declare multiple domain stacks (each with api-cell + ui-cell + db-cell) in one Technical DNA, sharing infrastructure like the event bus.
 
 ---

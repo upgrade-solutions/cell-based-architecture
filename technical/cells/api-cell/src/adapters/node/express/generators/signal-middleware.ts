@@ -5,9 +5,16 @@
  * Per-route: resolves the capability from the endpoint, checks if the
  * Outcome has `emits`, and if so wraps res.json to capture the entity
  * and publish each signal with typed payload fields.
+ *
+ * Signal dispatch (Pattern A — HTTP push): after publishing to the event
+ * bus, the middleware also HTTP POSTs each signal to configured subscriber
+ * API URLs. Subscriber URLs come from `dna/signal-dispatch.json`, which
+ * is written from the cell's Technical DNA `signal_dispatch` adapter config.
  */
 export function generateSignalMiddleware(): string {
-  return `import { Request, Response, NextFunction } from 'express'
+  return `import * as fs from 'fs'
+import * as path from 'path'
+import { Request, Response, NextFunction } from 'express'
 
 const amqp = require('amqplib')
 
@@ -39,6 +46,24 @@ export async function disconnectEventBus(): Promise<void> {
   console.log('[event-bus] Disconnected.')
 }
 
+// ── Signal dispatch config (Pattern A — HTTP push) ──────────────────────────
+// Loaded from Technical DNA via dna/signal-dispatch.json at startup.
+// Maps signal names to arrays of subscriber base URLs.
+
+const DISPATCH_CONFIG_PATH = path.resolve(__dirname, '../dna/signal-dispatch.json')
+let dispatchConfig: Record<string, string[]> = {}
+try {
+  if (fs.existsSync(DISPATCH_CONFIG_PATH)) {
+    dispatchConfig = JSON.parse(fs.readFileSync(DISPATCH_CONFIG_PATH, 'utf-8'))
+    const total = Object.values(dispatchConfig).reduce((n, urls) => n + urls.length, 0)
+    if (total > 0) {
+      console.log(\`[signal-dispatch] Loaded \${total} subscriber URL(s) for \${Object.keys(dispatchConfig).length} signal(s)\`)
+    }
+  }
+} catch (err: any) {
+  console.warn(\`[signal-dispatch] Failed to load dispatch config: \${err.message}\`)
+}
+
 function publishSignal(signalName: string, capability: string, payload: Record<string, any>): void {
   if (!channel) return
   const message = JSON.stringify({
@@ -49,6 +74,30 @@ function publishSignal(signalName: string, capability: string, payload: Record<s
   })
   channel.publish(EXCHANGE, signalName, Buffer.from(message), { persistent: true })
   console.log(\`[event-bus] Published \${signalName}\`)
+}
+
+function dispatchSignalHttp(signalName: string, capability: string, payload: Record<string, any>): void {
+  const urls = dispatchConfig[signalName] ?? []
+  if (!urls.length) return
+  const body = JSON.stringify({
+    signal: signalName,
+    capability,
+    payload,
+    timestamp: new Date().toISOString(),
+  })
+  for (const baseUrl of urls) {
+    const url = \`\${baseUrl.replace(/\\/$/, '')}/_signals/\${signalName}\`
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
+      .then(res => {
+        if (res.ok) console.log(\`[signal-dispatch] Dispatched \${signalName} → \${url}\`)
+        else console.warn(\`[signal-dispatch] \${url} responded \${res.status}\`)
+      })
+      .catch(err => console.error(\`[signal-dispatch] Failed: \${url} — \${err.message}\`))
+  }
 }
 
 /**
@@ -89,7 +138,12 @@ export function createSignalMiddleware(endpoint: any, api: any, operational: any
               payload[field.name] = data[field.name]
             }
           }
+
+          // Publish to event bus (fire and forget)
           publishSignal(signalName, capability, payload)
+
+          // Dispatch to subscriber APIs via HTTP (Pattern A)
+          dispatchSignalHttp(signalName, capability, payload)
         }
       }
       return originalJson(data)
