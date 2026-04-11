@@ -665,6 +665,8 @@ npx cba domains                                     # list domains under dna/
 | `cba technical <cmd> <domain>` | Work with Technical DNA: `list`, `show`, `add`, `remove`, `schema`, `validate` |
 | `cba develop <domain> [--cell X]` | Reads technical DNA, invokes each declared cell's generator |
 | `cba deploy <domain> --env <env> [--adapter X]` | Composes generated cells into a deployable topology (default: `docker-compose`) |
+| `cba up <domain> --env <env> [--adapter X]` | Full pipeline: `validate` → `develop` → `deploy` → launch the stack |
+| `cba down <domain> --env <env> [--adapter X]` | Tear down a deployed stack (`docker compose down -v` / `terraform destroy`) |
 
 Plus utilities: `cba run <domain> --adapter <x>` (start generated output), `cba validate <domain>` (all-layer + cross-layer validation).
 
@@ -704,6 +706,14 @@ npx cba deploy lending --env prod --adapter terraform/aws --plan   # preview AWS
 npx cba deploy lending --env prod --adapter terraform/aws          # writes output/lending-deploy/*.tf
 cd output/lending-deploy && docker compose up -d    # run the full stack locally
 
+# Up / Down — one command from DNA to running stack
+npx cba up torts/marshall --env dev --seed --build                      # validate → develop → deploy → launch
+npx cba up torts/marshall --env dev --skip-develop --attach             # rerun, stream logs
+npx cba down torts/marshall --env dev                                   # docker compose down -v
+npx cba up torts/marshall --env prod --adapter terraform/aws            # stops at terraform plan
+npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve   # actually applies
+npx cba down torts/marshall --env prod --adapter terraform/aws --auto-approve # actually destroys
+
 # Validate
 npx cba validate lending                            # all layers
 npx cba validate lending --json                     # structured JSON errors
@@ -733,6 +743,49 @@ See `packages/cba/README.md` for full command reference and flags.
 | `docker-compose` | **Built** | `output/<domain>-deploy/docker-compose.yml` — multi-service local stack |
 | `terraform/aws` | **Built** | `output/<domain>-deploy/*.tf` — AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront) |
 | `aws-sam` | Planned | AWS serverless deployment for function-category Constructs |
+
+## `cba up` / `cba down` — one command from DNA to running stack
+
+`cba deploy` only **writes** the deploy topology; you still have to `cd` into the deploy dir and run `docker compose up` or `terraform apply` yourself. `cba up` chains the whole pipeline:
+
+```
+cba up <domain> --env <env> [--adapter <name>] [flags]
+  │
+  ├─ 1. cba validate <domain>             (bail on broken DNA)
+  ├─ 2. cba develop <domain>              (regenerate cells — skip with --skip-develop)
+  ├─ 3. cba deploy <domain> --env <env>   (compose the deploy topology)
+  └─ 4. adapter.launch                    (bring the stack up)
+```
+
+Each delivery adapter exposes a `launch` and `teardown` hook that `cba up`/`cba down` dispatch to:
+
+| Adapter | `launch` | `teardown` |
+|---------|----------|------------|
+| `docker-compose` | `docker compose up -d` in the deploy dir | `docker compose down -v` |
+| `terraform/aws` | `terraform init` + `terraform plan`; applies only with `--auto-approve` | `terraform destroy` — requires `--auto-approve` |
+
+**Safety rails:** `cba up … --adapter terraform/aws` without `--auto-approve` stops after `terraform plan` so you can review the diff before anything touches AWS. `cba down … --adapter terraform/aws` always requires `--auto-approve` because it destroys real resources.
+
+```bash
+# Local demo — docker-compose path
+npx cba up torts/marshall --env dev --seed --build                # full pipeline
+npx cba up torts/marshall --env dev --skip-develop --attach       # rerun with streaming logs
+npx cba up torts/marshall --env dev --cell api-cell --force-recreate  # regen one cell, recreate container
+npx cba down torts/marshall --env dev                             # compose down -v
+npx cba down torts/marshall --env dev --keep-volumes              # keep postgres data
+
+# AWS path — terraform/aws
+npx cba up torts/marshall --env prod --adapter terraform/aws                   # stops at plan
+npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve    # applies
+npx cba down torts/marshall --env prod --adapter terraform/aws --auto-approve  # destroys
+```
+
+**Useful flags:**
+- `--seed` — sets `SEED_EXAMPLES=true` in the child env so the api-cell pre-loads Product Core DNA examples on startup (useful for empty-DB demos). docker-compose only.
+- `--build` / `--force-recreate` — pass-through to `docker compose up`. Use `--build` when you regenerate cells, `--force-recreate` when you change compose env vars.
+- `--attach` — foreground logs instead of `-d`. Ctrl-C brings the stack down.
+- `--plan` — stop after `cba deploy` (step 3) — same as running `cba deploy`, but with validate + develop in front.
+- `--skip-develop` — reuse already-generated cell artifacts. Fast path when you know nothing in the DNA changed.
 
 ## `docker-compose` adapter
 

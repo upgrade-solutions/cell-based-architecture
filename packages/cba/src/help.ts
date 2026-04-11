@@ -11,6 +11,8 @@ DNA LAYERS
 BUILD + DEPLOY
   develop        Run cells: DNA -> generated code                    (per domain, per cell)
   deploy         Compose generated cells into a deployable topology  (infra provisioning)
+  up             Full pipeline: validate -> develop -> deploy -> launch the stack
+  down           Tear down a deployed stack (docker compose down / terraform destroy)
 
 UTILITIES
   run            Run generated output locally (dev servers)
@@ -34,6 +36,8 @@ EXAMPLES
   cba develop lending --cell api-cell            # run just the api-cell
   cba deploy lending --env dev                   # compose into docker-compose
   cba deploy lending --env dev --profile python-stack  # deploy a named profile
+  cba up lending --env dev --seed --build        # validate + develop + deploy + launch
+  cba down lending --env dev                     # docker compose down -v
   cba technical list lending --type View              # list architecture views
 
 See 'cba help <command>' for details.
@@ -221,6 +225,85 @@ OUTPUT
   output/<domain>-deploy/    # compose file, README, deployment manifests
 `
 
+export const UP_HELP = `cba up — validate, develop, deploy, and launch the stack
+
+USAGE
+  cba up <domain> --env <environment> [--adapter <name>] [flags]
+
+Runs the whole pipeline end-to-end:
+
+  1. cba validate <domain>             — bail on broken DNA
+  2. cba develop <domain>              — regenerate cells (skippable)
+  3. cba deploy <domain> --env <env>   — compose the deploy topology
+  4. adapter.launch                    — bring the stack up
+
+This is the single command for "go from Operational DNA to a running stack".
+Each step is the same in-process function as the standalone commands, so
+failures abort the pipeline exactly like running them by hand.
+
+DEPLOYMENT ADAPTERS
+  docker-compose    Local multi-cell orchestration (default)
+                    launch   → \`docker compose up -d\` in the deploy dir
+                    teardown → \`docker compose down -v\`
+
+  terraform/aws     AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront)
+                    launch   → \`terraform init\` + \`terraform plan\`
+                               (apply only when --auto-approve is set)
+                    teardown → \`terraform destroy\` (--auto-approve required)
+
+COMMON FLAGS
+  --env <name>        Target environment (must exist in technical DNA)
+  --adapter <name>    docker-compose | terraform/aws (default: docker-compose)
+  --cell <name>       Develop only the named cell
+  --cells <list>      Deploy only these cells (comma-separated)
+  --profile <name>    Deploy a named profile from technical DNA
+  --skip-develop      Skip regeneration — use already-generated cell artifacts
+  --plan              Stop after generating the deploy topology (no launch)
+  --json              Machine-readable output
+
+DOCKER FLAGS
+  --seed              Set SEED_EXAMPLES=true in the child env (load DNA examples)
+  --attach            Run \`docker compose up\` in foreground (stream logs)
+  --build             Pass --build to \`docker compose up\`
+  --force-recreate    Pass --force-recreate to \`docker compose up\`
+
+TERRAFORM FLAGS
+  --auto-approve      Actually apply the plan. Without this, \`cba up\` stops
+                      after \`terraform plan\` so you can review the diff.
+
+EXAMPLES
+  cba up torts --env dev --seed --build                          # local demo
+  cba up torts --env dev --skip-develop --attach                 # rerun, stream logs
+  cba up torts --env dev --cell api-cell --build --force-recreate
+  cba up torts --env prod --adapter terraform/aws                # plan only
+  cba up torts --env prod --adapter terraform/aws --auto-approve # actually apply
+`
+
+export const DOWN_HELP = `cba down — tear down a deployed stack
+
+USAGE
+  cba down <domain> --env <environment> [--adapter <name>] [flags]
+
+Runs the delivery adapter's teardown hook against the existing deploy dir.
+No regeneration, no deploy rewrite.
+
+DEPLOYMENT ADAPTERS
+  docker-compose    \`docker compose down -v\` (drops volumes by default)
+  terraform/aws     \`terraform destroy\` — requires --auto-approve
+
+FLAGS
+  --env <name>        Target environment (must exist in technical DNA)
+  --adapter <name>    docker-compose | terraform/aws (default: docker-compose)
+  --keep-volumes      docker only — keep named volumes instead of dropping them
+  --auto-approve      terraform only — required (destroys real AWS resources)
+  --json              Machine-readable output
+
+EXAMPLES
+  cba down torts --env dev                            # compose down -v
+  cba down torts --env dev --keep-volumes             # keep postgres data
+  cba down torts --env prod --adapter terraform/aws --auto-approve
+`
+
 export const RUN_HELP = `cba run — run generated output locally
 
 USAGE
@@ -337,6 +420,10 @@ export function helpFor(command?: string): string {
       return DEVELOP_HELP
     case 'deploy':
       return DEPLOY_HELP
+    case 'up':
+      return UP_HELP
+    case 'down':
+      return DOWN_HELP
     case 'run':
       return RUN_HELP
     case 'validate':

@@ -68,7 +68,23 @@ export function getStoreMode(): string {
 
 // ── Seeding ─────────────────────────────────────────────────────────────────
 
+/**
+ * Controls whether Product Core DNA examples are loaded into the data store
+ * on startup.
+ *
+ *   - In-memory mode (no DATABASE_URL): always seeds, because the in-memory
+ *     store is ephemeral and has no other source of data.
+ *   - Postgres mode (DATABASE_URL set): only seeds when SEED_EXAMPLES=true.
+ *     Leaving it unset (or 'false') means the API returns real records from
+ *     the database, not DNA mock records.
+ */
+const shouldSeedDb = process.env.SEED_EXAMPLES === 'true'
+
 export async function seedFromProductCoreDna(core: any): Promise<void> {
+  if (useDb && !shouldSeedDb) {
+    console.log('[seed] skipped (SEED_EXAMPLES != true)')
+    return
+  }
   for (const noun of core?.nouns ?? []) {
     if (!noun.examples?.length) continue
     const key = noun.name.toLowerCase() + 's'

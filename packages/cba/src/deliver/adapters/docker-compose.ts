@@ -1,5 +1,7 @@
 import * as path from 'path'
+import { spawn } from 'child_process'
 import { EnvironmentPlan, ResolvedCell, ResolvedConstruct, ResolvedVariable } from '../plan'
+import { LaunchContext } from './types'
 
 export interface ComposeFile {
   path: string
@@ -185,6 +187,16 @@ function buildCellService(cell: ResolvedCell, plan: EnvironmentPlan): CellServic
     const port = guessApiPort(cell, plan)
     const env = resolveEnv(cell, plan, port)
     env.PORT = String(port)
+    // NODE_ENV tracks the compose environment — the api-cell's auth middleware
+    // bypasses token checks when NODE_ENV !== 'production', which is what we
+    // want for `cba deliver ... --env dev`. Dockerfile hardcodes production,
+    // compose overrides it at runtime.
+    env.NODE_ENV = plan.environment === 'prod' ? 'production' : 'development'
+    // SEED_EXAMPLES controls whether Product Core DNA examples are loaded into
+    // the database on startup. Default is 'false' so the API returns real
+    // records from Postgres. Flip to 'true' to pre-populate tables with the
+    // DNA examples (useful for demos and UI development against empty DBs).
+    env.SEED_EXAMPLES = '${SEED_EXAMPLES:-false}'
     const def: any = {
       build: { context: relBuildContext },
       restart: 'unless-stopped',
@@ -481,4 +493,47 @@ function renderReadme(
     ``,
   )
   return lines.join('\n')
+}
+
+// ── Launch / teardown (for `cba up` / `cba down`) ─────────────────────────────
+
+/**
+ * `docker compose up` in the generated deploy dir. Passes `-d` by default so
+ * the CLI returns after the stack is running; use `--attach` to stream logs.
+ * `--build` and `--force-recreate` pass through to compose unchanged.
+ */
+export function launchCompose(ctx: LaunchContext): Promise<number> {
+  const args = ['compose', 'up']
+  if (!ctx.flags.attach) args.push('-d')
+  if (ctx.flags.build) args.push('--build')
+  if (ctx.flags.forceRecreate) args.push('--force-recreate')
+  return runDocker(args, ctx)
+}
+
+/**
+ * `docker compose down` in the generated deploy dir. Removes volumes by
+ * default (fresh demo state); use `--keep-volumes` to preserve them.
+ */
+export function teardownCompose(ctx: LaunchContext): Promise<number> {
+  const args = ['compose', 'down']
+  if (!ctx.flags.keepVolumes) args.push('-v')
+  return runDocker(args, ctx)
+}
+
+function runDocker(args: string[], ctx: LaunchContext): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('docker', args, {
+      cwd: ctx.deployDir,
+      stdio: 'inherit',
+      env: { ...process.env, ...ctx.env },
+    })
+    child.on('error', (err) => {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        reject(new Error('`docker` not found on PATH. Install Docker Desktop or the docker CLI.'))
+      } else {
+        reject(err)
+      }
+    })
+    child.on('exit', (code) => resolve(code ?? 0))
+  })
 }

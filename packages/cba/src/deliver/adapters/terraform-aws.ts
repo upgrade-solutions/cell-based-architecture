@@ -1,4 +1,5 @@
 import * as path from 'path'
+import { spawn } from 'child_process'
 import {
   EnvironmentPlan,
   ResolvedCell,
@@ -6,6 +7,7 @@ import {
   ResolvedProvider,
   ResolvedVariable,
 } from '../plan'
+import { LaunchContext } from './types'
 
 export interface TerraformFile {
   path: string
@@ -1307,4 +1309,64 @@ function tfId(name: string): string {
 /** Convert a variable name to a Terraform-safe variable name */
 function tfVarName(name: string): string {
   return name.toLowerCase()
+}
+
+// ── Launch / teardown (for `cba up` / `cba down`) ─────────────────────────────
+
+/**
+ * `terraform init` (idempotent) → `terraform plan -out=tfplan` → apply.
+ *
+ * Without --auto-approve the adapter stops after the plan so the operator can
+ * review the diff before anything touches AWS. This matches how `cba deploy`
+ * refuses to auto-develop — loud, explicit, no surprises.
+ */
+export async function launchTerraform(ctx: LaunchContext): Promise<number> {
+  const initCode = await runTerraform(['init', '-input=false'], ctx)
+  if (initCode !== 0) return initCode
+
+  const planCode = await runTerraform(['plan', '-input=false', '-out=tfplan'], ctx)
+  if (planCode !== 0) return planCode
+
+  if (!ctx.flags.autoApprove) {
+    console.log('')
+    console.log('→ terraform plan written to tfplan')
+    console.log('  Review the plan above, then re-run with --auto-approve to apply:')
+    console.log(`    cba up <domain> --env <env> --adapter terraform/aws --auto-approve`)
+    return 0
+  }
+
+  return runTerraform(['apply', '-input=false', '-auto-approve', 'tfplan'], ctx)
+}
+
+/**
+ * `terraform destroy`. Always requires --auto-approve in non-interactive runs;
+ * terraform would otherwise block on stdin for the confirmation prompt.
+ */
+export async function teardownTerraform(ctx: LaunchContext): Promise<number> {
+  if (!ctx.flags.autoApprove) {
+    throw new Error(
+      'terraform/aws teardown requires --auto-approve. This will destroy real AWS resources.',
+    )
+  }
+  const initCode = await runTerraform(['init', '-input=false'], ctx)
+  if (initCode !== 0) return initCode
+  return runTerraform(['destroy', '-input=false', '-auto-approve'], ctx)
+}
+
+function runTerraform(args: string[], ctx: LaunchContext): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('terraform', args, {
+      cwd: ctx.deployDir,
+      stdio: 'inherit',
+      env: { ...process.env, ...ctx.env },
+    })
+    child.on('error', (err) => {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        reject(new Error('`terraform` not found on PATH. Install Terraform CLI.'))
+      } else {
+        reject(err)
+      }
+    })
+    child.on('exit', (code) => resolve(code ?? 0))
+  })
 }

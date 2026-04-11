@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --no-audit --no-fund
 COPY . .
-RUN mkdir -p drizzle && npm run build
+RUN npm run db:generate && npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app

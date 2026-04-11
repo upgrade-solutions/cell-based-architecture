@@ -6,6 +6,8 @@ import { runProduct } from './product'
 import { runTechnical } from './technical'
 import { runDevelop } from './develop'
 import { runDeliver } from './deliver/index'
+import { runUp } from './up'
+import { runDown } from './down'
 import { runRun } from './run'
 import { runValidate } from './validate'
 import { runAgent } from './agent'
@@ -52,6 +54,12 @@ function main(): void {
       return
     case 'deploy':
       runDeliver(rest, args)
+      return
+    case 'up':
+      runUp(rest, args)
+      return
+    case 'down':
+      runDown(rest, args)
       return
     case 'run':
       runRun(rest, args)

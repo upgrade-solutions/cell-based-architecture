@@ -1,0 +1,3 @@
+- [CLI name field workaround](feedback_cli_name_workaround.md) — Cause/Rule/Outcome/Signal must be added directly to JSON; CLI requires a name field they don't have
+- [Marshall domain complete](project_marshall_domain.md) — Phase-1 operational DNA for justice.masstort.marshall is fully built (9 Nouns, 13 Caps, 20 Rules, 4 Signals, 5 Lifecycles, 2 Equations, 7 Relationships)
+- [Marshall next phase](project_marshall_phase_next.md) — product-core-materializer, product-api-designer, product-ui-designer need to run before Phase 2 cells can generate

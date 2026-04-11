@@ -50,7 +50,7 @@ export const generate: UiCellAdapter['generate'] = (
     ui: ctx?.uiFetchPath ?? '/dna.json',
     api: ctx?.apiFetchPath ?? null,
     core: ctx?.coreFetchPath ?? null,
-    apiBase: '',
+    apiBase: ctx?.apiBase ?? '',
   }, null, 2) + '\n')
 
   // ── Copy DNA files into public/dna/ so they ship with the vite build ────────
