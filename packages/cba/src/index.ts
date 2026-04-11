@@ -8,6 +8,7 @@ import { runDevelop } from './develop'
 import { runDeliver } from './deliver/index'
 import { runRun } from './run'
 import { runValidate } from './validate'
+import { runAgent } from './agent'
 import { listDomains, findRepoRoot } from './context'
 import { emit } from './output'
 
@@ -57,6 +58,9 @@ function main(): void {
       return
     case 'validate':
       runValidate(rest, args)
+      return
+    case 'agent':
+      runAgent(rest, args)
       return
     case 'domains': {
       const opts = { json: boolFlag(args, 'json') }

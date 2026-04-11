@@ -99,11 +99,18 @@ export function runValidate(argv: string[], args: ParsedArgs): void {
 }
 
 function crossLayerValidate(paths: ReturnType<typeof resolveDomain>): Array<{ message: string }> {
-  let operational: any, productApi: any, productUi: any, technical: any
+  let operational: any, productCore: any, productApi: any, productUi: any, technical: any
   try {
     operational = loadLayer(paths, 'operational')
   } catch {
     return []
+  }
+  if (fs.existsSync(paths.files['product.core'])) {
+    try {
+      productCore = loadLayer(paths, 'product.core')
+    } catch {
+      /* optional */
+    }
   }
   try {
     productApi = loadLayer(paths, 'product.api')
@@ -122,6 +129,6 @@ function crossLayerValidate(paths: ReturnType<typeof resolveDomain>): Array<{ me
   }
 
   const validator = new DnaValidator()
-  const result = validator.validateCrossLayer({ operational, productApi, productUi, technical })
+  const result = validator.validateCrossLayer({ operational, productCore, productApi, productUi, technical })
   return result.errors.map((e) => ({ message: `[${e.layer}] ${e.path}: ${e.message}` }))
 }

@@ -690,3 +690,67 @@ describe('DnaValidator — cross-layer validation', () => {
     expect(result.valid).toBe(true)
   })
 })
+
+// ── Cross-layer: product.core ────────────────────────────────────────────────
+
+describe('DnaValidator — cross-layer with product.core', () => {
+  const operational = loadDna('dna/lending/operational.json')
+  const productApi = loadDna('dna/lending/product.api.json')
+  const productUi = loadDna('dna/lending/product.ui.json')
+  const productCore = loadDna('dna/lending/product.core.json')
+
+  it('passes when core is consistent with operational', () => {
+    const result = validator.validateCrossLayer({ operational, productCore })
+    expect(result.valid).toBe(true)
+  })
+
+  it('detects a Noun in product.core that is not in operational', () => {
+    const badCore = {
+      ...productCore,
+      nouns: [...(productCore.nouns ?? []), { name: 'Phantom', attributes: [], verbs: [] }],
+    }
+    const result = validator.validateCrossLayer({ operational, productCore: badCore })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.layer === 'product/core' && e.message.includes('Phantom'))).toBe(true)
+  })
+
+  it('detects a Capability in product.core that is not in operational', () => {
+    const badCore = {
+      ...productCore,
+      capabilities: [
+        ...(productCore.capabilities ?? []),
+        { noun: 'Loan', verb: 'Vanish', name: 'Loan.Vanish' },
+      ],
+    }
+    const result = validator.validateCrossLayer({ operational, productCore: badCore })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Loan.Vanish'))).toBe(true)
+  })
+
+  it('resolves product.api noun refs against product.core when present', () => {
+    // product.core has the same Noun set as operational, so valid api references
+    // should still pass when only core is provided (no operational).
+    const result = validator.validateCrossLayer({ productCore, productApi })
+    expect(result.valid).toBe(true)
+  })
+
+  it('detects product.api references against product.core (not operational)', () => {
+    const minimalCore = {
+      domain: { name: 'lending', path: 'acme.finance.lending' },
+      nouns: [{ name: 'Loan', verbs: [{ name: 'Apply' }] }],
+    }
+    const badApi = {
+      ...productApi,
+      resources: [{ name: 'Borrower', noun: 'Borrower', fields: [], actions: [] }],
+    }
+    const result = validator.validateCrossLayer({ productCore: minimalCore, productApi: badApi })
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.message.includes('Borrower') && e.message.includes('Product Core'))).toBe(true)
+  })
+
+  it('falls back to operational when product.core is absent', () => {
+    // With only operational (no core), cross-layer still works.
+    const result = validator.validateCrossLayer({ operational, productApi, productUi })
+    expect(result.valid).toBe(true)
+  })
+})

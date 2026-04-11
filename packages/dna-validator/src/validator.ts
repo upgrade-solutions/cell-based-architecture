@@ -60,13 +60,23 @@ interface OperationalDNA {
   domain: {
     name: string
     domains?: OperationalDNA['domain'][]
-    nouns?: { name: string; verbs?: { name: string }[] }[]
+    nouns?: { name: string; verbs?: { name: string }[]; attributes?: { name: string }[] }[]
   }
   capabilities?: { name: string; noun: string; verb: string }[]
   signals?: { name: string; capability: string }[]
   outcomes?: { capability: string; emits?: string[] }[]
   causes?: { capability: string; source: string; signal?: string }[]
   relationships?: { name: string; from: string; to: string; attribute: string; cardinality: string }[]
+}
+
+interface ProductCoreDNA {
+  domain: { name: string; path: string }
+  nouns?: { name: string; verbs?: { name: string }[]; attributes?: { name: string }[] }[]
+  capabilities?: { name: string; noun: string; verb: string }[]
+  signals?: { name: string; capability: string }[]
+  outcomes?: { capability: string; emits?: string[] }[]
+  causes?: { capability: string; source: string; signal?: string }[]
+  relationships?: { name: string; from: string; to: string; attribute: string }[]
 }
 
 interface ProductApiDNA {
@@ -178,12 +188,14 @@ export class DnaValidator {
 
   validateCrossLayer(layers: {
     operational?: unknown
+    productCore?: unknown
     productApi?: unknown
     productUi?: unknown
     technical?: unknown
   }): CrossLayerResult {
     const errors: CrossLayerError[] = []
     const op = layers.operational as OperationalDNA | undefined
+    const core = layers.productCore as ProductCoreDNA | undefined
     const api = layers.productApi as ProductApiDNA | undefined
     const ui = layers.productUi as ProductUiDNA | undefined
     const tech = layers.technical as TechnicalDNA | undefined
@@ -260,11 +272,56 @@ export class DnaValidator {
       }
     }
 
-    // ── Product API → Operational ──────────────────────────────────────────
-    if (op && api) {
-      const nouns = this.collectNouns(op.domain)
+    // ── Operational → Product Core (materializer consistency) ──────────────
+    // If both are present, every Noun/Capability/Signal in product.core must
+    // also exist in operational — product core is a projection, never invents.
+    if (op && core) {
+      const opNouns = this.collectNouns(op.domain)
+      const opNounNames = new Set(opNouns.map(n => n.name))
+      const opCapabilityNames = new Set((op.capabilities ?? []).map(c => c.name))
+      const opSignalNames = new Set((op.signals ?? []).map(s => s.name))
+
+      for (const noun of core.nouns ?? []) {
+        if (!opNounNames.has(noun.name)) {
+          errors.push({
+            layer: 'product/core',
+            path: `nouns/${noun.name}`,
+            message: `Product Core Noun "${noun.name}" is not present in Operational DNA. Re-run the materializer.`,
+          })
+        }
+      }
+      for (const cap of core.capabilities ?? []) {
+        if (!opCapabilityNames.has(cap.name)) {
+          errors.push({
+            layer: 'product/core',
+            path: `capabilities/${cap.name}`,
+            message: `Product Core Capability "${cap.name}" is not present in Operational DNA. Re-run the materializer.`,
+          })
+        }
+      }
+      for (const sig of core.signals ?? []) {
+        if (!opSignalNames.has(sig.name)) {
+          errors.push({
+            layer: 'product/core',
+            path: `signals/${sig.name}`,
+            message: `Product Core Signal "${sig.name}" is not present in Operational DNA. Re-run the materializer.`,
+          })
+        }
+      }
+    }
+
+    // ── Product API → Product Core (preferred) or Operational (fallback) ───
+    // When product.core is available, API references resolve against it;
+    // otherwise fall back to walking operational directly. Technical layers
+    // only ever see product.core, so the core path is the canonical one.
+    if ((core || op) && api) {
+      const nouns = core
+        ? (core.nouns ?? [])
+        : this.collectNouns((op as OperationalDNA).domain)
       const nounNames = new Set(nouns.map(n => n.name))
-      const capabilityNames = new Set((op.capabilities ?? []).map(c => c.name))
+      const capabilities = core ? core.capabilities : (op as OperationalDNA).capabilities
+      const capabilityNames = new Set((capabilities ?? []).map(c => c.name))
+      const referenceLayer = core ? 'product/core' : 'operational'
 
       // Resource noun references
       for (const resource of api.resources ?? []) {
@@ -272,7 +329,7 @@ export class DnaValidator {
           errors.push({
             layer: 'product/api',
             path: `resources/${resource.name}/noun`,
-            message: `Resource "${resource.name}" references Noun "${resource.noun}" which does not exist in Operational DNA. Available: ${[...nounNames].join(', ')}`,
+            message: `Resource "${resource.name}" references Noun "${resource.noun}" which does not exist in ${referenceLayer === 'product/core' ? 'Product Core' : 'Operational'} DNA. Available: ${[...nounNames].join(', ')}`,
           })
         }
 
@@ -298,7 +355,7 @@ export class DnaValidator {
           errors.push({
             layer: 'product/api',
             path: `operations/${operation.name}/capability`,
-            message: `Operation "${operation.name}" references Capability "${operation.capability}" which does not exist in Operational DNA. Available: ${[...capabilityNames].join(', ')}`,
+            message: `Operation "${operation.name}" references Capability "${operation.capability}" which does not exist in ${referenceLayer === 'product/core' ? 'Product Core' : 'Operational'} DNA. Available: ${[...capabilityNames].join(', ')}`,
           })
         }
       }

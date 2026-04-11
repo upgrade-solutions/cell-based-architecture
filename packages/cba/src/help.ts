@@ -16,6 +16,7 @@ UTILITIES
   run            Run generated output locally (dev servers)
   validate       Validate DNA across all layers + cross-layer refs
   domains        List domains found under dna/
+  agent          Find and show AGENTS.md contracts for layer/cell agents
   help           Show this help, or help for a specific command
 
 GLOBAL FLAGS
@@ -287,6 +288,43 @@ NOTE
   Code) and uses the other cba commands as its tools.
 `
 
+export const AGENT_HELP = `cba agent — find and describe AGENTS.md contracts
+
+Each concern boundary in the repo (operational layer, product layer,
+technical layer, each cell, each domain) has an AGENTS.md file that
+defines the prompt-level contract for a sub-agent that owns that scope.
+This command resolves those contracts so an orchestrating agent can
+load the right prompt and dispatch the right subagent type.
+
+USAGE
+  cba agent list                     # list every AGENTS.md in the repo
+  cba agent <concern>                # show the contract for a concern
+  cba agent <path-to-AGENTS.md>      # show a contract by explicit path
+
+CONCERN SHORTHANDS
+  operational                        → operational/AGENTS.md
+  product                            → product/AGENTS.md
+  technical                          → technical/AGENTS.md
+  api-cell | ui-cell | db-cell | event-bus-cell
+                                     → technical/cells/<name>/AGENTS.md
+  lending | torts/marshall | ...     → dna/<name>/AGENTS.md
+
+EXAMPLES
+  cba agent list                            # see every contract in the repo
+  cba agent operational                     # operational layer agent
+  cba agent product                         # product layer (3 sub-agents)
+  cba agent api-cell                        # api-cell per-adapter contract
+  cba agent torts/marshall                  # Marshall Fire domain orchestrator
+
+NOTE
+  This command does NOT spawn a sub-agent itself. It resolves the contract
+  file so the caller (Claude Code, a custom orchestrator, etc.) knows what
+  prompt to load and which subagent type to dispatch.
+
+FLAGS
+  --json            Machine-readable output (includes full file content)
+`
+
 export function helpFor(command?: string): string {
   switch (command) {
     case 'operational':
@@ -305,6 +343,8 @@ export function helpFor(command?: string): string {
       return VALIDATE_HELP
     case 'discover':
       return DISCOVER_HELP
+    case 'agent':
+      return AGENT_HELP
     default:
       return ROOT_HELP
   }
