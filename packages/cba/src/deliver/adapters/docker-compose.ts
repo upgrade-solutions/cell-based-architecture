@@ -220,13 +220,14 @@ function buildCellService(cell: ResolvedCell, plan: EnvironmentPlan): CellServic
 
   if (cell.adapterType.startsWith('vite/')) {
     const port = 80 // nginx in vite Dockerfile serves on 80
-    const exposed = 5173
+    const exposed = (cell.adapterConfig?.port as number | undefined) ?? 5173
+    const env = resolveEnv(cell, plan, exposed)
     const def: any = {
       build: { context: relBuildContext },
       restart: 'unless-stopped',
       ports: [`${exposed}:${port}`],
-      environment: resolveEnv(cell, plan, exposed),
     }
+    if (Object.keys(env).length > 0) def.environment = env
     const deps = dependsOn(cell, plan)
     if (Object.keys(deps).length) def.depends_on = deps
     return { name: svcName, definition: def }
@@ -415,8 +416,12 @@ function renderYaml(doc: any, indent = 0): string {
           }
         }
       } else if (typeof v === 'object') {
-        lines.push(`${pad}${k}:`)
-        lines.push(renderYaml(v, indent + 1).replace(/\n$/, ''))
+        if (Object.keys(v as object).length === 0) {
+          lines.push(`${pad}${k}: {}`)
+        } else {
+          lines.push(`${pad}${k}:`)
+          lines.push(renderYaml(v, indent + 1).replace(/\n$/, ''))
+        }
       } else {
         lines.push(`${pad}${k}: ${yamlScalar(v)}`)
       }
