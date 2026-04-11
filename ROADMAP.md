@@ -175,26 +175,26 @@ Two cross-cutting pieces land first because the demo's prompt-to-deploy flow dep
 
 **Rule**: if it's a separate concern, create an `AGENTS.md` file. Each file is a prompt-level contract for an agent working within that scope.
 
-- [ ] **`operational/AGENTS.md`** — operational-dna-architect agent contract. Owns Noun/Verb/Capability/Attribute/Domain/Cause/Rule/Outcome/Lifecycle/Signal/Equation/Relationship. Inputs: domain research. Outputs: a valid `operational.json` that passes `cba validate`.
-- [ ] **`product/AGENTS.md`** — defines three sequenced agents:
+- [x] **`operational/AGENTS.md`** — operational-dna-architect agent contract. Owns Noun/Verb/Capability/Attribute/Domain/Cause/Rule/Outcome/Lifecycle/Signal/Equation/Relationship. Inputs: domain research. Outputs: a valid `operational.json` that passes `cba validate`.
+- [x] **`product/AGENTS.md`** — defines three sequenced agents:
   - `product-core-materializer` — reads `operational.json`, produces `product.core.json`
   - `product-api-designer` — produces `product.api.json` from `product.core.json`
   - `product-ui-designer` — produces `product.ui.json` from `product.core.json`
-- [ ] **`technical/AGENTS.md`** — technical-stack-designer agent contract (produces `technical.json`) plus an index of per-cell agents that dispatch during `cba develop`
-- [ ] **`technical/cells/<cell>/AGENTS.md`** — one per cell type. Each agent owns its cell's CLI invocation (`cba develop --cell <name>`), adapter selection, generated-output iteration, and failure reporting. Initial set: `api-cell`, `ui-cell`, `db-cell`, `event-bus-cell`.
-- [ ] **`dna/torts/marshall/AGENTS.md`** — domain-specific agent that orchestrates the five layer/cell agents for this demo. Knows the prompt sections, the research sources, and the hand-off order.
-- [ ] **`cba agent` CLI** — new subcommand that spawns the agent described by a given `AGENTS.md` file (`cba agent operational/AGENTS.md`, `cba agent technical/cells/api-cell/AGENTS.md`)
+- [x] **`technical/AGENTS.md`** — technical-stack-designer agent contract (produces `technical.json`) plus an index of per-cell agents that dispatch during `cba develop`
+- [x] **`technical/cells/<cell>/AGENTS.md`** — one per cell type. Each agent owns its cell's CLI invocation (`cba develop --cell <name>`), adapter selection, generated-output iteration, and failure reporting. Initial set: `api-cell`, `ui-cell`, `db-cell`, `event-bus-cell`.
+- [x] **`dna/torts/marshall/AGENTS.md`** — domain-specific agent that orchestrates the five layer/cell agents for this demo. Knows the prompt sections, the research sources, and the hand-off order.
+- [x] **`cba agent` CLI** — new subcommand that resolves the AGENTS.md contract for a given concern (`cba agent operational`, `cba agent api-cell`, `cba agent torts/marshall`). Supports layer shorthand, cell shorthand, nested domain paths, explicit file paths, `--json` output, and a `list` mode. Spawning the actual agent is the caller's job.
 
 #### Product core — `product.core.json` as the product/technical interface
 
 Today, technical DNA and cells read operational DNA directly via cross-layer validation. That leaks operational primitives into places that should only see the product surface. Product core fixes this: technical DNA reads **only** `product.core.json` + `product.api.json` + `product.ui.json`, and operational DNA becomes invisible downstream of product.
 
-- [ ] **`product/schemas/core.json`** — new schema for the self-contained product-core document. Contains the slice of operational DNA (Nouns, Capabilities, Attributes, Signals, Relationships) actually referenced by product primitives.
-- [ ] **`product-core-materializer` agent** — reads `operational.json`, walks `product.api.json` and `product.ui.json` for references, and emits `product.core.json` with the transitive closure of everything referenced.
-- [ ] **`cba develop` integration** — materializes `product.core.json` automatically before each cell runs; regenerated whenever `operational.json` changes.
-- [ ] **Cells read product core, not operational** — update `api-cell`, `ui-cell`, `db-cell`, and `event-bus-cell` adapters to load `product.core.json` in place of `operational.json`. Signal middleware, routing, and payload extraction all reference product core.
-- [ ] **Cross-layer validation migration** — move `dna-validator` cross-layer rules from `operational ↔ technical` to `operational ↔ product.core` (upstream) and `product.core ↔ technical` (downstream). Technical layer tests no longer load operational DNA.
-- [ ] **Backfill existing platforms** — generate `product.core.json` for `dna/lending/` and verify the lending stack still builds and deploys unchanged.
+- [x] **`product/schemas/product.core.json`** — new schema for the self-contained product-core document. Flat `nouns[]` at the top level plus optional `capabilities`, `causes`, `rules`, `outcomes`, `lifecycles`, `signals`, `relationships`, `equations`. Registered in the dna-validator.
+- [x] **`product-core-materializer`** — `packages/cba/src/product-core.ts` walks `operational.json`, collects noun references from `product.api.json` (resources[].noun) and `product.ui.json` (pages[].resource), expands the closure via relationships, and filters downstream primitives to the surfaced capability set.
+- [x] **`cba develop` integration** — `cba develop <domain>` auto-materializes `product.core.json` before each cell runs. `cba product core materialize <domain>` is the manual trigger.
+- [x] **Cells read product core, not operational** — `api-cell` (express/nestjs/fastapi/rails), `ui-cell` (vite/react, vite/vue, next/react), `db-cell`, and `event-bus-cell` all load `product.core.json` in place of `operational.json`. Signal middleware, validators, routing, schema generation, and signal receivers reference product core. The Express runtime interpreter reads `src/dna/product.core.json` at startup and on hot-reload.
+- [x] **Cross-layer validation migration** — `dna-validator.validateCrossLayer` accepts a `productCore` layer alongside `operational`. Product.api references resolve against product.core when present (fallback to operational when absent). New rule: every Noun/Capability/Signal in product.core must exist in operational (catches stale materializer output).
+- [x] **Backfill existing platforms** — `dna/lending/product.core.json` materialized (3 nouns, 14 capabilities, 2 signals). `cba validate lending` green across all five layers; `cba develop lending` regenerates all seven cells cleanly end-to-end.
 
 ### Prompt → Operational DNA
 
