@@ -82,9 +82,19 @@
       "blocks": [
         {
           "name": "SubmitIntake",
-          "type": "form",
+          "type": "survey",
           "operation": "IntakeSubmission.Submit",
-          "description": "Tell us about your property and what was lost. An attorney will review your submission within two business days."
+          "description": "Tell us about your property and what was lost. An attorney will review your submission within two business days.",
+          "fields": [
+            { "name": "first_name", "label": "First name", "type": "string", "required": true },
+            { "name": "last_name", "label": "Last name", "type": "string", "required": true },
+            { "name": "email", "label": "Email address", "type": "email", "required": true },
+            { "name": "phone", "label": "Phone", "type": "phone" },
+            { "name": "address", "label": "Street address of the affected property", "type": "string", "required": true },
+            { "name": "city", "label": "Jurisdiction", "type": "enum", "required": true, "values": ["Superior", "Louisville", "Unincorporated Boulder County"] },
+            { "name": "damage_type", "label": "Primary type of loss", "type": "enum", "required": true, "values": ["real_property", "personal_property", "business_loss", "personal_injury", "evacuation"] },
+            { "name": "description", "label": "Tell us what happened and what was lost", "type": "text" }
+          ]
         }
       ]
     },

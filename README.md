@@ -425,12 +425,24 @@ Layouts are DNA-driven structural shells that wrap pages. The layout `type` in P
 
 | Layout Type | Description |
 |-------------|-------------|
-| `universal` | Production-ready shell — collapsible sidebar, user profile dropdown, tenant picker, theme toggle. State managed by XState v5 |
+| `universal` | Production-ready app shell — collapsible sidebar, user profile dropdown, tenant picker, theme toggle. State managed by XState v5 |
+| `marketing` | Public-site shell — sticky header with brand + nav + CTA, hero on root route only, footer with links. Drives `layout.brand`, `layout.hero`, `layout.footer` from DNA. Pairs with `survey` blocks for public intake forms |
 | `sidebar` | Simple fixed sidebar with nav links and theme toggle |
 | `full-width` | Horizontal header nav with centered content area |
 | `split-panel` | (planned) |
 | `centered` | (planned) |
 | `blank` | (planned) |
+
+The **marketing layout** is for public-facing sites (landing pages, intake funnels, lead capture). It reads `layout.brand` (name/tagline/href), `layout.hero` (eyebrow/title/subtitle/cta/secondaryCta), and `layout.footer` (text/links) directly from `product.ui.json`. Hero only renders on the root route. Theme tokens flow into both Tailwind utility classes and SurveyJS CSS variables, so a `survey` block on a marketing page picks up brand colors automatically. See `dna/torts/marshall/` for a working example.
+
+#### Survey blocks (SurveyJS)
+
+Public forms that post to a single capability use `block.type: "survey"` instead of authoring inputs by hand. The ui-cell scaffolds `survey-core` + `survey-react-ui` into the generated `package.json` and emits a `SurveyBlock.tsx` that:
+
+- Builds the SurveyJS model directly from `block.fields` (field types are mapped: `email`/`phone`/`password` → `text` with `inputType`, `text` → `comment` (textarea), `enum` ≤5 → radiogroup, `enum` >5 → dropdown)
+- Resolves the API endpoint via `block.operation` and submits with `useApi(...).submit()`
+- Falls into **mock-submit mode** when `apiBase` is empty (preview-only deployments) — payload is logged to the console, the success state shows a "preview mode" badge, no network call is made
+- Theme tokens (`--sjs-primary-backcolor`, `--sjs-editor-background`, etc.) are emitted at `:root` from the layout DNA — no runtime ref-based theming required
 
 The **universal layout** is the recommended default. Built on **Radix UI** + **Tailwind CSS v4** with a **DNA-driven white-label theme system**. It includes:
 

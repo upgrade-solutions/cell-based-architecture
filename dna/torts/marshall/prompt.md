@@ -10,6 +10,36 @@ The goal of this demo (for an AWS meetup) is to show the path from **a natural-l
 
 ---
 
+## Demo phases
+
+The Marshall demo is built up in phases so each one is independently runnable and checkpointable.
+
+| Phase | What it ships | Cells | Backend? |
+|-------|---------------|-------|----------|
+| **1. Marketing-only preview** *(current)* | Public site with hero + intake survey, mock-submit mode | `ui-cell` only | No — `apiBase: ""`, no api/db/event-bus |
+| **2. Live intake** | Same site, real submissions land in a database, signals fire | `ui-cell` + `api-cell` + `db-cell` + `event-bus-cell` | Yes (docker-compose for dev, terraform/aws for prod) |
+| **3. Staff admin** | Second SPA for intake review, qualify/assign workflow | adds `ui-cell-admin` | Yes |
+| **4. The swap** | Replace `python/django` adapter with `node/nestjs`, regenerate, redeploy unchanged | same cells, different adapter | Yes |
+
+To rebuild Phase 1 from scratch after a clean checkout:
+
+```bash
+# 1. Validate the DNA layers
+npx cba validate torts/marshall
+
+# 2. Generate the ui-cell
+npx cba develop torts/marshall --cell ui-cell
+
+# 3. Run the marketing site (no api-cell, no docker)
+cd output/torts/marshall-ui
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173/` (or whichever port vite picks). The intake form at `/intake` runs in **mock-submit mode** — submissions are logged to the browser console and the success state shows a "preview mode" badge. To wire it up to a real backend, set `api_base` in `dna/torts/marshall/technical.json` to the api-cell URL and regenerate.
+
+---
+
 ## Pipeline
 
 ```
@@ -169,12 +199,25 @@ Namespace: `marshall` (served under `/marshall/*`)
 
 Two UI surfaces — both generated from the same product UI schema but with different layouts and route sets:
 
-**Surface 1: Public Web Presence** (layout: `marketing` or `universal` with public mode)
-- **Home page** — hero section explaining the Marshall Fire litigation, eligibility, firm credentials
-- **Eligibility page** — detailed criteria, affected zones, evidence requirements
-- **Intake form page** — the `IntakeSubmission.Submit` form (multi-step form with validation)
-- **FAQ page** — content page, static blocks
-- **Contact page** — fallback contact form / phone / email
+**Surface 1: Public Web Presence** (layout type: `marketing`)
+- **Layout chrome** — `layout.brand` (name, tagline, href), `layout.hero` (eyebrow, title, subtitle, cta, secondaryCta), `layout.footer` (text, links). Hero only renders on the root route. Theme is configured under `layout.theme.colors` / `layout.theme.dark` / `layout.theme.radius` / `layout.theme.font` and flows through both Tailwind tokens and SurveyJS CSS variables (no hand-authored CSS required).
+- **Home page** — hero section + a `description` block summarizing who qualifies (real property, personal property, business loss, personal injury, evacuation).
+- **Eligibility page** — qualifying criteria block: jurisdiction, date, residency/ownership evidence, statute of limitations.
+- **Intake form page** — a single `survey` block with `block.operation: IntakeSubmission.Submit` and inline `fields`. The ui-cell renders this via SurveyJS (`survey-core` + `survey-react-ui`), with field types translated automatically: `email`/`phone`/`password` → `text` with `inputType`, `text` → `comment` (textarea), `enum` ≤5 → radiogroup, `enum` >5 → dropdown. **The fields are inlined on the block** — they intentionally do NOT live on a Page-level resource fields list, because the survey is operation-driven, not resource-driven.
+- **FAQ page** — content block with static Q&A copy.
+- **(Contact page is optional)** — the marketing footer already exposes a `mailto:` link.
+
+**Survey block convention** — when a Page needs a public form that posts to a single capability, use:
+```json
+{
+  "name": "<BlockName>",
+  "type": "survey",
+  "operation": "<Resource>.<Action>",
+  "description": "<short helper text>",
+  "fields": [ { "name": "...", "label": "...", "type": "...", "required": true } ]
+}
+```
+Use `email`, `phone`, `text`, `enum` field types where they apply. The generated `SurveyBlock.tsx` handles validation, branding, the thank-you state, and **mock-submit mode** when `apiBase` is empty (preview-only deployments).
 
 **Surface 2: Staff Admin** (layout: `universal` with nested nav)
 - **Intake queue** — list + detail view of `IntakeSubmission`, qualify/reject actions
@@ -234,11 +277,21 @@ Two UI surfaces — both generated from the same product UI schema but with diff
 
 ## Success Criteria for the AWS Meetup Demo
 
-1. **Prompt to DNA** — running the prompt through our pipeline produces valid `operational.json`, `product.api.json`, `product.ui.json`, `technical.json` that pass `cba validate`.
-2. **DNA to Code** — `cba develop torts/marshall` generates a Django API, two React apps, an event-bus client, and a Postgres schema without errors.
-3. **Code to Cloud** — `cba deploy torts/marshall --env prod --adapter terraform/aws` provisions the full stack on AWS and returns a public URL for the intake form and the admin app.
-4. **Live intake** — audience members can submit a mock intake from their phones; the submission appears in the admin app; a signal fires through the event bus.
-5. **The swap** — change one line in `technical.json` (`python/django` → `node/nestjs`), rerun `cba develop` + `cba deploy`, demonstrate the same functional system on a different stack.
+### Phase 1 — Marketing-Only Preview *(current state)*
+1. **Prompt to DNA** — `npx cba validate torts/marshall` reports `✓` on all five layers (operational, product.core, product.api, product.ui, technical, cross-layer).
+2. **DNA to code** — `npx cba develop torts/marshall --cell ui-cell` generates `output/torts/marshall-ui` without errors, including a `SurveyBlock.tsx` and a marketing layout reading brand/hero/footer/theme from `product.ui.json`.
+3. **Local preview** — `cd output/torts/marshall-ui && npm install && npm run dev` boots vite. The `/intake` route shows the SurveyJS form, branding matches the Marshall theme, submission logs to the console and shows the preview-mode success state.
+
+### Phase 2 — Live Intake
+4. **DNA to Code (full stack)** — `cba develop torts/marshall` generates a Django (or NestJS) API, the React app, an event-bus client, and a Postgres schema without errors.
+5. **Code to Cloud** — `cba deploy torts/marshall --env prod --adapter terraform/aws` provisions the full stack on AWS and returns a public URL for the intake form.
+6. **Live intake** — audience members can submit a real intake from their phones; the submission lands in Postgres; a `marshall.IntakeSubmission.Received` signal fires through the event bus.
+
+### Phase 3 — Admin Surface
+7. **Admin app** — staff can browse the intake queue, qualify or reject, and assign attorneys; second `ui-cell-admin` deploys to its own CDN.
+
+### Phase 4 — The Swap
+8. **The swap** — change one line in `technical.json` (`python/django` → `node/nestjs`), rerun `cba develop` + `cba deploy`, demonstrate the same functional system on a different stack.
 
 ---
 
