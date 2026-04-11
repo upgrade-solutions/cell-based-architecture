@@ -38,11 +38,23 @@ function tableBlock(noun: Noun): string {
   const varName = toCamelCase(noun.name) + 's'
   const attrs = noun.attributes ?? []
 
-  const columns = [
-    ...attrs.map(columnExpr),
-    `  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),`,
-    `  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),`,
-  ].join('\n')
+  // Auto-add created_at / updated_at, but only if the noun didn't already
+  // declare them — otherwise the operational author and the generator both
+  // emit a column with the same name and tsc fails on the duplicate key.
+  const declared = new Set(attrs.map((a) => a.name))
+  const autoTimestamps: string[] = []
+  if (!declared.has('created_at')) {
+    autoTimestamps.push(
+      `  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),`,
+    )
+  }
+  if (!declared.has('updated_at')) {
+    autoTimestamps.push(
+      `  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),`,
+    )
+  }
+
+  const columns = [...attrs.map(columnExpr), ...autoTimestamps].join('\n')
 
   const comment = noun.description ? `// ${noun.description}\n` : ''
   return `${comment}export const ${varName} = pgTable('${tableName}', {\n${columns}\n})`
