@@ -19,7 +19,7 @@ The Marshall demo is built up in phases so each one is independently runnable an
 | **1. Marketing-only preview** *(current)* | Public site with hero + intake survey, mock-submit mode | `ui-cell` only | No — `apiBase: ""`, no api/db/event-bus |
 | **2. Live intake** | Same site, real submissions land in a database, signals fire | `ui-cell` + `api-cell` + `db-cell` + `event-bus-cell` | Yes (docker-compose for dev, terraform/aws for prod) |
 | **3. Staff admin** | Second SPA for intake review, qualify/assign workflow | adds `ui-cell-admin` | Yes |
-| **4. The swap** | Replace `python/django` adapter with `node/nestjs`, regenerate, redeploy unchanged | same cells, different adapter | Yes |
+| **4. The swap** | Replace `node/express` adapter with `python/django` (or another), regenerate, redeploy unchanged | same cells, different adapter | Yes |
 
 To rebuild Phase 1 from scratch after a clean checkout:
 
@@ -240,13 +240,13 @@ Use `email`, `phone`, `text`, `enum` field types where they apply. The generated
 
 | Cell | Adapter | Output |
 |------|---------|--------|
-| `api-cell` | **`python/django`** (new adapter — to be built) | Django REST Framework API, Postgres-backed |
-| `ui-cell-public` | `vite/react` | Static React SPA for public web presence |
-| `ui-cell-admin` | `vite/react` | Static React SPA for staff admin |
-| `db-cell` | `postgres` | Postgres schema + roles + migrations |
-| `event-bus-cell` | `node/event-bus` | Signal registry + publishers for cross-cell events |
+| `api-cell` | **`node/express`** | Express + drizzle REST API, Postgres-backed |
+| `ui-cell-public` | `vite/react` | Static React SPA for public web presence (marketing layout) |
+| `ui-cell-admin` | `vite/react` | Static React SPA for staff admin (universal layout) |
+| `db-cell` | `postgres` | Postgres instance + roles + provisioning |
+| `event-bus-cell` | `node/event-bus` | Signal registry + amqplib publishers for cross-cell events |
 
-**Future swap (Phase 2 of demo)**: replace `python/django` with `node/nestjs` adapter, regenerate, redeploy — demonstrating that the operational and product DNA remain unchanged when the implementation stack changes. This is the "prove the abstraction" moment for the meetup audience.
+**Future swap (Phase 4 of demo)**: replace `node/express` with another api-cell adapter (e.g. `python/django` once that adapter exists, or `node/fastify`), regenerate, redeploy — demonstrating that the operational and product DNA remain unchanged when the implementation stack changes. This is the "prove the abstraction" moment for the meetup audience.
 
 ### Constructs
 
@@ -291,7 +291,7 @@ Use `email`, `phone`, `text`, `enum` field types where they apply. The generated
 7. **Admin app** — staff can browse the intake queue, qualify or reject, and assign attorneys; second `ui-cell-admin` deploys to its own CDN.
 
 ### Phase 4 — The Swap
-8. **The swap** — change one line in `technical.json` (`python/django` → `node/nestjs`), rerun `cba develop` + `cba deploy`, demonstrate the same functional system on a different stack.
+8. **The swap** — change one line in `technical.json` (`node/express` → another adapter), rerun `cba develop` + `cba deploy`, demonstrate the same functional system on a different stack.
 
 ---
 

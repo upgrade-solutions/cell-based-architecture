@@ -901,6 +901,17 @@ cell-based-architecture/
       product.api.json              # Product API DNA: namespace, resources, operations, endpoints
       product.ui.json               # Product UI DNA: layout, pages, routes, blocks
       technical.json                # Technical DNA: providers, constructs, variables, cells, environments
+    torts/marshall/
+      operational.json              # Marshall Fire mass-tort Operational DNA (justice.masstort.marshall):
+                                    #   9 Nouns (IntakeSubmission, Claimant, Claim, Incident, Property,
+                                    #            Evidence, CaseStatus, Firm, Attorney)
+                                    #   13 Capabilities, 20 Rules, 12 Outcomes, 5 Lifecycles,
+                                    #   4 Signals, 2 Equations, 7 Relationships
+      product.core.json             # Materialized slice — currently Phase-1 only (IntakeSubmission)
+      product.api.json              # Phase-1 REST surface — POST /marshall/intake
+      product.ui.json               # Phase-1 marketing site with intake survey block
+      technical.json                # Phase-1 stack — ui-cell only (api/db/event-bus pending)
+      prompt.md                     # Source prompt — Section 1 (operational) reflected; Sections 2–3 still pending
   operational/
     schemas/                        # JSON schemas for Operational primitives
   product/
