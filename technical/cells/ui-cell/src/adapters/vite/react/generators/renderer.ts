@@ -195,6 +195,23 @@ export interface Layout {
   }
   tenants?: { id: string; name: string }[]
   navigation?: NavGroup[]
+  brand?: {
+    name?: string
+    tagline?: string
+    logo?: string
+    href?: string
+  }
+  hero?: {
+    eyebrow?: string
+    title?: string
+    subtitle?: string
+    cta?: { label: string; route: string }
+    secondaryCta?: { label: string; route: string }
+  }
+  footer?: {
+    text?: string
+    links?: { label: string; href: string }[]
+  }
   theme?: {
     colors?: Record<string, string>
     dark?: Record<string, string>
@@ -517,6 +534,7 @@ export function rendererLayout(): string {
 import { NavLink, Outlet } from 'react-router-dom'
 import type { Layout as LayoutDNA, Route } from './types'
 import UniversalLayout from './UniversalLayout'
+import MarketingLayout from './MarketingLayout'
 
 interface Props {
   layout: LayoutDNA
@@ -541,6 +559,7 @@ function useIsMobile(breakpoint = 768) {
 
 export default function Layout({ layout, routes }: Props) {
   if (layout.type === 'universal') return <UniversalLayout routes={routes} />
+  if (layout.type === 'marketing') return <MarketingLayout layout={layout} routes={routes} />
   if (layout.type === 'sidebar') return <SidebarLayout routes={routes} />
   return <FullWidthLayout routes={routes} />
 }
@@ -638,6 +657,336 @@ function FullWidthLayout({ routes }: { routes: Route[] }) {
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '1rem' : '2rem' }}>
         <Outlet />
       </main>
+    </div>
+  )
+}
+`
+}
+
+export function rendererMarketingLayout(): string {
+  return `import { useState, useEffect } from 'react'
+import { NavLink, Link, Outlet, useLocation } from 'react-router-dom'
+import type { Layout as LayoutDNA, Route } from './types'
+
+interface Props {
+  layout: LayoutDNA
+  routes: Route[]
+}
+
+function toLabel(pageName: string): string {
+  return pageName.replace(/([A-Z])/g, (c, _match, offset: number) =>
+    (offset === 0 ? '' : ' ') + c
+  )
+}
+
+function useIsMobile(breakpoint = 768) {
+  const [mobile, setMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false,
+  )
+  useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < breakpoint)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [breakpoint])
+  return mobile
+}
+
+/**
+ * MarketingLayout — a full-width public marketing shell.
+ *
+ * Structure:
+ *   - Sticky top header: brand on the left, nav links on the right,
+ *     optional primary CTA button next to the nav. Collapses to a
+ *     hamburger menu on mobile.
+ *   - Hero section (only on the home route '/') with eyebrow, title,
+ *     subtitle, and up to two CTA buttons. Configured via layout.hero.
+ *   - <Outlet /> — the routed page content, full-width with a centered
+ *     1200px max-width container.
+ *   - Footer with plain text + optional link list. Configured via
+ *     layout.footer.
+ *
+ * All colors come from CSS variables set by globals.css so the
+ * white-label theme system still applies.
+ */
+export default function MarketingLayout({ layout, routes }: Props) {
+  const isMobile = useIsMobile()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+
+  const brand = layout.brand ?? {}
+  const hero = layout.hero
+  const footer = layout.footer
+  const brandHref = brand.href ?? routes[0]?.path ?? '/'
+  const brandName = brand.name ?? layout.name
+
+  // The primary CTA in the top header also appears as the hero CTA below.
+  const headerCta = hero?.cta
+
+  // Hero only renders on the root route so inner pages aren't cluttered.
+  const showHero = hero && (location.pathname === '/' || location.pathname === brandHref)
+
+  const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
+    display: 'inline-block',
+    padding: '0.5rem 0.875rem',
+    borderRadius: '0.375rem',
+    textDecoration: 'none',
+    fontSize: '0.9375rem',
+    color: isActive ? 'var(--primary)' : 'var(--foreground)',
+    fontWeight: isActive ? 600 : 500,
+  })
+
+  const ctaPrimaryStyle: React.CSSProperties = {
+    display: 'inline-block',
+    padding: '0.75rem 1.25rem',
+    borderRadius: '0.5rem',
+    background: 'var(--primary)',
+    color: 'var(--primary-foreground)',
+    fontWeight: 600,
+    fontSize: '0.9375rem',
+    textDecoration: 'none',
+    border: 'none',
+    cursor: 'pointer',
+  }
+
+  const ctaSecondaryStyle: React.CSSProperties = {
+    display: 'inline-block',
+    padding: '0.75rem 1.25rem',
+    borderRadius: '0.5rem',
+    background: 'transparent',
+    color: 'var(--foreground)',
+    fontWeight: 600,
+    fontSize: '0.9375rem',
+    textDecoration: 'none',
+    border: '1px solid var(--border)',
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      fontFamily: 'var(--font-family, system-ui, sans-serif)',
+      background: 'var(--background)',
+      color: 'var(--foreground)',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <header style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--background)',
+        backdropFilter: 'blur(8px)',
+      }}>
+        <div style={{
+          maxWidth: 1200,
+          margin: '0 auto',
+          padding: isMobile ? '0.75rem 1rem' : '1rem 2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+        }}>
+          <Link to={brandHref} style={{
+            textDecoration: 'none',
+            color: 'var(--foreground)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}>
+            {brand.logo && (
+              <img src={brand.logo} alt="" style={{ height: 32, width: 'auto' }} />
+            )}
+            <span>
+              <span style={{ display: 'block', fontWeight: 700, fontSize: '1.0625rem', lineHeight: 1.2 }}>
+                {brandName}
+              </span>
+              {brand.tagline && !isMobile && (
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--muted-foreground)', lineHeight: 1.2 }}>
+                  {brand.tagline}
+                </span>
+              )}
+            </span>
+          </Link>
+
+          {isMobile ? (
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              aria-label="Toggle menu"
+              style={{
+                background: 'none',
+                border: '1px solid var(--border)',
+                borderRadius: '0.375rem',
+                padding: '0.375rem 0.625rem',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+                lineHeight: 1,
+                color: 'var(--foreground)',
+              }}
+            >
+              {menuOpen ? '\u2715' : '\u2630'}
+            </button>
+          ) : (
+            <nav style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+              {routes.map(route => (
+                <NavLink key={route.path} to={route.path} end={route.path === '/'} style={navLinkStyle}>
+                  {toLabel(route.page)}
+                </NavLink>
+              ))}
+              {headerCta && (
+                <Link to={headerCta.route} style={{ ...ctaPrimaryStyle, marginLeft: '0.75rem', padding: '0.5rem 1rem' }}>
+                  {headerCta.label}
+                </Link>
+              )}
+            </nav>
+          )}
+        </div>
+
+        {/* Mobile nav drawer */}
+        {isMobile && menuOpen && (
+          <nav style={{
+            borderTop: '1px solid var(--border)',
+            background: 'var(--background)',
+            padding: '0.5rem 1rem 1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.25rem',
+          }}>
+            {routes.map(route => (
+              <NavLink
+                key={route.path}
+                to={route.path}
+                end={route.path === '/'}
+                style={navLinkStyle}
+                onClick={() => setMenuOpen(false)}
+              >
+                {toLabel(route.page)}
+              </NavLink>
+            ))}
+            {headerCta && (
+              <Link
+                to={headerCta.route}
+                style={{ ...ctaPrimaryStyle, marginTop: '0.5rem', textAlign: 'center' }}
+                onClick={() => setMenuOpen(false)}
+              >
+                {headerCta.label}
+              </Link>
+            )}
+          </nav>
+        )}
+      </header>
+
+      {/* ── Hero ────────────────────────────────────────────────────── */}
+      {showHero && hero && (
+        <section style={{
+          background: 'var(--muted, transparent)',
+          borderBottom: '1px solid var(--border)',
+          padding: isMobile ? '3rem 1rem' : '5rem 2rem',
+        }}>
+          <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+            {hero.eyebrow && (
+              <div style={{
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                color: 'var(--primary)',
+                marginBottom: '1rem',
+              }}>
+                {hero.eyebrow}
+              </div>
+            )}
+            {hero.title && (
+              <h1 style={{
+                fontSize: isMobile ? '2rem' : '3rem',
+                fontWeight: 800,
+                lineHeight: 1.15,
+                margin: '0 0 1.25rem',
+                color: 'var(--foreground)',
+              }}>
+                {hero.title}
+              </h1>
+            )}
+            {hero.subtitle && (
+              <p style={{
+                fontSize: isMobile ? '1rem' : '1.125rem',
+                lineHeight: 1.6,
+                color: 'var(--muted-foreground)',
+                margin: '0 auto 2rem',
+                maxWidth: 640,
+              }}>
+                {hero.subtitle}
+              </p>
+            )}
+            {(hero.cta || hero.secondaryCta) && (
+              <div style={{
+                display: 'flex',
+                gap: '0.75rem',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+              }}>
+                {hero.cta && (
+                  <Link to={hero.cta.route} style={ctaPrimaryStyle}>
+                    {hero.cta.label}
+                  </Link>
+                )}
+                {hero.secondaryCta && (
+                  <Link to={hero.secondaryCta.route} style={ctaSecondaryStyle}>
+                    {hero.secondaryCta.label}
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Main content ────────────────────────────────────────────── */}
+      <main style={{
+        flex: 1,
+        maxWidth: 1200,
+        width: '100%',
+        margin: '0 auto',
+        padding: isMobile ? '2rem 1rem' : '3rem 2rem',
+      }}>
+        <Outlet />
+      </main>
+
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      {footer && (
+        <footer style={{
+          borderTop: '1px solid var(--border)',
+          background: 'var(--muted, transparent)',
+          padding: isMobile ? '1.5rem 1rem' : '2rem',
+        }}>
+          <div style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            fontSize: '0.875rem',
+            color: 'var(--muted-foreground)',
+          }}>
+            {footer.text && <span>{footer.text}</span>}
+            {footer.links && footer.links.length > 0 && (
+              <nav style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+                {footer.links.map(link => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    style={{ color: 'var(--muted-foreground)', textDecoration: 'none' }}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </nav>
+            )}
+          </div>
+        </footer>
+      )}
     </div>
   )
 }

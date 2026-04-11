@@ -27,6 +27,7 @@ import {
   rendererEmptyStateBlock,
   rendererLayoutMachine,
   rendererUniversalLayout,
+  rendererMarketingLayout,
 } from './generators/renderer'
 
 function write(outputDir: string, relPath: string, content: string): void {
@@ -109,6 +110,7 @@ export const generate: UiCellAdapter['generate'] = (
   write(outputDir, 'src/renderer/Layout.tsx',                   rendererLayout())
   write(outputDir, 'src/renderer/layout-machine.ts',            rendererLayoutMachine())
   write(outputDir, 'src/renderer/UniversalLayout.tsx',          rendererUniversalLayout(primitivesPath))
+  write(outputDir, 'src/renderer/MarketingLayout.tsx',          rendererMarketingLayout())
   write(outputDir, 'src/renderer/Page.tsx',                     rendererPage())
   write(outputDir, 'src/renderer/Block.tsx',                    rendererBlock())
   write(outputDir, 'src/renderer/blocks/FormBlock.tsx',         rendererFormBlock())

@@ -14,7 +14,7 @@
     "type": {
       "type": "string",
       "description": "The structural type of the layout.",
-      "enum": ["sidebar", "full-width", "split-panel", "centered", "blank", "universal"]
+      "enum": ["sidebar", "full-width", "split-panel", "centered", "blank", "universal", "marketing"]
     },
     "description": {
       "type": "string",
@@ -133,6 +133,87 @@
           "type": "string",
           "description": "Font family stack.",
           "default": "system-ui, sans-serif"
+        }
+      }
+    },
+    "brand": {
+      "type": "object",
+      "description": "Brand information shown in marketing and sidebar headers.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Brand name shown in the header (e.g. 'Marshall Fire Claims')."
+        },
+        "tagline": {
+          "type": "string",
+          "description": "Short tagline shown under or next to the brand name."
+        },
+        "logo": {
+          "type": "string",
+          "description": "Optional path or URL to a logo image. When omitted, the brand name is rendered as text."
+        },
+        "href": {
+          "type": "string",
+          "description": "Route the brand name links to. Defaults to the first route in the layout.",
+          "default": "/"
+        }
+      }
+    },
+    "hero": {
+      "type": "object",
+      "description": "Marketing layout hero section shown above the routed page content on the root route. Omit to suppress the hero.",
+      "properties": {
+        "eyebrow": {
+          "type": "string",
+          "description": "Short label shown above the headline (e.g. 'Marshall Fire Mass Tort')."
+        },
+        "title": {
+          "type": "string",
+          "description": "Hero headline."
+        },
+        "subtitle": {
+          "type": "string",
+          "description": "Supporting sentence shown below the headline."
+        },
+        "cta": {
+          "type": "object",
+          "description": "Primary call-to-action button.",
+          "required": ["label", "route"],
+          "properties": {
+            "label": { "type": "string" },
+            "route": { "type": "string", "description": "Route path the CTA links to." }
+          }
+        },
+        "secondaryCta": {
+          "type": "object",
+          "description": "Optional secondary CTA rendered next to the primary button.",
+          "required": ["label", "route"],
+          "properties": {
+            "label": { "type": "string" },
+            "route": { "type": "string" }
+          }
+        }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "description": "Marketing layout footer content.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Plain text shown in the footer (e.g. copyright line)."
+        },
+        "links": {
+          "type": "array",
+          "description": "Links shown in the footer.",
+          "items": {
+            "type": "object",
+            "required": ["label", "href"],
+            "properties": {
+              "label": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
         }
       }
     },
