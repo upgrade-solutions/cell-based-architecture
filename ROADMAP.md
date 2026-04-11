@@ -151,7 +151,7 @@ A general-purpose application shell that works across web and mobile, with produ
 6. `dna/lending/product.ui.json` — switch layout type to `"universal"` with feature config
 
 ### Future Layouts (Planned)
-- [ ] **Marketing** — full-width, header nav, hero sections, footer
+- [x] **Marketing** — full-width sticky header (brand + nav + optional CTA), hero section on the root route (eyebrow/title/subtitle/primary+secondary CTAs), main outlet, and footer (text + links). Schema additions: `brand`, `hero`, `footer` on Layout. Shipped for the vite/react adapter; vite/vue and next/react will land when those surfaces are needed for the Marshall Fire demo.
 - [ ] **Auth** — centered card layout for login/register/forgot-password flows
 - [ ] **Wizard** — step-based flow with progress indicator, back/next navigation
 - [ ] **Dashboard** — grid-based layout with resizable panels and widget slots
