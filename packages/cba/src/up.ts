@@ -94,6 +94,9 @@ export function runUp(argv: string[], args: ParsedArgs): void {
       ...(flag(args, 'cells') ? { cells: flag(args, 'cells')! } : {}),
       ...(flag(args, 'profile') ? { profile: flag(args, 'profile')! } : {}),
       ...(opts.json ? { json: true } : {}),
+      // Suppress the trailing "Next: cd … && docker compose up -d" hint —
+      // `cba up` launches immediately after this step, so the hint is noise.
+      'no-next-hint': true,
     },
   }
   runDeliver([domain], deliverArgs)

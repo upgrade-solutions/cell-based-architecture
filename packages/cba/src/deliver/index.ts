@@ -47,6 +47,9 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
   }
 
   const planOnly = boolFlag(args, 'plan')
+  // Internal: suppress the "Next: cd … && docker compose up -d" hint when
+  // runDeliver is invoked from `cba up`, which will launch immediately after.
+  const suppressNextHint = boolFlag(args, 'no-next-hint')
 
   let plan: EnvironmentPlan
   try {
@@ -159,10 +162,12 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
         if (result.skipped.length) {
           lines.push(`  ${result.skipped.length} skipped construct(s)`)
         }
-        lines.push(
-          ``,
-          `  Next: cd ${path.relative(process.cwd(), plan.deployDir)} && docker compose up -d`,
-        )
+        if (!suppressNextHint) {
+          lines.push(
+            ``,
+            `  Next: cd ${path.relative(process.cwd(), plan.deployDir)} && docker compose up -d`,
+          )
+        }
         return lines.join('\n')
       },
     )
@@ -230,10 +235,12 @@ export function runDeliver(argv: string[], args: ParsedArgs): void {
         if (result.skipped.length) {
           lines.push(`  ${result.skipped.length} skipped construct(s)`)
         }
-        lines.push(
-          ``,
-          `  Next: cd ${path.relative(process.cwd(), plan.deployDir)} && terraform init && terraform plan`,
-        )
+        if (!suppressNextHint) {
+          lines.push(
+            ``,
+            `  Next: cd ${path.relative(process.cwd(), plan.deployDir)} && terraform init && terraform plan`,
+          )
+        }
         return lines.join('\n')
       },
     )
