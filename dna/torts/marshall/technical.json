@@ -1,7 +1,13 @@
 {
   "environments": [
-    { "name": "dev", "description": "Local development environment." },
-    { "name": "prod", "description": "Production environment serving live traffic." }
+    {
+      "name": "dev",
+      "description": "Local development environment."
+    },
+    {
+      "name": "prod",
+      "description": "Production environment serving live traffic."
+    }
   ],
   "providers": [
     {
@@ -9,13 +15,87 @@
       "type": "cloud",
       "region": "us-west-2",
       "description": "Primary cloud provider (Colorado-adjacent).",
-      "config": { "account_id": "000000000000" }
+      "config": {
+        "account_id": "000000000000"
+      }
     }
   ],
-  "constructs": [],
-  "variables": [],
+  "constructs": [
+    {
+      "name": "primary-db",
+      "category": "storage",
+      "type": "database",
+      "provider": "aws",
+      "description": "Primary Postgres database for all Marshall Fire mass-tort data.",
+      "config": {
+        "engine": "postgres",
+        "version": "16",
+        "instance_class": "db.t3.medium"
+      }
+    },
+    {
+      "name": "primary-db",
+      "category": "storage",
+      "type": "database",
+      "provider": "aws",
+      "environment": "dev",
+      "description": "Local Postgres for Marshall Fire development.",
+      "config": {
+        "engine": "postgres",
+        "version": "16",
+        "port": 5432
+      }
+    },
+    {
+      "name": "event-bus",
+      "category": "storage",
+      "type": "queue",
+      "provider": "aws",
+      "description": "Event bus for cross-cell async Signals — SNS fan-out to SQS subscriber queues.",
+      "config": {
+        "engine": "sns+sqs"
+      }
+    },
+    {
+      "name": "event-bus",
+      "category": "storage",
+      "type": "queue",
+      "provider": "aws",
+      "environment": "dev",
+      "description": "Local RabbitMQ for the event bus in development.",
+      "config": {
+        "engine": "rabbitmq",
+        "version": "3",
+        "port": 5672,
+        "management_port": 15672
+      }
+    }
+  ],
+  "variables": [
+    {
+      "name": "DATABASE_URL",
+      "source": "secret",
+      "description": "Postgres connection string for the Marshall primary-db.",
+      "required": true
+    },
+    {
+      "name": "EVENT_BUS_URL",
+      "source": "secret",
+      "description": "RabbitMQ (dev) or SNS+SQS (prod) connection URL for the event bus.",
+      "required": false
+    }
+  ],
   "profiles": {
-    "default": ["ui-cell"]
+    "default": [
+      "db-cell",
+      "event-bus-cell",
+      "api-cell",
+      "ui-cell",
+      "admin-ui-cell"
+    ],
+    "marketing-only": [
+      "ui-cell"
+    ]
   },
   "cells": [
     {
@@ -29,6 +109,93 @@
           "core_dna": "torts/marshall/product.core",
           "api_dna": "torts/marshall/product.api",
           "api_base": ""
+        }
+      },
+      "constructs": [],
+      "variables": []
+    },
+    {
+      "name": "db-cell",
+      "description": "Provisions the Postgres database, application role, and permissions. Schema migrations live in api-cell (drizzle).",
+      "dna": "torts/marshall/product.core",
+      "adapter": {
+        "type": "postgres",
+        "config": {
+          "construct": "primary-db"
+        }
+      },
+      "constructs": [
+        "primary-db"
+      ],
+      "variables": []
+    },
+    {
+      "name": "event-bus-cell",
+      "description": "Reads Product Core DNA Signals (marshall.IntakeSubmission.Received, .Claimant.Qualified, .Claimant.Registered, .Claim.Filed) and generates the schema registry, typed publishers, routing config, and subscriber worker stubs.",
+      "dna": "torts/marshall/product.core",
+      "adapter": {
+        "type": "node/event-bus",
+        "config": {
+          "engine": "rabbitmq"
+        }
+      },
+      "constructs": [
+        "event-bus"
+      ],
+      "variables": [
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "secret",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "api-cell",
+      "description": "Reads Product API DNA and generates a dynamic Express + drizzle interpreter for all Marshall endpoints (intake, claimants, claims, evidence, firms, attorneys).",
+      "dna": "torts/marshall/product.api",
+      "adapter": {
+        "type": "node/express",
+        "config": {
+          "core_dna": "torts/marshall/product.core",
+          "port": 3001
+        }
+      },
+      "constructs": [
+        "primary-db",
+        "event-bus"
+      ],
+      "variables": [
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "secret",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "api_url",
+          "cell": "api-cell",
+          "value": "http://localhost:3001"
+        }
+      ]
+    },
+    {
+      "name": "admin-ui-cell",
+      "description": "Marshall Fire staff admin SPA — Vite + React with the universal layout. Renders the intake queue, claimants, claims, evidence, firms, and attorneys against the Marshall API.",
+      "dna": "torts/marshall/product.admin.ui",
+      "adapter": {
+        "type": "vite/react",
+        "version": "5",
+        "config": {
+          "core_dna": "torts/marshall/product.core",
+          "api_dna": "torts/marshall/product.api",
+          "api_base": "http://localhost:3001"
         }
       },
       "constructs": [],

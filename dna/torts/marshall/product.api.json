@@ -4,7 +4,9 @@
     "path": "/marshall",
     "domain": "justice.masstort.marshall",
     "description": "Public API for the Marshall Fire mass-tort intake.",
-    "resources": ["IntakeSubmission"]
+    "resources": [
+      "IntakeSubmission"
+    ]
   },
   "resources": [
     {
@@ -12,18 +14,536 @@
       "noun": "IntakeSubmission",
       "description": "A public intake submission from a potential Marshall Fire claimant.",
       "fields": [
-        { "name": "id", "label": "ID", "type": "string" },
-        { "name": "first_name", "label": "First Name", "type": "string", "required": true },
-        { "name": "last_name", "label": "Last Name", "type": "string", "required": true },
-        { "name": "email", "label": "Email", "type": "email", "required": true },
-        { "name": "phone", "label": "Phone", "type": "phone" },
-        { "name": "address", "label": "Street Address", "type": "string", "required": true },
-        { "name": "city", "label": "Jurisdiction", "type": "enum", "required": true, "values": ["Superior", "Louisville", "Unincorporated Boulder County"] },
-        { "name": "damage_type", "label": "Damage Type", "type": "enum", "required": true, "values": ["real_property", "personal_property", "business_loss", "personal_injury", "evacuation"] },
-        { "name": "description", "label": "Describe your loss", "type": "text" }
+        {
+          "name": "id",
+          "label": "ID",
+          "type": "string"
+        },
+        {
+          "name": "first_name",
+          "label": "First Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "last_name",
+          "label": "Last Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "name": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "name": "address",
+          "label": "Street Address",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "city",
+          "label": "Jurisdiction",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "Superior",
+            "Louisville",
+            "Unincorporated Boulder County"
+          ]
+        },
+        {
+          "name": "damage_type",
+          "label": "Damage Type",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "real_property",
+            "personal_property",
+            "business_loss",
+            "personal_injury",
+            "evacuation"
+          ]
+        },
+        {
+          "name": "description",
+          "label": "Describe your loss",
+          "type": "text"
+        }
       ],
       "actions": [
-        { "name": "Submit", "verb": "Submit", "description": "Submit the intake form." }
+        {
+          "name": "Submit",
+          "verb": "Submit",
+          "description": "Submit the intake form."
+        },
+        {
+          "name": "List",
+          "description": "List intake submissions for staff review."
+        },
+        {
+          "name": "Qualify",
+          "verb": "Qualify",
+          "description": "Intake staff qualify the submission as a legitimate claimant."
+        }
+      ]
+    },
+    {
+      "name": "Claimant",
+      "noun": "Claimant",
+      "description": "A person whose intake submission has been reviewed and qualified as a legitimate Marshall Fire victim pursuing a legal claim.",
+      "fields": [
+        {
+          "name": "id",
+          "label": "ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "first_name",
+          "label": "First Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "last_name",
+          "label": "Last Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "name": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "name": "date_of_birth",
+          "label": "Date of Birth",
+          "type": "date"
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "registered",
+            "assigned",
+            "active",
+            "settled",
+            "withdrawn"
+          ]
+        },
+        {
+          "name": "intake_submission_id",
+          "label": "Intake Submission",
+          "type": "reference",
+          "reference": "IntakeSubmission",
+          "required": true
+        },
+        {
+          "name": "assigned_attorney_id",
+          "label": "Assigned Attorney",
+          "type": "reference",
+          "reference": "Attorney"
+        },
+        {
+          "name": "registered_at",
+          "label": "Registered At",
+          "type": "datetime"
+        },
+        {
+          "name": "assigned_at",
+          "label": "Assigned At",
+          "type": "datetime"
+        }
+      ],
+      "actions": [
+        {
+          "name": "View",
+          "description": "Retrieve details for a specific claimant."
+        },
+        {
+          "name": "List",
+          "description": "List claimants with optional filters."
+        },
+        {
+          "name": "Assign",
+          "verb": "Assign",
+          "description": "Assign an attorney to represent this claimant."
+        }
+      ]
+    },
+    {
+      "name": "Claim",
+      "noun": "Claim",
+      "description": "A specific cause of action filed by a Claimant against the defendants responsible for the Marshall Fire.",
+      "fields": [
+        {
+          "name": "id",
+          "label": "ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "claimant_id",
+          "label": "Claimant",
+          "type": "reference",
+          "reference": "Claimant",
+          "required": true
+        },
+        {
+          "name": "damage_type",
+          "label": "Damage Type",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "real_property",
+            "personal_property",
+            "business_loss",
+            "personal_injury",
+            "wrongful_death",
+            "evacuation"
+          ]
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "draft",
+            "filed",
+            "under_review",
+            "settled",
+            "dismissed"
+          ]
+        },
+        {
+          "name": "estimated_value",
+          "label": "Estimated Value",
+          "type": "number"
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text"
+        },
+        {
+          "name": "filed_at",
+          "label": "Filed At",
+          "type": "datetime"
+        },
+        {
+          "name": "updated_at",
+          "label": "Updated At",
+          "type": "datetime"
+        }
+      ],
+      "actions": [
+        {
+          "name": "File",
+          "verb": "File",
+          "description": "Formally submit a claim on behalf of a claimant."
+        },
+        {
+          "name": "Review",
+          "verb": "Review",
+          "description": "Legal staff review the claim details and supporting evidence."
+        },
+        {
+          "name": "UpdateStatus",
+          "verb": "UpdateStatus",
+          "description": "Advance or change the status of a claim."
+        }
+      ]
+    },
+    {
+      "name": "Evidence",
+      "noun": "Evidence",
+      "description": "A supporting document uploaded to substantiate a Claim — insurance policies, photographs, damage assessments, receipts, or government records.",
+      "fields": [
+        {
+          "name": "id",
+          "label": "ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "claim_id",
+          "label": "Claim",
+          "type": "reference",
+          "reference": "Claim",
+          "required": true
+        },
+        {
+          "name": "document_type",
+          "label": "Document Type",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "insurance_policy",
+            "damage_photo",
+            "damage_assessment",
+            "receipt",
+            "deed",
+            "lease",
+            "government_record",
+            "other"
+          ]
+        },
+        {
+          "name": "file_name",
+          "label": "File Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "file_url",
+          "label": "File URL",
+          "type": "string"
+        },
+        {
+          "name": "file_size_bytes",
+          "label": "File Size (bytes)",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "pending",
+            "verified",
+            "rejected"
+          ]
+        },
+        {
+          "name": "uploaded_by",
+          "label": "Uploaded By",
+          "type": "string"
+        },
+        {
+          "name": "uploaded_at",
+          "label": "Uploaded At",
+          "type": "datetime"
+        },
+        {
+          "name": "verified_at",
+          "label": "Verified At",
+          "type": "datetime"
+        },
+        {
+          "name": "notes",
+          "label": "Notes",
+          "type": "text"
+        }
+      ],
+      "actions": [
+        {
+          "name": "Upload",
+          "verb": "Upload",
+          "description": "Upload a supporting document to a claim."
+        },
+        {
+          "name": "Verify",
+          "verb": "Verify",
+          "description": "Staff confirm the document is authentic and relevant."
+        }
+      ]
+    },
+    {
+      "name": "CaseStatus",
+      "noun": "CaseStatus",
+      "description": "A milestone record tracking the progression of a Claimant's overall case through the mass-tort pipeline.",
+      "fields": [
+        {
+          "name": "id",
+          "label": "ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "claimant_id",
+          "label": "Claimant",
+          "type": "reference",
+          "reference": "Claimant",
+          "required": true
+        },
+        {
+          "name": "stage",
+          "label": "Stage",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "intake",
+            "reviewed",
+            "qualified",
+            "filed",
+            "in_litigation",
+            "settlement_pending",
+            "settled",
+            "dismissed"
+          ]
+        },
+        {
+          "name": "notes",
+          "label": "Notes",
+          "type": "text"
+        },
+        {
+          "name": "advanced_by",
+          "label": "Advanced By",
+          "type": "string"
+        },
+        {
+          "name": "advanced_at",
+          "label": "Advanced At",
+          "type": "datetime"
+        }
+      ],
+      "actions": [
+        {
+          "name": "Advance",
+          "verb": "Advance",
+          "description": "Move a case to the next milestone stage."
+        }
+      ]
+    },
+    {
+      "name": "Firm",
+      "noun": "Firm",
+      "description": "A participating law firm in the Marshall Fire mass-tort coordination network.",
+      "fields": [
+        {
+          "name": "id",
+          "label": "ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "bar_number",
+          "label": "Bar Number",
+          "type": "string"
+        },
+        {
+          "name": "primary_contact_email",
+          "label": "Primary Contact Email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "name": "primary_contact_phone",
+          "label": "Primary Contact Phone",
+          "type": "phone"
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "pending",
+            "active",
+            "suspended"
+          ]
+        },
+        {
+          "name": "onboarded_at",
+          "label": "Onboarded At",
+          "type": "datetime"
+        }
+      ],
+      "actions": [
+        {
+          "name": "Onboard",
+          "verb": "Onboard",
+          "description": "Approve and activate a law firm to participate."
+        },
+        {
+          "name": "List",
+          "description": "List participating firms."
+        }
+      ]
+    },
+    {
+      "name": "Attorney",
+      "noun": "Attorney",
+      "description": "An individual attorney at a participating Firm assigned to represent Claimants in the Marshall Fire mass-tort matter.",
+      "fields": [
+        {
+          "name": "id",
+          "label": "ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "first_name",
+          "label": "First Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "last_name",
+          "label": "Last Name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "name": "bar_number",
+          "label": "Bar Number",
+          "type": "string"
+        },
+        {
+          "name": "firm_id",
+          "label": "Firm",
+          "type": "reference",
+          "reference": "Firm",
+          "required": true
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "active",
+            "inactive"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "Assign",
+          "verb": "Assign",
+          "description": "Assign this attorney to represent a Claimant via a Firm."
+        }
       ]
     }
   ],
@@ -33,6 +553,141 @@
       "action": "Submit",
       "name": "IntakeSubmission.Submit",
       "capability": "IntakeSubmission.Submit"
+    },
+    {
+      "resource": "IntakeSubmission",
+      "action": "List",
+      "name": "IntakeSubmission.List",
+      "description": "List intake submissions with optional status filter (staff only)."
+    },
+    {
+      "resource": "IntakeSubmission",
+      "action": "Qualify",
+      "name": "IntakeSubmission.Qualify",
+      "capability": "IntakeSubmission.Qualify",
+      "description": "Intake staff qualify the submission, which triggers creation of a Claimant record."
+    },
+    {
+      "resource": "Claimant",
+      "action": "List",
+      "name": "Claimant.List",
+      "description": "List claimants with optional filters."
+    },
+    {
+      "resource": "Claimant",
+      "action": "View",
+      "name": "Claimant.View",
+      "capability": "Claimant.View",
+      "description": "Retrieve full profile and case details for a specific Claimant."
+    },
+    {
+      "resource": "Claimant",
+      "action": "Assign",
+      "name": "Claimant.Assign",
+      "capability": "Claimant.Assign",
+      "description": "Assign an Attorney to represent a Claimant."
+    },
+    {
+      "resource": "Claim",
+      "action": "File",
+      "name": "Claim.File",
+      "capability": "Claim.File",
+      "description": "Formally file a cause of action on behalf of a Claimant."
+    },
+    {
+      "resource": "Claim",
+      "action": "UpdateStatus",
+      "name": "Claim.UpdateStatus",
+      "capability": "Claim.UpdateStatus",
+      "description": "Advance or change the status of a claim."
+    },
+    {
+      "resource": "Claim",
+      "action": "Review",
+      "name": "Claim.Review",
+      "capability": "Claim.Review",
+      "description": "Legal staff review the claim details and supporting evidence."
+    },
+    {
+      "resource": "Evidence",
+      "action": "Upload",
+      "name": "Evidence.Upload",
+      "capability": "Evidence.Upload",
+      "description": "Upload a supporting document to a claim (multipart)."
+    },
+    {
+      "resource": "Evidence",
+      "action": "Verify",
+      "name": "Evidence.Verify",
+      "capability": "Evidence.Verify",
+      "description": "Staff confirm an uploaded document is authentic and relevant."
+    },
+    {
+      "resource": "CaseStatus",
+      "action": "Advance",
+      "name": "CaseStatus.Advance",
+      "capability": "CaseStatus.Advance",
+      "description": "Move a case to the next milestone stage."
+    },
+    {
+      "resource": "Firm",
+      "action": "List",
+      "name": "Firm.List",
+      "description": "List participating law firms."
+    },
+    {
+      "resource": "Firm",
+      "action": "Onboard",
+      "name": "Firm.Onboard",
+      "capability": "Firm.Onboard",
+      "description": "Approve and activate a new law firm to participate in the mass-tort matter."
+    },
+    {
+      "resource": "Attorney",
+      "action": "Assign",
+      "name": "Attorney.Assign",
+      "capability": "Attorney.Assign",
+      "description": "Assign an attorney (of a firm) to represent a Claimant."
+    },
+    {
+      "resource": "Attorney",
+      "action": "List",
+      "name": "Attorney.List"
+    },
+    {
+      "resource": "CaseStatus",
+      "action": "View",
+      "name": "CaseStatus.View"
+    },
+    {
+      "resource": "Claim",
+      "action": "List",
+      "name": "Claim.List"
+    },
+    {
+      "resource": "Claim",
+      "action": "View",
+      "name": "Claim.View"
+    },
+    {
+      "resource": "Evidence",
+      "action": "List",
+      "name": "Evidence.List"
+    },
+    {
+      "resource": "Evidence",
+      "action": "View",
+      "name": "Evidence.View"
+    },
+    {
+      "resource": "Firm",
+      "action": "View",
+      "name": "Firm.View"
+    },
+    {
+      "resource": "IntakeSubmission",
+      "action": "View",
+      "name": "IntakeSubmission.View"
     }
   ],
   "endpoints": [
@@ -44,21 +699,1310 @@
       "request": {
         "name": "IntakeSubmissionRequest",
         "fields": [
-          { "name": "first_name", "label": "First Name", "type": "string", "required": true },
-          { "name": "last_name", "label": "Last Name", "type": "string", "required": true },
-          { "name": "email", "label": "Email", "type": "string", "required": true },
-          { "name": "phone", "label": "Phone", "type": "string" },
-          { "name": "address", "label": "Street Address", "type": "string", "required": true },
-          { "name": "city", "label": "Jurisdiction", "type": "enum", "required": true, "values": ["Superior", "Louisville", "Unincorporated Boulder County"] },
-          { "name": "damage_type", "label": "Damage Type", "type": "enum", "required": true, "values": ["real_property", "personal_property", "business_loss", "personal_injury", "evacuation"] },
-          { "name": "description", "label": "Describe your loss", "type": "text" }
+          {
+            "name": "first_name",
+            "label": "First Name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "last_name",
+            "label": "Last Name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "email",
+            "label": "Email",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "phone",
+            "label": "Phone",
+            "type": "string"
+          },
+          {
+            "name": "address",
+            "label": "Street Address",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "city",
+            "label": "Jurisdiction",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "Superior",
+              "Louisville",
+              "Unincorporated Boulder County"
+            ]
+          },
+          {
+            "name": "damage_type",
+            "label": "Damage Type",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "real_property",
+              "personal_property",
+              "business_loss",
+              "personal_injury",
+              "evacuation"
+            ]
+          },
+          {
+            "name": "description",
+            "label": "Describe your loss",
+            "type": "text"
+          }
         ]
       },
       "response": {
         "name": "IntakeSubmissionResponse",
         "fields": [
-          { "name": "id", "type": "string" },
-          { "name": "status", "type": "string" }
+          {
+            "name": "id",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/intakes",
+      "method": "GET",
+      "path": "/marshall/intakes",
+      "operation": "IntakeSubmission.List",
+      "description": "List intake submissions for staff review. Staff only.",
+      "params": [
+        {
+          "name": "status",
+          "in": "query",
+          "type": "string",
+          "required": false,
+          "description": "Filter by intake status (received, under_review, qualified, rejected)."
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "response": {
+        "name": "IntakeSubmissionListResponse",
+        "fields": [
+          {
+            "name": "data",
+            "label": "Intake Submissions",
+            "type": "reference"
+          },
+          {
+            "name": "total",
+            "label": "Total",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PATCH /marshall/intakes/:id/qualify",
+      "method": "PATCH",
+      "path": "/marshall/intakes/:id/qualify",
+      "operation": "IntakeSubmission.Qualify",
+      "description": "Intake staff qualify a received submission; triggers creation of a Claimant record.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The intake submission ID."
+        }
+      ],
+      "request": {
+        "name": "QualifyIntakeRequest",
+        "fields": [
+          {
+            "name": "notes",
+            "label": "Qualification Notes",
+            "type": "text"
+          }
+        ]
+      },
+      "response": {
+        "name": "IntakeSubmissionResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "claimant_id",
+            "label": "Created Claimant ID",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/claimants",
+      "method": "GET",
+      "path": "/marshall/claimants",
+      "operation": "Claimant.List",
+      "description": "List claimants with optional filters.",
+      "params": [
+        {
+          "name": "status",
+          "in": "query",
+          "type": "string",
+          "required": false,
+          "description": "Filter by claimant status."
+        },
+        {
+          "name": "assigned_attorney_id",
+          "in": "query",
+          "type": "string",
+          "required": false,
+          "description": "Filter by assigned attorney."
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "response": {
+        "name": "ClaimantListResponse",
+        "fields": [
+          {
+            "name": "data",
+            "label": "Claimants",
+            "type": "reference"
+          },
+          {
+            "name": "total",
+            "label": "Total",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/claimants/:id",
+      "method": "GET",
+      "path": "/marshall/claimants/:id",
+      "operation": "Claimant.View",
+      "description": "Retrieve a claimant's full profile and case details.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The claimant ID."
+        }
+      ],
+      "response": {
+        "name": "ClaimantResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "first_name",
+            "label": "First Name",
+            "type": "string"
+          },
+          {
+            "name": "last_name",
+            "label": "Last Name",
+            "type": "string"
+          },
+          {
+            "name": "email",
+            "label": "Email",
+            "type": "string"
+          },
+          {
+            "name": "phone",
+            "label": "Phone",
+            "type": "string"
+          },
+          {
+            "name": "date_of_birth",
+            "label": "Date of Birth",
+            "type": "date"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "intake_submission_id",
+            "label": "Intake Submission ID",
+            "type": "string"
+          },
+          {
+            "name": "assigned_attorney_id",
+            "label": "Assigned Attorney ID",
+            "type": "string"
+          },
+          {
+            "name": "registered_at",
+            "label": "Registered At",
+            "type": "datetime"
+          },
+          {
+            "name": "assigned_at",
+            "label": "Assigned At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST /marshall/claimants/:id/assign",
+      "method": "POST",
+      "path": "/marshall/claimants/:id/assign",
+      "operation": "Claimant.Assign",
+      "description": "Assign an attorney to represent a claimant.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The claimant ID."
+        }
+      ],
+      "request": {
+        "name": "AssignClaimantRequest",
+        "fields": [
+          {
+            "name": "attorney_id",
+            "label": "Attorney ID",
+            "type": "string",
+            "required": true
+          }
+        ]
+      },
+      "response": {
+        "name": "ClaimantResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "assigned_attorney_id",
+            "label": "Assigned Attorney ID",
+            "type": "string"
+          },
+          {
+            "name": "assigned_at",
+            "label": "Assigned At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST /marshall/claimants/:id/claims",
+      "method": "POST",
+      "path": "/marshall/claimants/:id/claims",
+      "operation": "Claim.File",
+      "description": "File a new cause of action on behalf of a claimant.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The claimant ID."
+        }
+      ],
+      "request": {
+        "name": "FileClaimRequest",
+        "fields": [
+          {
+            "name": "damage_type",
+            "label": "Damage Type",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "real_property",
+              "personal_property",
+              "business_loss",
+              "personal_injury",
+              "wrongful_death",
+              "evacuation"
+            ]
+          },
+          {
+            "name": "estimated_value",
+            "label": "Estimated Value",
+            "type": "number"
+          },
+          {
+            "name": "description",
+            "label": "Description",
+            "type": "text"
+          }
+        ]
+      },
+      "response": {
+        "name": "ClaimResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "claimant_id",
+            "label": "Claimant ID",
+            "type": "string"
+          },
+          {
+            "name": "damage_type",
+            "label": "Damage Type",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "filed_at",
+            "label": "Filed At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PATCH /marshall/claims/:id/status",
+      "method": "PATCH",
+      "path": "/marshall/claims/:id/status",
+      "operation": "Claim.UpdateStatus",
+      "description": "Update the status of a claim (e.g. advance to settled or dismissed).",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The claim ID."
+        }
+      ],
+      "request": {
+        "name": "UpdateClaimStatusRequest",
+        "fields": [
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "draft",
+              "filed",
+              "under_review",
+              "settled",
+              "dismissed"
+            ]
+          },
+          {
+            "name": "notes",
+            "label": "Notes",
+            "type": "text"
+          }
+        ]
+      },
+      "response": {
+        "name": "ClaimResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "updated_at",
+            "label": "Updated At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST /marshall/claims/:id/review",
+      "method": "POST",
+      "path": "/marshall/claims/:id/review",
+      "operation": "Claim.Review",
+      "description": "Legal staff initiate a review of a filed claim and record findings.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The claim ID."
+        }
+      ],
+      "request": {
+        "name": "ReviewClaimRequest",
+        "fields": [
+          {
+            "name": "findings",
+            "label": "Findings",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "recommended_status",
+            "label": "Recommended Status",
+            "type": "enum",
+            "values": [
+              "under_review",
+              "settled",
+              "dismissed"
+            ]
+          }
+        ]
+      },
+      "response": {
+        "name": "ClaimResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "updated_at",
+            "label": "Updated At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST /marshall/claims/:id/evidence",
+      "method": "POST",
+      "path": "/marshall/claims/:id/evidence",
+      "operation": "Evidence.Upload",
+      "description": "Upload a supporting document to a claim. Accepts multipart/form-data.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The claim ID."
+        },
+        {
+          "name": "Content-Type",
+          "in": "header",
+          "type": "string",
+          "required": true,
+          "description": "Must be multipart/form-data."
+        }
+      ],
+      "request": {
+        "name": "UploadEvidenceRequest",
+        "fields": [
+          {
+            "name": "document_type",
+            "label": "Document Type",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "insurance_policy",
+              "damage_photo",
+              "damage_assessment",
+              "receipt",
+              "deed",
+              "lease",
+              "government_record",
+              "other"
+            ]
+          },
+          {
+            "name": "file",
+            "label": "File",
+            "type": "string",
+            "required": true,
+            "description": "The uploaded file (multipart part named 'file')."
+          },
+          {
+            "name": "notes",
+            "label": "Notes",
+            "type": "text"
+          }
+        ]
+      },
+      "response": {
+        "name": "EvidenceResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "claim_id",
+            "label": "Claim ID",
+            "type": "string"
+          },
+          {
+            "name": "document_type",
+            "label": "Document Type",
+            "type": "string"
+          },
+          {
+            "name": "file_name",
+            "label": "File Name",
+            "type": "string"
+          },
+          {
+            "name": "file_url",
+            "label": "File URL",
+            "type": "string"
+          },
+          {
+            "name": "file_size_bytes",
+            "label": "File Size (bytes)",
+            "type": "number"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "uploaded_at",
+            "label": "Uploaded At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PATCH /marshall/evidence/:id/verify",
+      "method": "PATCH",
+      "path": "/marshall/evidence/:id/verify",
+      "operation": "Evidence.Verify",
+      "description": "Staff mark an evidence document as verified or rejected.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The evidence ID."
+        }
+      ],
+      "request": {
+        "name": "VerifyEvidenceRequest",
+        "fields": [
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "verified",
+              "rejected"
+            ]
+          },
+          {
+            "name": "notes",
+            "label": "Notes",
+            "type": "text"
+          }
+        ]
+      },
+      "response": {
+        "name": "EvidenceResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "verified_at",
+            "label": "Verified At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST /marshall/case-status/:id/advance",
+      "method": "POST",
+      "path": "/marshall/case-status/:id/advance",
+      "operation": "CaseStatus.Advance",
+      "description": "Advance a case to the next milestone stage.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The case status ID."
+        }
+      ],
+      "request": {
+        "name": "AdvanceCaseStatusRequest",
+        "fields": [
+          {
+            "name": "stage",
+            "label": "Stage",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "intake",
+              "reviewed",
+              "qualified",
+              "filed",
+              "in_litigation",
+              "settlement_pending",
+              "settled",
+              "dismissed"
+            ]
+          },
+          {
+            "name": "notes",
+            "label": "Notes",
+            "type": "text"
+          }
+        ]
+      },
+      "response": {
+        "name": "CaseStatusResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "claimant_id",
+            "label": "Claimant ID",
+            "type": "string"
+          },
+          {
+            "name": "stage",
+            "label": "Stage",
+            "type": "string"
+          },
+          {
+            "name": "advanced_at",
+            "label": "Advanced At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/firms",
+      "method": "GET",
+      "path": "/marshall/firms",
+      "operation": "Firm.List",
+      "description": "List participating law firms.",
+      "params": [
+        {
+          "name": "status",
+          "in": "query",
+          "type": "string",
+          "required": false,
+          "description": "Filter by firm status."
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "response": {
+        "name": "FirmListResponse",
+        "fields": [
+          {
+            "name": "data",
+            "label": "Firms",
+            "type": "reference"
+          },
+          {
+            "name": "total",
+            "label": "Total",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST /marshall/firms",
+      "method": "POST",
+      "path": "/marshall/firms",
+      "operation": "Firm.Onboard",
+      "description": "Onboard a new law firm to the mass-tort coordination network.",
+      "request": {
+        "name": "OnboardFirmRequest",
+        "fields": [
+          {
+            "name": "name",
+            "label": "Name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "bar_number",
+            "label": "Bar Number",
+            "type": "string"
+          },
+          {
+            "name": "primary_contact_email",
+            "label": "Primary Contact Email",
+            "type": "email",
+            "required": true
+          },
+          {
+            "name": "primary_contact_phone",
+            "label": "Primary Contact Phone",
+            "type": "phone"
+          }
+        ]
+      },
+      "response": {
+        "name": "FirmResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "label": "Name",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          },
+          {
+            "name": "onboarded_at",
+            "label": "Onboarded At",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST /marshall/firms/:id/attorneys",
+      "method": "POST",
+      "path": "/marshall/firms/:id/attorneys",
+      "operation": "Attorney.Assign",
+      "description": "Assign (register) an attorney under a firm so they can be assigned to claimants.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": "The firm ID."
+        }
+      ],
+      "request": {
+        "name": "AssignAttorneyRequest",
+        "fields": [
+          {
+            "name": "first_name",
+            "label": "First Name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "last_name",
+            "label": "Last Name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "email",
+            "label": "Email",
+            "type": "email",
+            "required": true
+          },
+          {
+            "name": "bar_number",
+            "label": "Bar Number",
+            "type": "string"
+          }
+        ]
+      },
+      "response": {
+        "name": "AttorneyResponse",
+        "fields": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "string"
+          },
+          {
+            "name": "first_name",
+            "label": "First Name",
+            "type": "string"
+          },
+          {
+            "name": "last_name",
+            "label": "Last Name",
+            "type": "string"
+          },
+          {
+            "name": "email",
+            "label": "Email",
+            "type": "string"
+          },
+          {
+            "name": "firm_id",
+            "label": "Firm ID",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/attorneys",
+      "method": "GET",
+      "path": "/marshall/attorneys",
+      "operation": "Attorney.List",
+      "description": "List attorneys with optional firm filter.",
+      "params": [
+        {
+          "name": "firm_id",
+          "in": "query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "response": {
+        "name": "AttorneyListResponse",
+        "fields": [
+          {
+            "name": "data",
+            "label": "Attorneys",
+            "type": "reference"
+          },
+          {
+            "name": "total",
+            "label": "Total",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/case-status/:id",
+      "method": "GET",
+      "path": "/marshall/case-status/:id",
+      "operation": "CaseStatus.View",
+      "description": "Fetch a single case status milestone record.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "response": {
+        "name": "CaseStatusDetailResponse",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string"
+          },
+          {
+            "name": "claimant_id",
+            "type": "reference"
+          },
+          {
+            "name": "milestone",
+            "type": "string"
+          },
+          {
+            "name": "occurred_at",
+            "type": "datetime"
+          },
+          {
+            "name": "notes",
+            "type": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/claims",
+      "method": "GET",
+      "path": "/marshall/claims",
+      "operation": "Claim.List",
+      "description": "List all claims with optional status and claimant filters.",
+      "params": [
+        {
+          "name": "status",
+          "in": "query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "claimant_id",
+          "in": "query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "response": {
+        "name": "ClaimListResponse",
+        "fields": [
+          {
+            "name": "data",
+            "label": "Claims",
+            "type": "reference"
+          },
+          {
+            "name": "total",
+            "label": "Total",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/claims/:id",
+      "method": "GET",
+      "path": "/marshall/claims/:id",
+      "operation": "Claim.View",
+      "description": "Fetch a single claim by id.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "response": {
+        "name": "ClaimDetailResponse",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string"
+          },
+          {
+            "name": "claimant_id",
+            "type": "reference"
+          },
+          {
+            "name": "category",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": "string"
+          },
+          {
+            "name": "filed_at",
+            "type": "datetime"
+          },
+          {
+            "name": "description",
+            "type": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/evidence",
+      "method": "GET",
+      "path": "/marshall/evidence",
+      "operation": "Evidence.List",
+      "description": "List evidence items with optional filters.",
+      "params": [
+        {
+          "name": "claim_id",
+          "in": "query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "verified",
+          "in": "query",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "response": {
+        "name": "EvidenceListResponse",
+        "fields": [
+          {
+            "name": "data",
+            "label": "Evidence",
+            "type": "reference"
+          },
+          {
+            "name": "total",
+            "label": "Total",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/evidence/:id",
+      "method": "GET",
+      "path": "/marshall/evidence/:id",
+      "operation": "Evidence.View",
+      "description": "Fetch a single evidence record by id.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "response": {
+        "name": "EvidenceDetailResponse",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string"
+          },
+          {
+            "name": "claim_id",
+            "type": "reference"
+          },
+          {
+            "name": "kind",
+            "type": "string"
+          },
+          {
+            "name": "url",
+            "type": "url"
+          },
+          {
+            "name": "verified",
+            "type": "boolean"
+          },
+          {
+            "name": "uploaded_at",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/firms/:id",
+      "method": "GET",
+      "path": "/marshall/firms/:id",
+      "operation": "Firm.View",
+      "description": "Fetch a single firm by id.",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "response": {
+        "name": "FirmDetailResponse",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "contact_email",
+            "type": "email"
+          },
+          {
+            "name": "contact_phone",
+            "type": "phone"
+          },
+          {
+            "name": "onboarded_at",
+            "type": "datetime"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET /marshall/intakes/:id",
+      "method": "GET",
+      "path": "/marshall/intakes/:id",
+      "operation": "IntakeSubmission.View",
+      "description": "Fetch a single intake submission by id (staff only).",
+      "params": [
+        {
+          "name": "id",
+          "in": "path",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "response": {
+        "name": "IntakeSubmissionDetailResponse",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string"
+          },
+          {
+            "name": "first_name",
+            "type": "string"
+          },
+          {
+            "name": "last_name",
+            "type": "string"
+          },
+          {
+            "name": "email",
+            "type": "email"
+          },
+          {
+            "name": "phone",
+            "type": "phone"
+          },
+          {
+            "name": "address",
+            "type": "string"
+          },
+          {
+            "name": "city",
+            "type": "string"
+          },
+          {
+            "name": "damage_type",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "string"
+          },
+          {
+            "name": "submitted_at",
+            "type": "datetime"
+          }
         ]
       }
     }

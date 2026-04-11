@@ -907,11 +907,14 @@ cell-based-architecture/
                                     #            Evidence, CaseStatus, Firm, Attorney)
                                     #   13 Capabilities, 20 Rules, 12 Outcomes, 5 Lifecycles,
                                     #   4 Signals, 2 Equations, 7 Relationships
-      product.core.json             # Materialized slice — currently Phase-1 only (IntakeSubmission)
-      product.api.json              # Phase-1 REST surface — POST /marshall/intake
-      product.ui.json               # Phase-1 marketing site with intake survey block
-      technical.json                # Phase-1 stack — ui-cell only (api/db/event-bus pending)
-      prompt.md                     # Source prompt — Section 1 (operational) reflected; Sections 2–3 still pending
+      product.core.json             # Materialized slice — 8 nouns / 13 capabilities / 4 signals
+      product.api.json              # REST surface — 7 Resources, 23 Operations, 23 Endpoints
+      product.ui.json               # Public marketing site (marketing layout, intake survey block)
+      product.admin.ui.json         # Staff admin SPA (universal layout, 12 pages, 36 blocks)
+      technical.json                # Full stack — ui-cell, admin-ui-cell, api-cell (node/express),
+                                    #             db-cell (postgres), event-bus-cell (rabbitmq).
+                                    # Profiles: 'marketing-only' (Phase 1) and 'default' (Phases 2+3)
+      prompt.md                     # Source prompt — Sections 1–3 all reflected in DNA
   operational/
     schemas/                        # JSON schemas for Operational primitives
   product/

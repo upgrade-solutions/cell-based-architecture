@@ -1,0 +1,559 @@
+{
+  "layout": {
+    "name": "MarshallFireAdmin",
+    "type": "universal",
+    "description": "Staff admin console for the Marshall Fire mass-tort — intake qualification, claimant management, claim review, evidence verification, and firm/attorney administration.",
+    "features": {
+      "sidebar": true,
+      "profileDropdown": true,
+      "tenantPicker": false,
+      "themeToggle": true
+    },
+    "brand": {
+      "name": "Marshall Fire Admin",
+      "tagline": "Staff console",
+      "href": "/intake"
+    },
+    "navigation": [
+      {
+        "label": "Intake",
+        "children": [
+          { "route": "/intake", "label": "Intake Queue", "icon": "\uD83D\uDCE5" }
+        ]
+      },
+      {
+        "label": "Claimants",
+        "children": [
+          { "route": "/claimants", "label": "All Claimants" }
+        ]
+      },
+      {
+        "label": "Claims",
+        "children": [
+          { "route": "/claims", "label": "All Claims" }
+        ]
+      },
+      {
+        "label": "Evidence",
+        "children": [
+          { "route": "/evidence", "label": "All Evidence" }
+        ]
+      },
+      {
+        "label": "Firms",
+        "children": [
+          { "route": "/firms", "label": "All Firms" },
+          { "route": "/firms/onboard", "label": "Onboard Firm" }
+        ]
+      },
+      {
+        "label": "Attorneys",
+        "children": [
+          { "route": "/attorneys", "label": "All Attorneys" }
+        ]
+      },
+      {
+        "label": "Case Status",
+        "children": [
+          { "route": "/case-status", "label": "Case Status" }
+        ]
+      }
+    ],
+    "theme": {
+      "colors": {
+        "background": "#fefefe",
+        "foreground": "#1a1a1a",
+        "primary": "#b91c1c",
+        "primary-foreground": "#ffffff",
+        "secondary": "#f5f5f4",
+        "secondary-foreground": "#1a1a1a",
+        "muted": "#f5f5f4",
+        "muted-foreground": "#57534e",
+        "accent": "#fef2f2",
+        "accent-foreground": "#b91c1c",
+        "destructive": "#ef4444",
+        "destructive-foreground": "#ffffff",
+        "border": "#e7e5e4",
+        "input": "#e7e5e4",
+        "ring": "#b91c1c",
+        "card": "#ffffff",
+        "card-foreground": "#1a1a1a",
+        "popover": "#ffffff",
+        "popover-foreground": "#1a1a1a",
+        "sidebar-background": "#fafaf9",
+        "sidebar-foreground": "#1a1a1a",
+        "sidebar-border": "#e7e5e4",
+        "sidebar-accent": "#fef2f2",
+        "sidebar-accent-foreground": "#b91c1c"
+      },
+      "dark": {
+        "background": "#0c0a09",
+        "foreground": "#fafaf9",
+        "primary": "#ef4444",
+        "primary-foreground": "#ffffff",
+        "secondary": "#1c1917",
+        "secondary-foreground": "#fafaf9",
+        "muted": "#1c1917",
+        "muted-foreground": "#a8a29e",
+        "accent": "#450a0a",
+        "accent-foreground": "#fca5a5",
+        "destructive": "#7f1d1d",
+        "destructive-foreground": "#fafaf9",
+        "border": "#292524",
+        "input": "#292524",
+        "ring": "#ef4444",
+        "card": "#0c0a09",
+        "card-foreground": "#fafaf9",
+        "popover": "#0c0a09",
+        "popover-foreground": "#fafaf9",
+        "sidebar-background": "#1c1917",
+        "sidebar-foreground": "#fafaf9",
+        "sidebar-border": "#292524",
+        "sidebar-accent": "#450a0a",
+        "sidebar-accent-foreground": "#fca5a5"
+      },
+      "radius": "0.5rem",
+      "font": "system-ui, -apple-system, sans-serif"
+    }
+  },
+  "pages": [
+    {
+      "name": "IntakeQueue",
+      "resource": "IntakeSubmission",
+      "description": "Queue of public intake submissions awaiting staff qualification. Filter by status; row click opens the detail view.",
+      "blocks": [
+        {
+          "name": "IntakeQueueFilters",
+          "type": "form",
+          "description": "Filter controls for submission status.",
+          "operation": "IntakeSubmission.List",
+          "fields": [
+            { "name": "status", "label": "Status", "type": "enum", "values": ["submitted", "qualified", "rejected", "converted"] }
+          ]
+        },
+        {
+          "name": "IntakeQueueTable",
+          "type": "table",
+          "description": "Tabular list of intake submissions sorted newest first. Row click navigates to IntakeDetail.",
+          "operation": "IntakeSubmission.List",
+          "fields": [
+            { "name": "id", "label": "Submission ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "city", "label": "Jurisdiction", "type": "string" },
+            { "name": "damage_type", "label": "Loss Type", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "submitted_at", "label": "Submitted", "type": "datetime" }
+          ]
+        },
+        {
+          "name": "IntakeQueueEmpty",
+          "type": "empty-state",
+          "description": "Shown when no submissions match the current filters."
+        }
+      ]
+    },
+    {
+      "name": "IntakeDetail",
+      "resource": "IntakeSubmission",
+      "description": "Full detail of a single intake submission with a Qualify action to convert it into a Claimant.",
+      "blocks": [
+        {
+          "name": "IntakeSummary",
+          "type": "detail",
+          "description": "All fields captured from the public intake form.",
+          "operation": "IntakeSubmission.View",
+          "fields": [
+            { "name": "id", "label": "Submission ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "phone", "label": "Phone", "type": "string" },
+            { "name": "address", "label": "Affected Address", "type": "string" },
+            { "name": "city", "label": "Jurisdiction", "type": "string" },
+            { "name": "damage_type", "label": "Loss Type", "type": "string" },
+            { "name": "description", "label": "Description", "type": "text" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "submitted_at", "label": "Submitted", "type": "datetime" }
+          ]
+        },
+        {
+          "name": "IntakeActions",
+          "type": "actions",
+          "description": "Qualify button that converts a submitted intake into a Claimant record.",
+          "operation": "IntakeSubmission.Qualify"
+        }
+      ]
+    },
+    {
+      "name": "Claimants",
+      "resource": "Claimant",
+      "description": "List of all claimants in the mass-tort case. Row click opens ClaimantDetail.",
+      "blocks": [
+        {
+          "name": "ClaimantFilters",
+          "type": "form",
+          "description": "Filter controls for claimant status.",
+          "operation": "Claimant.List",
+          "fields": [
+            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "inactive", "settled", "withdrawn"] }
+          ]
+        },
+        {
+          "name": "ClaimantTable",
+          "type": "table",
+          "description": "Tabular list of claimants.",
+          "operation": "Claimant.List",
+          "fields": [
+            { "name": "id", "label": "Claimant ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "ClaimantListEmpty",
+          "type": "empty-state",
+          "description": "Shown when no claimants match the filters."
+        }
+      ]
+    },
+    {
+      "name": "ClaimantDetail",
+      "resource": "Claimant",
+      "description": "Profile of a single claimant with an Assign action and a sub-list of the claimant's claims.",
+      "blocks": [
+        {
+          "name": "ClaimantProfile",
+          "type": "detail",
+          "description": "Core claimant attributes.",
+          "operation": "Claimant.View",
+          "fields": [
+            { "name": "id", "label": "Claimant ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "phone", "label": "Phone", "type": "string" },
+            { "name": "address", "label": "Address", "type": "string" },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+            { "name": "attorney_id", "label": "Assigned Attorney", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "ClaimantActions",
+          "type": "actions",
+          "description": "Assign button that attaches an Attorney to this Claimant.",
+          "operation": "Claimant.Assign"
+        },
+        {
+          "name": "ClaimantClaims",
+          "type": "table",
+          "description": "All claims filed by this claimant.",
+          "operation": "Claim.List",
+          "fields": [
+            { "name": "id", "label": "Claim ID", "type": "string" },
+            { "name": "damage_type", "label": "Loss Type", "type": "string" },
+            { "name": "amount_sought", "label": "Amount Sought", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "filed_at", "label": "Filed", "type": "datetime" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Claims",
+      "resource": "Claim",
+      "description": "List of all claims across all claimants with a status filter.",
+      "blocks": [
+        {
+          "name": "ClaimFilters",
+          "type": "form",
+          "description": "Filter controls for claim status.",
+          "operation": "Claim.List",
+          "fields": [
+            { "name": "status", "label": "Status", "type": "enum", "values": ["filed", "under_review", "approved", "rejected", "settled"] }
+          ]
+        },
+        {
+          "name": "ClaimTable",
+          "type": "table",
+          "description": "Tabular list of claims.",
+          "operation": "Claim.List",
+          "fields": [
+            { "name": "id", "label": "Claim ID", "type": "string" },
+            { "name": "claimant_id", "label": "Claimant", "type": "string" },
+            { "name": "damage_type", "label": "Loss Type", "type": "string" },
+            { "name": "amount_sought", "label": "Amount Sought", "type": "number" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "filed_at", "label": "Filed", "type": "datetime" }
+          ]
+        },
+        {
+          "name": "ClaimListEmpty",
+          "type": "empty-state",
+          "description": "Shown when no claims match the filters."
+        }
+      ]
+    },
+    {
+      "name": "ClaimDetail",
+      "resource": "Claim",
+      "description": "Full detail view for a single claim with Review, UpdateStatus, and UploadEvidence actions, plus a sub-list of evidence items.",
+      "blocks": [
+        {
+          "name": "ClaimSummary",
+          "type": "detail",
+          "description": "Core claim attributes.",
+          "operation": "Claim.View",
+          "fields": [
+            { "name": "id", "label": "Claim ID", "type": "string" },
+            { "name": "claimant_id", "label": "Claimant", "type": "string" },
+            { "name": "attorney_id", "label": "Attorney", "type": "string" },
+            { "name": "damage_type", "label": "Loss Type", "type": "string" },
+            { "name": "amount_sought", "label": "Amount Sought", "type": "number" },
+            { "name": "description", "label": "Description", "type": "text" },
+            { "name": "status", "label": "Status", "type": "string" },
+            { "name": "filed_at", "label": "Filed", "type": "datetime" }
+          ]
+        },
+        {
+          "name": "ClaimReviewAction",
+          "type": "actions",
+          "description": "Review action that transitions a filed claim into under_review.",
+          "operation": "Claim.Review"
+        },
+        {
+          "name": "ClaimStatusAction",
+          "type": "actions",
+          "description": "Update status action to move the claim through the workflow (approved, rejected, settled).",
+          "operation": "Claim.UpdateStatus"
+        },
+        {
+          "name": "ClaimEvidenceUpload",
+          "type": "actions",
+          "description": "Upload Evidence action that attaches a new Evidence record to this claim.",
+          "operation": "Evidence.Upload"
+        },
+        {
+          "name": "ClaimEvidenceList",
+          "type": "table",
+          "description": "All evidence items attached to this claim.",
+          "operation": "Evidence.List",
+          "fields": [
+            { "name": "id", "label": "Evidence ID", "type": "string" },
+            { "name": "kind", "label": "Kind", "type": "string" },
+            { "name": "filename", "label": "File", "type": "string" },
+            { "name": "verified", "label": "Verified", "type": "boolean" },
+            { "name": "uploaded_at", "label": "Uploaded", "type": "datetime" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "EvidenceList",
+      "resource": "Evidence",
+      "description": "Cross-claim list of all uploaded evidence, filterable by verification status.",
+      "blocks": [
+        {
+          "name": "EvidenceFilters",
+          "type": "form",
+          "description": "Filter controls for verification status and kind.",
+          "operation": "Evidence.List",
+          "fields": [
+            { "name": "verified", "label": "Verified", "type": "enum", "values": ["true", "false"] },
+            { "name": "kind", "label": "Kind", "type": "enum", "values": ["photo", "document", "receipt", "policy", "other"] }
+          ]
+        },
+        {
+          "name": "EvidenceTable",
+          "type": "table",
+          "description": "Tabular list of evidence items. Row click opens EvidenceDetail.",
+          "operation": "Evidence.List",
+          "fields": [
+            { "name": "id", "label": "Evidence ID", "type": "string" },
+            { "name": "claim_id", "label": "Claim", "type": "string" },
+            { "name": "kind", "label": "Kind", "type": "string" },
+            { "name": "filename", "label": "File", "type": "string" },
+            { "name": "verified", "label": "Verified", "type": "boolean" },
+            { "name": "uploaded_at", "label": "Uploaded", "type": "datetime" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "EvidenceDetail",
+      "resource": "Evidence",
+      "description": "Detail view for a single evidence item with a Verify action.",
+      "blocks": [
+        {
+          "name": "EvidenceSummary",
+          "type": "detail",
+          "description": "Core evidence metadata.",
+          "operation": "Evidence.View",
+          "fields": [
+            { "name": "id", "label": "Evidence ID", "type": "string" },
+            { "name": "claim_id", "label": "Claim", "type": "string" },
+            { "name": "kind", "label": "Kind", "type": "string" },
+            { "name": "filename", "label": "File", "type": "string" },
+            { "name": "description", "label": "Description", "type": "text" },
+            { "name": "verified", "label": "Verified", "type": "boolean" },
+            { "name": "uploaded_at", "label": "Uploaded", "type": "datetime" }
+          ]
+        },
+        {
+          "name": "EvidenceActions",
+          "type": "actions",
+          "description": "Verify button marks the evidence as authenticated.",
+          "operation": "Evidence.Verify"
+        }
+      ]
+    },
+    {
+      "name": "Firms",
+      "resource": "Firm",
+      "description": "List of partner law firms with an inline onboard form.",
+      "blocks": [
+        {
+          "name": "FirmFilters",
+          "type": "form",
+          "description": "Filter controls for firm status.",
+          "operation": "Firm.List",
+          "fields": [
+            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "inactive", "suspended"] }
+          ]
+        },
+        {
+          "name": "FirmTable",
+          "type": "table",
+          "description": "Tabular list of firms. Row click opens FirmDetail.",
+          "operation": "Firm.List",
+          "fields": [
+            { "name": "id", "label": "Firm ID", "type": "string" },
+            { "name": "name", "label": "Name", "type": "string" },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "FirmOnboardForm",
+          "type": "form",
+          "description": "Inline onboarding form for registering a new partner firm.",
+          "operation": "Firm.Onboard",
+          "fields": [
+            { "name": "name", "label": "Firm Name", "type": "string", "required": true },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string", "required": true },
+            { "name": "email", "label": "Email", "type": "email", "required": true },
+            { "name": "phone", "label": "Phone", "type": "phone" },
+            { "name": "address", "label": "Address", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FirmDetail",
+      "resource": "Firm",
+      "description": "Detail view for a single firm with an AssignAttorney action and the roster of the firm's attorneys.",
+      "blocks": [
+        {
+          "name": "FirmSummary",
+          "type": "detail",
+          "description": "Core firm attributes.",
+          "operation": "Firm.View",
+          "fields": [
+            { "name": "id", "label": "Firm ID", "type": "string" },
+            { "name": "name", "label": "Name", "type": "string" },
+            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
+            { "name": "email", "label": "Email", "type": "string" },
+            { "name": "phone", "label": "Phone", "type": "string" },
+            { "name": "address", "label": "Address", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        },
+        {
+          "name": "FirmActions",
+          "type": "actions",
+          "description": "Assign Attorney action attaches an Attorney record to this firm.",
+          "operation": "Attorney.Assign"
+        },
+        {
+          "name": "FirmAttorneys",
+          "type": "table",
+          "description": "Attorneys affiliated with this firm.",
+          "operation": "Attorney.List",
+          "fields": [
+            { "name": "id", "label": "Attorney ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "bar_number", "label": "Bar Number", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Attorneys",
+      "resource": "Attorney",
+      "description": "Cross-firm list of attorneys participating in the mass-tort.",
+      "blocks": [
+        {
+          "name": "AttorneyTable",
+          "type": "table",
+          "description": "Tabular list of all attorneys.",
+          "operation": "Attorney.List",
+          "fields": [
+            { "name": "id", "label": "Attorney ID", "type": "string" },
+            { "name": "first_name", "label": "First Name", "type": "string" },
+            { "name": "last_name", "label": "Last Name", "type": "string" },
+            { "name": "firm_id", "label": "Firm", "type": "string" },
+            { "name": "bar_number", "label": "Bar Number", "type": "string" },
+            { "name": "status", "label": "Status", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CaseStatusPage",
+      "resource": "CaseStatus",
+      "description": "Case-wide status dashboard with an Advance action for the master case-status workflow.",
+      "blocks": [
+        {
+          "name": "CaseStatusDetail",
+          "type": "detail",
+          "description": "Current stage of the master case status and timestamps.",
+          "operation": "CaseStatus.View",
+          "fields": [
+            { "name": "id", "label": "Case Status ID", "type": "string" },
+            { "name": "stage", "label": "Stage", "type": "string" },
+            { "name": "notes", "label": "Notes", "type": "text" },
+            { "name": "updated_at", "label": "Updated", "type": "datetime" }
+          ]
+        },
+        {
+          "name": "CaseStatusActions",
+          "type": "actions",
+          "description": "Advance action moves the case to the next stage of the workflow.",
+          "operation": "CaseStatus.Advance"
+        }
+      ]
+    }
+  ],
+  "routes": [
+    { "path": "/intake", "page": "IntakeQueue", "description": "Intake submission queue for staff qualification." },
+    { "path": "/intake/:id", "page": "IntakeDetail", "description": "Single intake submission with Qualify action." },
+    { "path": "/claimants", "page": "Claimants", "description": "List of all claimants." },
+    { "path": "/claimants/:id", "page": "ClaimantDetail", "description": "Claimant profile with claims sub-list." },
+    { "path": "/claims", "page": "Claims", "description": "List of all claims." },
+    { "path": "/claims/:id", "page": "ClaimDetail", "description": "Claim detail with review and evidence actions." },
+    { "path": "/evidence", "page": "EvidenceList", "description": "Cross-claim evidence list." },
+    { "path": "/evidence/:id", "page": "EvidenceDetail", "description": "Evidence detail with Verify action." },
+    { "path": "/firms", "page": "Firms", "description": "Firm list with inline onboarding." },
+    { "path": "/firms/:id", "page": "FirmDetail", "description": "Firm detail with attorney roster." },
+    { "path": "/attorneys", "page": "Attorneys", "description": "Attorney roster across all firms." },
+    { "path": "/case-status", "page": "CaseStatusPage", "description": "Master case status dashboard." }
+  ]
+}

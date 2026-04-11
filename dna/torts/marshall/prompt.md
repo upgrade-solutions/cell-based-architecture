@@ -16,27 +16,62 @@ The Marshall demo is built up in phases so each one is independently runnable an
 
 | Phase | What it ships | Cells | Backend? |
 |-------|---------------|-------|----------|
-| **1. Marketing-only preview** *(current)* | Public site with hero + intake survey, mock-submit mode | `ui-cell` only | No — `apiBase: ""`, no api/db/event-bus |
-| **2. Live intake** | Same site, real submissions land in a database, signals fire | `ui-cell` + `api-cell` + `db-cell` + `event-bus-cell` | Yes (docker-compose for dev, terraform/aws for prod) |
-| **3. Staff admin** | Second SPA for intake review, qualify/assign workflow | adds `ui-cell-admin` | Yes |
+| **1. Marketing-only preview** | Public site with hero + intake survey, mock-submit mode | `ui-cell` only | No — `apiBase: ""`, no api/db/event-bus |
+| **2. Live intake** *(current)* | Same site, real submissions land in a database, signals fire | + `api-cell` + `db-cell` + `event-bus-cell` | Yes (docker-compose for dev, terraform/aws for prod) |
+| **3. Staff admin** *(current)* | Second SPA for intake review, qualify/assign workflow | + `admin-ui-cell` | Yes |
 | **4. The swap** | Replace `node/express` adapter with `python/django` (or another), regenerate, redeploy unchanged | same cells, different adapter | Yes |
 
-To rebuild Phase 1 from scratch after a clean checkout:
+The technical DNA declares two profiles:
+
+- **`marketing-only`** — just the `ui-cell`, no backend (Phase 1)
+- **`default`** — all five cells: `db-cell`, `event-bus-cell`, `api-cell`, `ui-cell`, `admin-ui-cell` (Phases 2 + 3)
+
+### Phase 1 — marketing-only preview
 
 ```bash
-# 1. Validate the DNA layers
 npx cba validate torts/marshall
-
-# 2. Generate the ui-cell
-npx cba develop torts/marshall --cell ui-cell
-
-# 3. Run the marketing site (no api-cell, no docker)
+npx cba develop torts/marshall --profile marketing-only
 cd output/torts/marshall-ui
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173/` (or whichever port vite picks). The intake form at `/intake` runs in **mock-submit mode** — submissions are logged to the browser console and the success state shows a "preview mode" badge. To wire it up to a real backend, set `api_base` in `dna/torts/marshall/technical.json` to the api-cell URL and regenerate.
+The `/intake` route runs in **mock-submit mode** — submissions log to the browser console and the success state shows a "preview mode" badge. No API, no database, no Docker.
+
+### Phases 2 + 3 — full stack via docker-compose
+
+```bash
+# 1. Validate
+npx cba validate torts/marshall
+
+# 2. Generate every cell in the default profile
+npx cba develop torts/marshall
+
+# 3. Compose the docker-compose deployment
+npx cba deploy torts/marshall --env dev
+
+# 4. Bring up Postgres + RabbitMQ + api + ui + admin-ui
+cd output/torts/marshall-deploy
+docker compose up -d
+
+# 5. Apply api-cell schema migrations and seed (drizzle)
+cd ../marshall-api
+npm install
+npm run db:migrate
+npm run db:seed
+```
+
+Once everything is healthy:
+
+| Surface | URL |
+|---------|-----|
+| Public marketing site | `http://localhost:5173` |
+| Staff admin SPA | `http://localhost:5174` |
+| Express API | `http://localhost:3001` |
+| Postgres | `localhost:5432` (`postgres` / `postgres`) |
+| RabbitMQ management | `http://localhost:15672` (`guest` / `guest`) |
+
+To switch the marketing intake from mock-submit to real submissions, edit `dna/torts/marshall/technical.json` — set the `ui-cell.adapter.config.api_base` to `"http://localhost:3001"` and regenerate (`npx cba develop torts/marshall --cell ui-cell`). Submissions then POST to `/marshall/intake` and fire the `marshall.IntakeSubmission.Received` signal through RabbitMQ.
 
 ---
 
