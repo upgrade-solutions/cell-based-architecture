@@ -1,3 +1,4 @@
+import * as fs from 'fs'
 import { DnaValidator } from '@cell/dna-validator'
 import { Layer, LAYERS, resolveDomain, loadLayer } from './context'
 import { ParsedArgs, flag, boolFlag } from './args'
@@ -6,6 +7,7 @@ import { VALIDATE_HELP } from './help'
 
 const SCHEMA_IDS: Record<Layer, string> = {
   operational: 'operational',
+  'product.core': 'product/core',
   'product.api': 'product/api',
   'product.ui': 'product/ui',
   technical: 'technical',
@@ -49,6 +51,10 @@ export function runValidate(argv: string[], args: ParsedArgs): void {
   const validator = new DnaValidator()
   const results: LayerResult[] = []
   for (const layer of targetLayers) {
+    // product.core is optional — it is a derived artifact; skip if absent
+    if (layer === 'product.core' && !fs.existsSync(paths.files['product.core'])) {
+      continue
+    }
     const doc = loadLayer(paths, layer)
     const r = validator.validate(doc, SCHEMA_IDS[layer])
     results.push({

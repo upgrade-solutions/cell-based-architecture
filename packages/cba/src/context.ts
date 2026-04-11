@@ -21,9 +21,9 @@ export function findRepoRoot(startDir: string = process.cwd()): string {
   }
 }
 
-export type Layer = 'operational' | 'product.api' | 'product.ui' | 'technical'
+export type Layer = 'operational' | 'product.core' | 'product.api' | 'product.ui' | 'technical'
 
-export const LAYERS: Layer[] = ['operational', 'product.api', 'product.ui', 'technical']
+export const LAYERS: Layer[] = ['operational', 'product.core', 'product.api', 'product.ui', 'technical']
 
 export interface DomainPaths {
   root: string
@@ -43,6 +43,7 @@ export function resolveDomain(domain: string, root: string = findRepoRoot()): Do
     dir,
     files: {
       operational: path.join(dir, 'operational.json'),
+      'product.core': path.join(dir, 'product.core.json'),
       'product.api': path.join(dir, 'product.api.json'),
       'product.ui': path.join(dir, 'product.ui.json'),
       technical: path.join(dir, 'technical.json'),

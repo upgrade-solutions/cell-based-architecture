@@ -338,6 +338,54 @@ describe('DnaValidator — composite: operational', () => {
   })
 })
 
+describe('DnaValidator — composite: product/core', () => {
+  it('validates a minimal product core document', () => {
+    const doc = {
+      domain: { name: 'lending', path: 'acme.finance.lending' },
+      nouns: [
+        {
+          name: 'Loan',
+          attributes: [
+            { name: 'amount', type: 'number', required: true },
+            { name: 'status', type: 'enum', values: ['pending', 'active'] }
+          ],
+          verbs: [{ name: 'Apply' }, { name: 'Approve' }]
+        }
+      ],
+      capabilities: [
+        { noun: 'Loan', verb: 'Apply', name: 'Loan.Apply' },
+        { noun: 'Loan', verb: 'Approve', name: 'Loan.Approve' }
+      ]
+    }
+    const result = validator.validate(doc, 'product/core')
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('rejects a product core document missing domain', () => {
+    const result = validator.validate({ nouns: [] }, 'product/core')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'domain')).toBe(true)
+  })
+
+  it('rejects a product core document missing nouns', () => {
+    const result = validator.validate({
+      domain: { name: 'lending', path: 'acme.finance.lending' }
+    }, 'product/core')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'nouns')).toBe(true)
+  })
+
+  it('rejects unknown top-level properties', () => {
+    const result = validator.validate({
+      domain: { name: 'lending', path: 'acme.finance.lending' },
+      nouns: [],
+      bogus: true
+    }, 'product/core')
+    expect(result.valid).toBe(false)
+  })
+})
+
 describe('DnaValidator — composite: product/api', () => {
   it('validates the lending product API DNA document', () => {
     const doc = loadDna('dna/lending/product.api.json')

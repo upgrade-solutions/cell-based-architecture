@@ -64,6 +64,7 @@ export function runLayerCommand(layer: Layer, argv: string[], args: ParsedArgs):
 function layerCliName(layer: Layer): string {
   switch (layer) {
     case 'operational': return 'operational'
+    case 'product.core': return 'product core'
     case 'product.api': return 'product api'
     case 'product.ui': return 'product ui'
     case 'technical': return 'technical'
@@ -358,6 +359,8 @@ function layerSchemaId(layer: Layer): string {
   switch (layer) {
     case 'operational':
       return 'operational'
+    case 'product.core':
+      return 'product/core'
     case 'product.api':
       return 'product/api'
     case 'product.ui':

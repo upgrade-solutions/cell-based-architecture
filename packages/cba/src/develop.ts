@@ -4,6 +4,7 @@ import { resolveDomain, loadLayer } from './context'
 import { ParsedArgs, flag, boolFlag } from './args'
 import { emit, emitError, emitOk } from './output'
 import { DEVELOP_HELP } from './help'
+import { materializeAndSaveProductCore } from './product-core'
 
 interface CellPlan {
   name: string
@@ -40,12 +41,12 @@ function outputDirFor(cellName: string, domain: string, root: string): string {
   return path.join(root, 'output', `${domain}-${suffix}`)
 }
 
-function planCells(domain: string, cellFilter?: string): CellPlan[] {
+function planCells(domain: string, cellFilter?: string): { plans: CellPlan[]; paths: ReturnType<typeof resolveDomain> } {
   const paths = resolveDomain(domain)
   const technical = loadLayer(paths, 'technical')
   const cells = technical.cells ?? []
 
-  return cells
+  const plans = cells
     .filter((c: any) => !cellFilter || c.name === cellFilter)
     .map((cell: any) => {
       const workspace = workspaceForAdapter(cell.adapter.type)
@@ -62,6 +63,8 @@ function planCells(domain: string, cellFilter?: string): CellPlan[] {
         technicalPath: paths.files.technical,
       }
     })
+
+  return { plans, paths }
 }
 
 export function runDevelop(argv: string[], args: ParsedArgs): void {
@@ -83,8 +86,9 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
   const dryRun = boolFlag(args, 'dry-run')
 
   let plans: CellPlan[]
+  let paths: ReturnType<typeof resolveDomain>
   try {
-    plans = planCells(domain, cellFilter)
+    ;({ plans, paths } = planCells(domain, cellFilter))
   } catch (err) {
     emitError((err as Error).message, opts)
     process.exit(1)
@@ -111,6 +115,16 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
       return lines.join('\n')
     })
     return
+  }
+
+  // Materialize product.core.json before invoking any cell generators.
+  // Cells read product core in place of operational DNA — it must be fresh.
+  try {
+    materializeAndSaveProductCore(paths)
+    if (!json) console.log(`→ materialized ${path.relative(process.cwd(), paths.files['product.core'])}`)
+  } catch (err) {
+    emitError(`Failed to materialize product.core.json: ${(err as Error).message}`, opts)
+    process.exit(1)
   }
 
   // Execute each cell's generator

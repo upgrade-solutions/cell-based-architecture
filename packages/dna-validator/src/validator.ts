@@ -31,6 +31,7 @@ import * as environmentSchema from '../../../technical/schemas/environment.json'
 import * as cellSchema from '../../../technical/schemas/cell.json'
 import * as scriptSchema from '../../../technical/schemas/script.json'
 import * as operationalDnaSchema from '../../../operational/schemas/operational.json'
+import * as productCoreDnaSchema from '../../../product/schemas/product.core.json'
 import * as productApiDnaSchema from '../../../product/schemas/product.api.json'
 import * as productUiDnaSchema from '../../../product/schemas/product.ui.json'
 import * as technicalDnaSchema from '../../../technical/schemas/technical.json'
@@ -133,6 +134,7 @@ export class DnaValidator {
       zoneSchema,
       viewSchema,
       operationalDnaSchema,
+      productCoreDnaSchema,
       productApiDnaSchema,
       productUiDnaSchema,
       technicalDnaSchema,
