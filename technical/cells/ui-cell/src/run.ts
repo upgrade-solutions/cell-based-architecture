@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
-import { ProductUiDNA, OperationalDNA, UiCellContext, UiCellAdapter } from './types'
+import { ProductUiDNA, ProductCoreDNA, UiCellContext, UiCellAdapter } from './types'
 import * as viteReactAdapter from './adapters/vite/react'
 import * as viteVueAdapter from './adapters/vite/vue'
 import * as nextReactAdapter from './adapters/next/react'
@@ -69,18 +69,18 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     throw new Error(`Invalid Product UI DNA:\n${errs}`)
   }
 
-  // ── Optionally load and validate Operational DNA ────────────────────────────
-  const operationalRef = cell.adapter.config?.operational_dna as string | undefined
-  let operationalRaw: OperationalDNA | undefined
+  // ── Optionally load and validate Product Core DNA ───────────────────────────
+  const coreRef = cell.adapter.config?.core_dna as string | undefined
+  let coreRaw: ProductCoreDNA | undefined
 
-  if (operationalRef) {
-    const opRaw = loadDna(dnaBase, operationalRef)
-    const opValidation = validator.validate(opRaw, 'operational')
-    if (!opValidation.valid) {
-      const errs = opValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
-      throw new Error(`Invalid Operational DNA:\n${errs}`)
+  if (coreRef) {
+    const raw = loadDna(dnaBase, coreRef)
+    const coreValidation = validator.validate(raw, 'product/core')
+    if (!coreValidation.valid) {
+      const errs = coreValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
+      throw new Error(`Invalid Product Core DNA:\n${errs}`)
     }
-    operationalRaw = opRaw as OperationalDNA
+    coreRaw = raw as ProductCoreDNA
   }
 
   // ── Resolve API DNA reference (sibling product.api alongside product.ui) ────
@@ -93,7 +93,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   const ctx: UiCellContext = {
     uiFetchPath: `/dna/${cell.dna}.json`,
     apiFetchPath,
-    operationalFetchPath: operationalRef ? `/dna/${operationalRef}.json` : undefined,
+    coreFetchPath: coreRef ? `/dna/${coreRef}.json` : undefined,
     apiBase,
     dnaSourceDir: dnaBase,
     vendorComponents,
@@ -102,7 +102,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(uiDnaRaw as ProductUiDNA, path.resolve(outputDir), operationalRaw, ctx)
+  adapter.generate(uiDnaRaw as ProductUiDNA, path.resolve(outputDir), coreRaw, ctx)
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

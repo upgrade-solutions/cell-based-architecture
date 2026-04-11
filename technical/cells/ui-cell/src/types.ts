@@ -42,7 +42,7 @@ export interface ProductUiDNA {
   routes: Route[]
 }
 
-// ── Operational DNA (minimal — used for stub extraction) ──────────────────────
+// ── Product Core DNA (minimal — used for stub extraction) ─────────────────────
 
 export interface Attribute {
   name: string
@@ -61,14 +61,13 @@ export interface Noun {
 
 export interface Domain {
   name: string
-  path?: string
+  path: string
   description?: string
-  nouns?: Noun[]
-  domains?: Domain[]
 }
 
-export interface OperationalDNA {
+export interface ProductCoreDNA {
   domain: Domain
+  nouns?: Noun[]
 }
 
 // ── Product API DNA (minimal — used for operation→endpoint resolution) ───────
@@ -100,7 +99,7 @@ export interface ProductApiDNA {
 export interface UiCellContext {
   uiFetchPath: string           // e.g. /dna/lending/product.ui.json
   apiFetchPath?: string         // e.g. /dna/lending/product.api.json
-  operationalFetchPath?: string // e.g. /dna/lending/operational.json
+  coreFetchPath?: string        // e.g. /dna/lending/product.core.json
   apiBase?: string              // e.g. http://localhost:3001
   dnaSourceDir: string          // absolute path to the dna/ directory
   vendorComponents?: boolean    // copy primitives into output instead of importing from package
@@ -109,5 +108,5 @@ export interface UiCellContext {
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface UiCellAdapter {
-  generate(ui: ProductUiDNA, outputDir: string, operational?: OperationalDNA, ctx?: UiCellContext): void
+  generate(ui: ProductUiDNA, outputDir: string, core?: ProductCoreDNA, ctx?: UiCellContext): void
 }

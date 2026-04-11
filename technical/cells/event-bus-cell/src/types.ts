@@ -1,4 +1,6 @@
-// ── Operational DNA types (subset used by event-bus-cell) ─────────────────────
+// ── Product Core DNA types (subset used by event-bus-cell) ───────────────────
+// The event-bus-cell reads Product Core DNA — it does not read Operational DNA
+// directly. See product/AGENTS.md for the layering contract.
 
 export interface Signal {
   name: string
@@ -30,13 +32,13 @@ export interface Cause {
 
 export interface Domain {
   name: string
-  path?: string
-  domains?: Domain[]
-  nouns?: { name: string }[]
+  path: string
+  description?: string
 }
 
-export interface OperationalDNA {
+export interface ProductCoreDNA {
   domain: Domain
+  nouns?: { name: string }[]
   capabilities?: { name: string; noun: string; verb: string }[]
   signals?: Signal[]
   outcomes?: Outcome[]
@@ -47,7 +49,7 @@ export interface OperationalDNA {
 
 export interface EventBusCellAdapter {
   generate(
-    operational: OperationalDNA,
+    core: ProductCoreDNA,
     config: EventBusAdapterConfig,
     outputDir: string,
   ): void

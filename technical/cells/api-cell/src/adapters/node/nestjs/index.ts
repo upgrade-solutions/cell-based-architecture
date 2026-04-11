@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductApiDNA, OperationalDNA, AuthProviderConfig, Resource, Endpoint, ApiCellAdapter } from '../../../types'
+import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, Resource, Endpoint, ApiCellAdapter } from '../../../types'
 import { collectNouns, toFileName } from '../../../utils'
 import { generateDockerfile, generateDockerIgnore } from '../docker'
 import { generateDrizzleSchema, generateDbIndex } from './generators/schema'
@@ -30,15 +30,15 @@ function endpointsForResource(resourceName: string, endpoints: Endpoint[]): Endp
 
 export const generate: ApiCellAdapter['generate'] = (
   api: ProductApiDNA,
-  operational: OperationalDNA,
+  core: ProductCoreDNA,
   outputDir: string,
   authConfig?: AuthProviderConfig,
 ): void => {
   const resources = api.resources ?? []
   const operations = api.operations ?? []
-  const rules = operational.rules ?? []
-  const outcomes = operational.outcomes ?? []
-  const nouns = collectNouns(operational.domain)
+  const rules = core.rules ?? []
+  const outcomes = core.outcomes ?? []
+  const nouns = collectNouns(core)
 
   // ── Per-resource files ──────────────────────────────────────────────────────
   for (const resource of resources) {
@@ -52,7 +52,7 @@ export const generate: ApiCellAdapter['generate'] = (
 
     // Service
     write(outputDir, `${dir}/${fileName}.service.ts`,
-      generateService(resource, endpoints, operations, rules, outcomes, operational.signals))
+      generateService(resource, endpoints, operations, rules, outcomes, core.signals))
 
     // Module
     write(outputDir, `${dir}/${fileName}.module.ts`,

@@ -68,44 +68,39 @@ export function getStoreMode(): string {
 
 // ── Seeding ─────────────────────────────────────────────────────────────────
 
-export async function seedFromOperationalDna(operational: any): Promise<void> {
-  async function walk(domain: any) {
-    for (const noun of domain.nouns ?? []) {
-      if (noun.examples?.length) {
-        const key = noun.name.toLowerCase() + 's'
+export async function seedFromProductCoreDna(core: any): Promise<void> {
+  for (const noun of core?.nouns ?? []) {
+    if (!noun.examples?.length) continue
+    const key = noun.name.toLowerCase() + 's'
 
-        if (useDb) {
-          const now = new Date()
-          const rows = noun.examples.map((ex: any) => {
-            const row: Record<string, any> = { ...ex }
-            for (const [key, val] of Object.entries(row)) {
-              if (typeof val === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(val)) {
-                row[key] = new Date(val)
-              }
-            }
-            row.created_at = row.created_at ? new Date(row.created_at) : now
-            row.updated_at = row.updated_at ? new Date(row.updated_at) : now
-            return row
-          })
-          try {
-            await dbSeed(key, rows)
-          } catch (err: any) {
-            console.error(\`[seed] \${noun.name} failed: \${err.message}\`)
-            return
-          }
-        } else {
-          const store = getMemStore(key)
-          for (const example of noun.examples) {
-            if (example.id) store.set(example.id, { ...example })
+    if (useDb) {
+      const now = new Date()
+      const rows = noun.examples.map((ex: any) => {
+        const row: Record<string, any> = { ...ex }
+        for (const [k, val] of Object.entries(row)) {
+          if (typeof val === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(val)) {
+            row[k] = new Date(val)
           }
         }
-
-        console.log(\`[seed] \${noun.name}: \${noun.examples.length} records\`)
+        row.created_at = row.created_at ? new Date(row.created_at) : now
+        row.updated_at = row.updated_at ? new Date(row.updated_at) : now
+        return row
+      })
+      try {
+        await dbSeed(key, rows)
+      } catch (err: any) {
+        console.error(\`[seed] \${noun.name} failed: \${err.message}\`)
+        continue
+      }
+    } else {
+      const store = getMemStore(key)
+      for (const example of noun.examples) {
+        if (example.id) store.set(example.id, { ...example })
       }
     }
-    for (const sub of domain.domains ?? []) await walk(sub)
+
+    console.log(\`[seed] \${noun.name}: \${noun.examples.length} records\`)
   }
-  if (operational?.domain) await walk(operational.domain)
 }
 `
 }

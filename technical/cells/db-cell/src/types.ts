@@ -1,8 +1,8 @@
-// ── Operational DNA ─────────────────────────────────────────────────────────
-// db-cell is infrastructure-only — it validates Operational DNA but does not
+// ── Product Core DNA ────────────────────────────────────────────────────────
+// db-cell is infrastructure-only — it validates Product Core DNA but does not
 // read from it. Schema and seed are owned by api-cell.
 
-export type OperationalDNA = unknown
+export type ProductCoreDNA = unknown
 
 // ── Database construct config ───────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ export interface DbAdapterConfig {
 
 export interface DbCellAdapter {
   generate(
-    operational: OperationalDNA,
+    core: ProductCoreDNA,
     adapterConfig: DbAdapterConfig,
     constructConfig: DbConstructConfig,
     outputDir: string,

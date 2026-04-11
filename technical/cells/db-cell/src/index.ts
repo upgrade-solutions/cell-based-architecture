@@ -16,4 +16,4 @@ if (require.main === module) {
 }
 
 export { run } from './run'
-export type { OperationalDNA, DbCellAdapter } from './types'
+export type { ProductCoreDNA, DbCellAdapter } from './types'

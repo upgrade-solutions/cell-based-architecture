@@ -107,16 +107,16 @@ describe('utils', () => {
     expect(toFileName('Borrower')).toBe('borrowers')
   })
 
-  test('collectNouns from nested domain', () => {
+  test('collectNouns returns the flat nouns array from a product core', () => {
     const nouns = collectNouns({
-      name: 'acme',
-      domains: [{
-        name: 'finance',
-        domains: [{ name: 'lending', nouns: [{ name: 'Borrower' }, { name: 'Loan' }] }],
-      }],
+      nouns: [{ name: 'Borrower' }, { name: 'Loan' }],
     })
     expect(nouns).toHaveLength(2)
     expect(nouns.map(n => n.name)).toEqual(['Borrower', 'Loan'])
+  })
+
+  test('collectNouns tolerates a missing nouns array', () => {
+    expect(collectNouns({})).toEqual([])
   })
 })
 
@@ -450,7 +450,7 @@ describe('api-cell integration (express)', () => {
 
   test('generates DNA files for runtime interpretation', () => {
     expectFile('src/dna/api.json')
-    expectFile('src/dna/operational.json')
+    expectFile('src/dna/product.core.json')
     expectFile('src/dna/auth.json')
   })
 

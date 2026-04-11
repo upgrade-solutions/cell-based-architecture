@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductApiDNA, OperationalDNA, AuthProviderConfig, SignalDispatchConfig, ApiCellAdapter } from '../../../types'
+import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, SignalDispatchConfig, ApiCellAdapter } from '../../../types'
 import { collectNouns } from '../../../utils'
 import { generateDockerfile, generateDockerIgnore } from '../docker'
 import { generateDrizzleSchema, generateDrizzleConfig } from '../shared/drizzle'
@@ -25,17 +25,17 @@ function write(outputDir: string, relPath: string, content: string): void {
 
 export const generate: ApiCellAdapter['generate'] = (
   api: ProductApiDNA,
-  operational: OperationalDNA,
+  core: ProductCoreDNA,
   outputDir: string,
   authConfig?: AuthProviderConfig,
   signalDispatch?: SignalDispatchConfig,
 ): void => {
   const appName = api.namespace.name.toLowerCase() + '-api'
-  const nouns = collectNouns(operational.domain)
+  const nouns = collectNouns(core)
 
   // ── DNA — loaded at runtime ─────────────────────────────────────────────────
   write(outputDir, 'src/dna/api.json', JSON.stringify(api, null, 2) + '\n')
-  write(outputDir, 'src/dna/operational.json', JSON.stringify(operational, null, 2) + '\n')
+  write(outputDir, 'src/dna/product.core.json', JSON.stringify(core, null, 2) + '\n')
   if (authConfig) {
     write(outputDir, 'src/dna/auth.json', JSON.stringify(authConfig, null, 2) + '\n')
   }

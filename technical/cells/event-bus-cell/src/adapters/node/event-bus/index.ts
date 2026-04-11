@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { OperationalDNA, EventBusCellAdapter, EventBusAdapterConfig } from '../../../types'
+import { ProductCoreDNA, EventBusCellAdapter, EventBusAdapterConfig } from '../../../types'
 import { generateSchemaRegistry } from './generators/schema-registry'
 import { generatePublishers } from './generators/publishers'
 import { generateRouting } from './generators/routing'
@@ -15,20 +15,20 @@ function write(outputDir: string, relativePath: string, content: string): void {
 }
 
 export const generate: EventBusCellAdapter['generate'] = (
-  operational: OperationalDNA,
+  core: ProductCoreDNA,
   config: EventBusAdapterConfig,
   outputDir: string,
 ): void => {
-  const signals = operational.signals ?? []
-  const causes = operational.causes ?? []
+  const signals = core.signals ?? []
+  const causes = core.causes ?? []
   const engine = config.engine ?? 'rabbitmq'
 
   // Derive a name from the domain
-  const domainName = operational.domain.name
+  const domainName = core.domain.name
   const appName = `${domainName}-event-bus`
 
   // ── Write DNA snapshot ──────────────────────────────────────────────────────
-  write(outputDir, 'src/dna/operational.json', JSON.stringify(operational, null, 2))
+  write(outputDir, 'src/dna/product.core.json', JSON.stringify(core, null, 2))
 
   // ── Generate event bus code ─────────────────────────────────────────────────
   write(outputDir, 'src/schema-registry.ts', generateSchemaRegistry(signals))

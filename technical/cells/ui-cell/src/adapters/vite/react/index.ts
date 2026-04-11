@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductUiDNA, OperationalDNA, UiCellContext, UiCellAdapter } from '../../../types'
+import { ProductUiDNA, ProductCoreDNA, UiCellContext, UiCellAdapter } from '../../../types'
 import { generateDockerfile, generateNginxConf, generateDockerIgnore } from '../docker'
 import {
   generatePackageJson,
@@ -38,7 +38,7 @@ function write(outputDir: string, relPath: string, content: string): void {
 export const generate: UiCellAdapter['generate'] = (
   ui: ProductUiDNA,
   outputDir: string,
-  _operational?: OperationalDNA,
+  _core?: ProductCoreDNA,
   ctx?: UiCellContext,
 ): void => {
   const appName = ui.layout.name.toLowerCase().replace(/[^a-z0-9-]/g, '-') + '-ui'
@@ -51,7 +51,7 @@ export const generate: UiCellAdapter['generate'] = (
   write(outputDir, 'public/config.json', JSON.stringify({
     ui: ctx?.uiFetchPath ?? '/dna.json',
     api: ctx?.apiFetchPath ?? null,
-    operational: ctx?.operationalFetchPath ?? null,
+    core: ctx?.coreFetchPath ?? null,
     apiBase: '',
   }, null, 2) + '\n')
 
@@ -60,7 +60,7 @@ export const generate: UiCellAdapter['generate'] = (
   // but production builds (nginx in the container) have no such middleware —
   // DNA must be shipped as static assets under the same /dna/... URL paths.
   if (ctx) {
-    const fetchPaths = [ctx.uiFetchPath, ctx.apiFetchPath, ctx.operationalFetchPath].filter(
+    const fetchPaths = [ctx.uiFetchPath, ctx.apiFetchPath, ctx.coreFetchPath].filter(
       (p): p is string => typeof p === 'string' && p.startsWith('/dna/'),
     )
     for (const fetchPath of fetchPaths) {

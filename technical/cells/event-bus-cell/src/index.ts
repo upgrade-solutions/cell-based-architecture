@@ -15,4 +15,4 @@ if (require.main === module) {
 }
 
 export { run } from './run'
-export type { OperationalDNA, Signal, EventBusCellAdapter, EventBusAdapterConfig } from './types'
+export type { ProductCoreDNA, Signal, EventBusCellAdapter, EventBusAdapterConfig } from './types'

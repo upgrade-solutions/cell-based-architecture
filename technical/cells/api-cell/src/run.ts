@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
-import { ProductApiDNA, OperationalDNA, AuthProviderConfig, SignalDispatchConfig, ApiCellAdapter } from './types'
+import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, SignalDispatchConfig, ApiCellAdapter } from './types'
 import * as nestjsAdapter from './adapters/node/nestjs'
 import * as expressAdapter from './adapters/node/express'
 import * as railsAdapter from './adapters/ruby/rails'
@@ -13,7 +13,7 @@ interface TechnicalCell {
   adapter: {
     type: string
     config?: {
-      operational_dna?: string
+      core_dna?: string
       [key: string]: unknown
     }
   }
@@ -81,16 +81,16 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     throw new Error(`Invalid Product API DNA:\n${errs}`)
   }
 
-  // ── Load and validate Operational DNA (for ORM sub-adapter) ────────────────
-  const operationalRef = cell.adapter.config?.operational_dna
-  if (!operationalRef) {
-    throw new Error(`Cell "${cellName}" adapter config is missing "operational_dna"`)
+  // ── Load and validate Product Core DNA ─────────────────────────────────────
+  const coreRef = cell.adapter.config?.core_dna
+  if (!coreRef) {
+    throw new Error(`Cell "${cellName}" adapter config is missing "core_dna"`)
   }
-  const operationalRaw = loadDna(dnaBase, operationalRef)
-  const opValidation = validator.validate(operationalRaw, 'operational')
-  if (!opValidation.valid) {
-    const errs = opValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
-    throw new Error(`Invalid Operational DNA:\n${errs}`)
+  const coreRaw = loadDna(dnaBase, coreRef)
+  const coreValidation = validator.validate(coreRaw, 'product/core')
+  if (!coreValidation.valid) {
+    const errs = coreValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
+    throw new Error(`Invalid Product Core DNA:\n${errs}`)
   }
 
   // ── Extract auth provider config ────────────────────────────────────────────
@@ -109,7 +109,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(apiDnaRaw as ProductApiDNA, operationalRaw as OperationalDNA, path.resolve(outputDir), authConfig, signalDispatch)
+  adapter.generate(apiDnaRaw as ProductApiDNA, coreRaw as ProductCoreDNA, path.resolve(outputDir), authConfig, signalDispatch)
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

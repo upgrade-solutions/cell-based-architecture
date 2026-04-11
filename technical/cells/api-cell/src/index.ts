@@ -16,4 +16,4 @@ if (require.main === module) {
 }
 
 export { run } from './run'
-export type { ProductApiDNA, OperationalDNA, ApiCellAdapter } from './types'
+export type { ProductApiDNA, ProductCoreDNA, ApiCellAdapter } from './types'

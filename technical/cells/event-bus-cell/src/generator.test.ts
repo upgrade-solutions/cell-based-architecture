@@ -26,7 +26,7 @@ describe('event-bus-cell — node/event-bus adapter', () => {
       expect(fs.existsSync(path.join(dir, 'src/routing.ts'))).toBe(true)
       expect(fs.existsSync(path.join(dir, 'src/subscriber.ts'))).toBe(true)
       expect(fs.existsSync(path.join(dir, 'src/client.ts'))).toBe(true)
-      expect(fs.existsSync(path.join(dir, 'src/dna/operational.json'))).toBe(true)
+      expect(fs.existsSync(path.join(dir, 'src/dna/product.core.json'))).toBe(true)
     })
   })
 
@@ -87,7 +87,7 @@ describe('event-bus-cell — node/event-bus adapter', () => {
       run(TECHNICAL_PATH, 'event-bus-cell', dir)
 
       const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'))
-      expect(pkg.name).toBe('acme-event-bus')
+      expect(pkg.name).toBe('lending-event-bus')
       expect(pkg.scripts.start).toBeDefined()
     })
   })

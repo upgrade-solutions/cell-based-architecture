@@ -150,7 +150,7 @@ export function rendererDnaLoader(): string {
 export interface DnaLoader {
   loadUi(): Promise<ProductUiDNA>
   loadApi(): Promise<ProductApiDNA | null>
-  loadOperational(): Promise<unknown | null>
+  loadCore(): Promise<unknown | null>
 }
 
 // ── StaticFetchLoader — loads DNA from static URLs (current implementation) ──
@@ -159,7 +159,7 @@ export class StaticFetchLoader implements DnaLoader {
   constructor(
     private uiUrl: string,
     private apiUrl: string | null,
-    private operationalUrl: string | null,
+    private coreUrl: string | null,
   ) {}
 
   async loadUi(): Promise<ProductUiDNA> {
@@ -175,10 +175,10 @@ export class StaticFetchLoader implements DnaLoader {
     return res.json()
   }
 
-  async loadOperational(): Promise<unknown | null> {
-    if (!this.operationalUrl) return null
-    const res = await fetch(this.operationalUrl)
-    if (!res.ok) throw new Error(\`Failed to load Operational DNA: \${res.status}\`)
+  async loadCore(): Promise<unknown | null> {
+    if (!this.coreUrl) return null
+    const res = await fetch(this.coreUrl)
+    if (!res.ok) throw new Error(\`Failed to load Product Core DNA: \${res.status}\`)
     return res.json()
   }
 }
@@ -340,20 +340,16 @@ import { StaticFetchLoader } from './dna-loader'
 interface Config {
   ui: string
   api?: string | null
-  operational?: string | null
+  core?: string | null
   apiBase?: string
 }
 
-function collectStubs(op: unknown): Record<string, Record<string, unknown>[]> {
+function collectStubs(core: unknown): Record<string, Record<string, unknown>[]> {
   const stubs: Record<string, Record<string, unknown>[]> = {}
-  function walk(domain: { nouns?: { name: string; examples?: Record<string, unknown>[] }[]; domains?: unknown[] }) {
-    for (const noun of domain.nouns ?? []) {
-      if (noun.examples?.length) stubs[noun.name] = noun.examples
-    }
-    for (const sub of domain.domains ?? []) walk(sub as typeof domain)
+  const typed = core as { nouns?: { name: string; examples?: Record<string, unknown>[] }[] } | null
+  for (const noun of typed?.nouns ?? []) {
+    if (noun.examples?.length) stubs[noun.name] = noun.examples
   }
-  const typed = op as { domain: Parameters<typeof walk>[0] } | null
-  if (typed?.domain) walk(typed.domain)
   return stubs
 }
 
@@ -385,16 +381,16 @@ export default function DnaProvider({ children }: { children: ReactNode }) {
         const loader = new StaticFetchLoader(
           config.ui,
           config.api ?? null,
-          config.operational ?? null,
+          config.core ?? null,
         )
-        const [uiDna, apiDna, operationalDna] = await Promise.all([
+        const [uiDna, apiDna, coreDna] = await Promise.all([
           loader.loadUi(),
           loader.loadApi(),
-          loader.loadOperational(),
+          loader.loadCore(),
         ])
         setDna(uiDna)
         setApi(apiDna)
-        setStubs(collectStubs(operationalDna))
+        setStubs(collectStubs(coreDna))
       })
       .catch(err => setError(String(err)))
   }, [])

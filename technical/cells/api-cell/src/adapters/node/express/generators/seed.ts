@@ -6,7 +6,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
 import * as schema from './db/schema'
 
-const DNA_OPS = path.resolve(__dirname, 'dna/operational.json')
+const DNA_CORE = path.resolve(__dirname, 'dna/product.core.json')
 
 async function seed() {
   if (!process.env.DATABASE_URL) {
@@ -16,7 +16,7 @@ async function seed() {
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
   const db = drizzle(pool, { schema })
-  const operational = JSON.parse(fs.readFileSync(DNA_OPS, 'utf-8'))
+  const core = JSON.parse(fs.readFileSync(DNA_CORE, 'utf-8'))
 
   // Build table lookup from schema exports
   const tables: Record<string, any> = {}
@@ -26,36 +26,30 @@ async function seed() {
     }
   }
 
-  async function walk(domain: any) {
-    for (const noun of domain.nouns ?? []) {
-      if (noun.examples?.length) {
-        const key = noun.name.toLowerCase() + 's'
-        const table = tables[key]
-        if (!table) {
-          console.log(\`[seed] skipping \${noun.name} — no table "\${key}"\`)
-          continue
-        }
-        const now = new Date()
-        const rows = noun.examples.map((ex: any) => {
-          const row: Record<string, any> = { ...ex }
-          // Convert ISO date strings to Date objects for timestamp columns
-          for (const [key, val] of Object.entries(row)) {
-            if (typeof val === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(val)) {
-              row[key] = new Date(val)
-            }
-          }
-          row.created_at = row.created_at ? new Date(row.created_at) : now
-          row.updated_at = row.updated_at ? new Date(row.updated_at) : now
-          return row
-        })
-        await db.insert(table).values(rows).onConflictDoNothing()
-        console.log(\`[seed] \${noun.name}: \${noun.examples.length} records\`)
-      }
+  for (const noun of core?.nouns ?? []) {
+    if (!noun.examples?.length) continue
+    const key = noun.name.toLowerCase() + 's'
+    const table = tables[key]
+    if (!table) {
+      console.log(\`[seed] skipping \${noun.name} — no table "\${key}"\`)
+      continue
     }
-    for (const sub of domain.domains ?? []) await walk(sub)
+    const now = new Date()
+    const rows = noun.examples.map((ex: any) => {
+      const row: Record<string, any> = { ...ex }
+      // Convert ISO date strings to Date objects for timestamp columns
+      for (const [k, val] of Object.entries(row)) {
+        if (typeof val === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(val)) {
+          row[k] = new Date(val)
+        }
+      }
+      row.created_at = row.created_at ? new Date(row.created_at) : now
+      row.updated_at = row.updated_at ? new Date(row.updated_at) : now
+      return row
+    })
+    await db.insert(table).values(rows).onConflictDoNothing()
+    console.log(\`[seed] \${noun.name}: \${noun.examples.length} records\`)
   }
-
-  if (operational?.domain) await walk(operational.domain)
 
   await pool.end()
   console.log('[seed] done')

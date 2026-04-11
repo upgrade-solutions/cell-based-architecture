@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
-import { OperationalDNA, EventBusCellAdapter, EventBusAdapterConfig } from './types'
+import { ProductCoreDNA, EventBusCellAdapter, EventBusAdapterConfig } from './types'
 import * as nodeEventBusAdapter from './adapters/node/event-bus'
 
 interface TechnicalCell {
@@ -57,17 +57,17 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   // ── Resolve DNA base directory ──────────────────────────────────────────────
   const dnaBase = path.join(path.dirname(path.resolve(technicalPath)), '..', '..', 'dna')
 
-  // ── Load and validate Operational DNA ───────────────────────────────────────
-  const operationalRaw = loadDna(dnaBase, cell.dna)
-  const opValidation = validator.validate(operationalRaw, 'operational')
-  if (!opValidation.valid) {
-    const errs = opValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
-    throw new Error(`Invalid Operational DNA:\n${errs}`)
+  // ── Load and validate Product Core DNA ──────────────────────────────────────
+  const coreRaw = loadDna(dnaBase, cell.dna)
+  const coreValidation = validator.validate(coreRaw, 'product/core')
+  if (!coreValidation.valid) {
+    const errs = coreValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
+    throw new Error(`Invalid Product Core DNA:\n${errs}`)
   }
 
-  const operational = operationalRaw as OperationalDNA
-  if (!operational.signals || operational.signals.length === 0) {
-    console.log(`⚠ No signals defined in Operational DNA — nothing to generate.`)
+  const core = coreRaw as ProductCoreDNA
+  if (!core.signals || core.signals.length === 0) {
+    console.log(`⚠ No signals defined in Product Core DNA — nothing to generate.`)
     return
   }
 
@@ -75,7 +75,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   const adapterConfig: EventBusAdapterConfig = (cell.adapter.config ?? {}) as EventBusAdapterConfig
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(operational, adapterConfig, path.resolve(outputDir))
+  adapter.generate(core, adapterConfig, path.resolve(outputDir))
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

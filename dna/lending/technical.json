@@ -120,8 +120,8 @@
   "cells": [
     {
       "name": "event-bus-cell",
-      "description": "Reads Operational DNA Signals and generates schema registry, typed publishers, routing config, and subscriber worker stubs.",
-      "dna": "lending/operational",
+      "description": "Reads Product Core DNA Signals and generates schema registry, typed publishers, routing config, and subscriber worker stubs.",
+      "dna": "lending/product.core",
       "adapter": {
         "type": "node/event-bus",
         "config": {
@@ -146,7 +146,7 @@
       "adapter": {
         "type": "node/express",
         "config": {
-          "operational_dna": "lending/operational",
+          "core_dna": "lending/product.core",
           "port": 3001
         }
       },
@@ -174,7 +174,7 @@
       "adapter": {
         "type": "node/nestjs",
         "config": {
-          "operational_dna": "lending/operational",
+          "core_dna": "lending/product.core",
           "port": 3002
         }
       },
@@ -202,7 +202,7 @@
       "adapter": {
         "type": "ruby/rails",
         "config": {
-          "operational_dna": "lending/operational",
+          "core_dna": "lending/product.core",
           "port": 3000
         }
       },
@@ -243,7 +243,7 @@
         "type": "vite/react",
         "version": "5",
         "config": {
-          "operational_dna": "lending/operational",
+          "core_dna": "lending/product.core",
           "api_dna": "lending/product.api",
           "api_base": "http://localhost:3000"
         }
@@ -257,6 +257,38 @@
           "required": true
         }
       ]
+    },
+    {
+      "name": "vue-ui-cell",
+      "description": "Reads Product UI DNA and produces the Vite + Vue loan dashboard.",
+      "dna": "lending/product.ui",
+      "adapter": {
+        "type": "vite/vue",
+        "version": "5",
+        "config": {
+          "core_dna": "lending/product.core",
+          "api_dna": "lending/product.api",
+          "api_base": "http://localhost:3000"
+        }
+      },
+      "constructs": [],
+      "variables": []
+    },
+    {
+      "name": "ui-cell-next",
+      "description": "Reads Product UI DNA and produces the Next.js + React loan dashboard.",
+      "dna": "lending/product.ui",
+      "adapter": {
+        "type": "next/react",
+        "version": "14",
+        "config": {
+          "core_dna": "lending/product.core",
+          "api_dna": "lending/product.api",
+          "api_base": "http://localhost:3000"
+        }
+      },
+      "constructs": [],
+      "variables": []
     }
   ],
   "views": [

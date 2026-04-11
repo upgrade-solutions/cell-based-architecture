@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@cell/dna-validator'
-import { OperationalDNA, DbCellAdapter, DbAdapterConfig, DbConstructConfig } from './types'
+import { ProductCoreDNA, DbCellAdapter, DbAdapterConfig, DbConstructConfig } from './types'
 import * as postgresAdapter from './adapters/postgres'
 
 interface TechnicalCell {
@@ -67,12 +67,12 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   // ── Resolve DNA base directory (sibling of technical.json) ─────────────────
   const dnaBase = path.join(path.dirname(path.resolve(technicalPath)), '..', '..', 'dna')
 
-  // ── Load and validate Operational DNA ──────────────────────────────────────
-  const operationalRaw = loadDna(dnaBase, cell.dna)
-  const opValidation = validator.validate(operationalRaw, 'operational')
-  if (!opValidation.valid) {
-    const errs = opValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
-    throw new Error(`Invalid Operational DNA:\n${errs}`)
+  // ── Load and validate Product Core DNA ─────────────────────────────────────
+  const coreRaw = loadDna(dnaBase, cell.dna)
+  const coreValidation = validator.validate(coreRaw, 'product/core')
+  if (!coreValidation.valid) {
+    const errs = coreValidation.errors.map(e => `  ${e.instancePath} ${e.message}`).join('\n')
+    throw new Error(`Invalid Product Core DNA:\n${errs}`)
   }
 
   // ── Resolve construct config ───────────────────────────────────────────────
@@ -90,7 +90,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
   adapter.generate(
-    operationalRaw as OperationalDNA,
+    coreRaw as ProductCoreDNA,
     adapterConfig,
     constructConfig,
     path.resolve(outputDir),

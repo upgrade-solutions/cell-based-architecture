@@ -1,4 +1,4 @@
-import { Domain, Noun } from './types'
+import { Noun, ProductCoreDNA } from './types'
 
 export function toKebabCase(str: string): string {
   return str.replace(/([A-Z])/g, (c, _p1, offset: number) =>
@@ -25,12 +25,16 @@ export function stripLeadingSlash(p: string): string {
   return p.replace(/^\//, '')
 }
 
-export function collectNouns(domain: Domain): Noun[] {
-  const nouns: Noun[] = [...(domain.nouns ?? [])]
-  for (const sub of domain.domains ?? []) {
-    nouns.push(...collectNouns(sub))
-  }
-  return nouns
+/**
+ * Return all Nouns for a Product Core document. Product core stores Nouns as a
+ * flat top-level array (the materializer already walked the operational domain
+ * tree and emitted the surfaced closure), so this is just a pass-through.
+ *
+ * Accepts a partial shape so old call-sites that passed `core.domain` work too
+ * — but prefer passing `core` directly.
+ */
+export function collectNouns(core: ProductCoreDNA | { nouns?: Noun[] }): Noun[] {
+  return [...(core.nouns ?? [])]
 }
 
 /** 'Loan.Approve' → resource='Loan', action='Approve' */

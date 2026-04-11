@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductApiDNA, OperationalDNA, AuthProviderConfig, ApiCellAdapter } from '../../../types'
+import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, ApiCellAdapter } from '../../../types'
 import { collectNouns } from '../../../utils'
 import { toSnakeCase, toPlural, toModelFileName, toSchemaFileName, toRouterFileName } from './generators/naming'
 import { generateModel, generateModelsInit } from './generators/models'
@@ -34,15 +34,15 @@ function endpointsForResource(resourceName: string, endpoints: ProductApiDNA['en
 
 export const generate: ApiCellAdapter['generate'] = (
   api: ProductApiDNA,
-  operational: OperationalDNA,
+  core: ProductCoreDNA,
   outputDir: string,
   authConfig?: AuthProviderConfig,
 ): void => {
   const resources = api.resources ?? []
   const operations = api.operations ?? []
-  const rules = operational.rules ?? []
-  const outcomes = operational.outcomes ?? []
-  const nouns = collectNouns(operational.domain)
+  const rules = core.rules ?? []
+  const outcomes = core.outcomes ?? []
+  const nouns = collectNouns(core)
 
   // ── Database ──────────────────────────────────────────────────────────────
   write(outputDir, 'app/database.py', generateDatabase())
@@ -68,7 +68,7 @@ export const generate: ApiCellAdapter['generate'] = (
   for (const resource of resources) {
     const endpoints = endpointsForResource(resource.name, api.endpoints)
     write(outputDir, `app/routers/${toRouterFileName(resource.name)}`,
-      generateRouter(resource, endpoints, operations, rules, outcomes, api.namespace, operational.signals))
+      generateRouter(resource, endpoints, operations, rules, outcomes, api.namespace, core.signals))
   }
   write(outputDir, 'app/routers/__init__.py', generateRoutersInit(resources, api.namespace))
 
@@ -95,7 +95,7 @@ export const generate: ApiCellAdapter['generate'] = (
 
   // ── Copy DNA into output for reference ────────────────────────────────────
   write(outputDir, 'dna/api.json', JSON.stringify(api, null, 2) + '\n')
-  write(outputDir, 'dna/operational.json', JSON.stringify(operational, null, 2) + '\n')
+  write(outputDir, 'dna/product.core.json', JSON.stringify(core, null, 2) + '\n')
 
   // ── Containerization ──────────────────────────────────────────────────────
   write(outputDir, 'Dockerfile', generateDockerfile())

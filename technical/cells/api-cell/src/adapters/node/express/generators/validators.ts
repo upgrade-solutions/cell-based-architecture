@@ -36,22 +36,12 @@ function coerceType(value: unknown, type: string): { valid: boolean; coerced: un
   }
 }
 
-// ── Resolve attribute metadata from Operational DNA ─────────────────────────
+// ── Resolve attribute metadata from Product Core DNA ────────────────────────
 
-function findAttribute(nounName: string, attrName: string, operational: any): any | null {
-  function walk(domain: any): any | null {
-    for (const noun of domain.nouns ?? []) {
-      if (noun.name === nounName) {
-        return (noun.attributes ?? []).find((a: any) => a.name === attrName) ?? null
-      }
-    }
-    for (const sub of domain.domains ?? []) {
-      const found = walk(sub)
-      if (found) return found
-    }
-    return null
-  }
-  return operational?.domain ? walk(operational.domain) : null
+function findAttribute(nounName: string, attrName: string, core: any): any | null {
+  const noun = (core?.nouns ?? []).find((n: any) => n.name === nounName)
+  if (!noun) return null
+  return (noun.attributes ?? []).find((a: any) => a.name === attrName) ?? null
 }
 
 // ── Request schema validation middleware ─────────────────────────────────────

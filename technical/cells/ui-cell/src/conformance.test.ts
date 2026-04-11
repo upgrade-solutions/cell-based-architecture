@@ -3,7 +3,7 @@
  * same DNA-driven surface from the same Product UI DNA input.
  *
  * Each adapter generates into a temp dir. We verify:
- *   - Same DNA files bundled (ui, api, operational)
+ *   - Same DNA files bundled (ui, api, core)
  *   - Same block types supported (form, table, detail, actions, empty-state)
  *   - Same config structure
  *   - Dockerfile present
@@ -70,10 +70,10 @@ describe('ui-cell adapter conformance', () => {
     }
   })
 
-  test('all adapters bundle the Operational DNA', () => {
+  test('all adapters bundle the Product Core DNA', () => {
     for (const dir of [viteReactDir, viteVueDir, nextReactDir]) {
       const files = listFilesRecursive(dir)
-      expect(files.some(f => f.includes('dna/') && f.endsWith('.json') && f.includes('operational'))).toBe(true)
+      expect(files.some(f => f.includes('dna/') && f.endsWith('.json') && f.includes('core'))).toBe(true)
     }
   })
 
@@ -137,7 +137,7 @@ describe('ui-cell adapter conformance', () => {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
       expect(config.ui).toBeDefined()
       expect(config.api).toBeDefined()
-      expect(config.operational).toBeDefined()
+      expect(config.core).toBeDefined()
     }
   })
 

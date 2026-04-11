@@ -31,11 +31,11 @@ type Surface = EndpointSurface[]
 /** Extract surface from Express adapter output (bundled DNA). */
 function extractExpressSurface(dir: string): Surface {
   const api = JSON.parse(fs.readFileSync(path.join(dir, 'src/dna/api.json'), 'utf-8'))
-  const operational = JSON.parse(fs.readFileSync(path.join(dir, 'src/dna/operational.json'), 'utf-8'))
+  const core = JSON.parse(fs.readFileSync(path.join(dir, 'src/dna/product.core.json'), 'utf-8'))
   return api.endpoints.map((ep: any) => {
     const operation = api.operations?.find((o: any) => o.name === ep.operation)
     const capability = operation?.capability ?? ep.operation
-    const rule = (operational.rules ?? []).find(
+    const rule = (core.rules ?? []).find(
       (r: any) => r.capability === capability && r.type === 'access',
     )
     const roles = (rule?.allow ?? []).map((a: any) => a.role).sort()
@@ -53,14 +53,14 @@ function extractExpressSurface(dir: string): Surface {
 function extractRailsSurface(dir: string): Surface {
   const spec = JSON.parse(fs.readFileSync(path.join(dir, 'public/openapi.json'), 'utf-8'))
   const api = JSON.parse(fs.readFileSync(path.join(dir, 'dna/api.json'), 'utf-8'))
-  const operational = JSON.parse(fs.readFileSync(path.join(dir, 'dna/operational.json'), 'utf-8'))
+  const core = JSON.parse(fs.readFileSync(path.join(dir, 'dna/product.core.json'), 'utf-8'))
 
   const endpoints: Surface = []
   for (const [oaPath, methods] of Object.entries(spec.paths)) {
     for (const [method, op] of Object.entries(methods as Record<string, any>)) {
       const operation = api.operations?.find((o: any) => o.name === op.operationId)
       const capability = operation?.capability ?? op.operationId
-      const rule = (operational.rules ?? []).find(
+      const rule = (core.rules ?? []).find(
         (r: any) => r.capability === capability && r.type === 'access',
       )
       const roles = (rule?.allow ?? []).map((a: any) => a.role).sort()
@@ -87,8 +87,8 @@ function extractNestJsSurface(dir: string): Surface {
   const api = JSON.parse(
     fs.readFileSync(path.join(repoRoot, 'dna/lending/product.api.json'), 'utf-8'),
   )
-  const operational = JSON.parse(
-    fs.readFileSync(path.join(repoRoot, 'dna/lending/operational.json'), 'utf-8'),
+  const core = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, 'dna/lending/product.core.json'), 'utf-8'),
   )
 
   // NestJS generates typed controllers; rather than fragile regex parsing,
@@ -100,7 +100,7 @@ function extractNestJsSurface(dir: string): Surface {
   for (const ep of api.endpoints) {
     const operation = api.operations?.find((o: any) => o.name === ep.operation)
     const capability = operation?.capability ?? ep.operation
-    const rule = (operational.rules ?? []).find(
+    const rule = (core.rules ?? []).find(
       (r: any) => r.capability === capability && r.type === 'access',
     )
     const roles = (rule?.allow ?? []).map((a: any) => a.role).sort()

@@ -12,16 +12,16 @@ import swaggerUi from 'swagger-ui-express'
 import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
 import { buildSignalReceiver } from './interpreter/signal-receiver'
-import { seedFromOperationalDna, getStoreMode } from './interpreter/store'
+import { seedFromProductCoreDna, getStoreMode } from './interpreter/store'
 import { connectEventBus, disconnectEventBus } from './interpreter/signal-middleware'
 
 const DNA_API = path.resolve(__dirname, 'dna/api.json')
-const DNA_OPS = path.resolve(__dirname, 'dna/operational.json')
+const DNA_CORE = path.resolve(__dirname, 'dna/product.core.json')
 
 function loadDNA() {
   return {
     api: JSON.parse(fs.readFileSync(DNA_API, 'utf-8')),
-    operational: JSON.parse(fs.readFileSync(DNA_OPS, 'utf-8')),
+    core: JSON.parse(fs.readFileSync(DNA_CORE, 'utf-8')),
   }
 }
 
@@ -31,10 +31,10 @@ let currentSignalReceiver: Router
 
 function reload(label = 'loaded') {
   try {
-    const { api, operational } = loadDNA()
-    currentSpec = buildOpenApiSpec(api, operational)
-    currentRouter = buildRouter(api, operational)
-    currentSignalReceiver = buildSignalReceiver(api, operational)
+    const { api, core } = loadDNA()
+    currentSpec = buildOpenApiSpec(api, core)
+    currentRouter = buildRouter(api, core)
+    currentSignalReceiver = buildSignalReceiver(api, core)
     console.log(\`[dna] \${label}\`)
   } catch (err: any) {
     console.error(\`[dna] reload failed: \${err.message}\`)
@@ -65,9 +65,9 @@ async function bootstrap() {
   // Connect to event bus (RabbitMQ) for signal emission
   await connectEventBus()
 
-  // Seed store with examples from Operational DNA
-  const { operational } = loadDNA()
-  await seedFromOperationalDna(operational)
+  // Seed store with examples from Product Core DNA
+  const { core } = loadDNA()
+  await seedFromProductCoreDna(core)
 
   const app = express()
   app.use(express.json())
@@ -108,7 +108,7 @@ async function bootstrap() {
   }
 
   fs.watch(DNA_API, scheduleReload)
-  fs.watch(DNA_OPS, scheduleReload)
+  fs.watch(DNA_CORE, scheduleReload)
 
   const port = process.env.PORT ?? 3001
   app.listen(port, () => {
@@ -117,7 +117,7 @@ async function bootstrap() {
     console.log(\`Redoc:      http://localhost:\${port}/docs\`)
     console.log(\`OpenAPI:    http://localhost:\${port}/api-json\`)
     console.log(\`[dna] watching \${DNA_API}\`)
-    console.log(\`[dna] watching \${DNA_OPS}\`)
+    console.log(\`[dna] watching \${DNA_CORE}\`)
   })
 
   // Graceful shutdown — close event bus connection

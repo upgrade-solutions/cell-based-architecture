@@ -68,7 +68,9 @@ export interface ProductApiDNA {
   endpoints: Endpoint[]
 }
 
-// ── Operational DNA ───────────────────────────────────────────────────────────
+// ── Product Core DNA ──────────────────────────────────────────────────────────
+// Cells read Product Core DNA — a self-contained slice of operational DNA
+// derived by the product-core-materializer. See product/AGENTS.md.
 
 export interface Attribute {
   name: string
@@ -89,14 +91,13 @@ export interface Noun {
   domain?: string
   attributes?: Attribute[]
   verbs?: Verb[]
+  examples?: Record<string, unknown>[]
 }
 
 export interface Domain {
   name: string
-  path?: string
+  path: string
   description?: string
-  domains?: Domain[]
-  nouns?: Noun[]
 }
 
 export interface AllowEntry {
@@ -138,14 +139,23 @@ export interface Signal {
   payload: { name: string; type: string; description?: string }[]
 }
 
-export interface OperationalDNA {
+export interface Cause {
+  capability: string
+  source: string
+  signal?: string
+  description?: string
+}
+
+export interface ProductCoreDNA {
   domain: Domain
-  capabilities?: unknown[]
-  causes?: unknown[]
+  nouns?: Noun[]
+  capabilities?: { name: string; noun: string; verb: string }[]
+  causes?: Cause[]
   rules?: Rule[]
   outcomes?: Outcome[]
   lifecycles?: unknown[]
   signals?: Signal[]
+  relationships?: unknown[]
 }
 
 // ── Auth config (extracted from Technical DNA auth provider) ──────────────────
@@ -177,5 +187,5 @@ export type SignalDispatchConfig = Record<string, string[]>
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface ApiCellAdapter {
-  generate(api: ProductApiDNA, operational: OperationalDNA, outputDir: string, authConfig?: AuthProviderConfig, signalDispatch?: SignalDispatchConfig): void
+  generate(api: ProductApiDNA, core: ProductCoreDNA, outputDir: string, authConfig?: AuthProviderConfig, signalDispatch?: SignalDispatchConfig): void
 }

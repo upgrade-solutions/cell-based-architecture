@@ -18,7 +18,7 @@ function write(outputDir: string, relPath: string, content: string): void {
  * api-cell via drizzle, connecting as app_role.
  */
 export const generate: DbCellAdapter['generate'] = (
-  _operational,
+  _core,
   adapterConfig: DbAdapterConfig,
   constructConfig: DbConstructConfig,
   outputDir: string,
