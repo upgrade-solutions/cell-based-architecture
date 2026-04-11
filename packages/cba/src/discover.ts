@@ -59,6 +59,9 @@ export function runDiscover(argv: string[], args: ParsedArgs): void {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
   const transcriptPath = path.join(sessionsDir, `${domain}-${timestamp}.md`)
   const draftPath = path.join(draftsDir, `${domain}-${timestamp}.json`)
+  // Nested domains (e.g. torts/marshall) need their parent dirs created
+  fs.mkdirSync(path.dirname(transcriptPath), { recursive: true })
+  fs.mkdirSync(path.dirname(draftPath), { recursive: true })
 
   const header = [
     `# Discovery session — ${domain}`,
