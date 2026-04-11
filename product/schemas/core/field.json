@@ -18,8 +18,8 @@
     },
     "type": {
       "type": "string",
-      "description": "The display/input type of the field.",
-      "enum": ["string", "text", "number", "boolean", "date", "datetime", "enum", "reference"]
+      "description": "The display/input type of the field. Extends the Operational Attribute types with UI-only semantic variants (email, phone, url) that renderers can lift into typed inputs.",
+      "enum": ["string", "text", "number", "boolean", "date", "datetime", "email", "phone", "url", "enum", "reference"]
     },
     "description": {
       "type": "string",

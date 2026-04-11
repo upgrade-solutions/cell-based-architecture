@@ -14,7 +14,7 @@
     "type": {
       "type": "string",
       "description": "The structural type of the block.",
-      "enum": ["list", "detail", "form", "actions", "table", "summary", "empty-state"]
+      "enum": ["list", "detail", "form", "survey", "actions", "table", "summary", "empty-state"]
     },
     "description": {
       "type": "string",

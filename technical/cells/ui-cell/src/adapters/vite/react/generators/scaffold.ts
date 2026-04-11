@@ -24,6 +24,8 @@ export function generatePackageJson(appName: string): string {
         'class-variance-authority': '^0.7.0',
         'clsx': '^2.1.0',
         'tailwind-merge': '^2.5.0',
+        'survey-core': '^1.12.0',
+        'survey-react-ui': '^1.12.0',
       },
       devDependencies: {
         '@types/react': '^18.3.0',

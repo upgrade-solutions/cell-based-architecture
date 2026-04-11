@@ -98,6 +98,49 @@ export function rendererGlobalsCss(layout: any): string {
 :root {
   --radius: ${radius};
 ${lightVars}
+
+  /* ── SurveyJS theme tokens ─────────────────────────────────────────── */
+  /* Map SurveyJS v1.12+ tokens onto the layout theme so survey blocks    */
+  /* inherit the brand automatically.                                      */
+  --sjs-primary-backcolor: var(--primary);
+  --sjs-primary-backcolor-light: var(--accent);
+  --sjs-primary-backcolor-dark: var(--primary);
+  --sjs-primary-forecolor: var(--primary-foreground);
+  --sjs-primary-forecolor-light: var(--primary-foreground);
+  --sjs-general-backcolor: var(--background);
+  --sjs-general-backcolor-dim: var(--muted);
+  --sjs-general-backcolor-dim-light: var(--muted);
+  --sjs-general-forecolor: var(--foreground);
+  --sjs-general-forecolor-light: var(--muted-foreground);
+  --sjs-editor-background: var(--muted);
+  --sjs-questionpanel-backcolor: var(--background);
+  --sjs-questionpanel-hovercolor: var(--accent);
+  --sjs-font-editorfont-color: var(--foreground);
+  --sjs-font-editorfont-placeholdercolor: var(--muted-foreground);
+  --sjs-border-default: var(--border);
+  --sjs-border-light: var(--border);
+  --sjs-border-inside: var(--border);
+  --sjs-corner-radius: var(--radius);
+  --sjs-base-unit: 8px;
+  --sjs-font-family: ${font};
+}
+
+/* SurveyJS inputs use border: none + an inset box-shadow for their outline.
+   Override .sd-input directly with a subtle 1px white inset ring so every
+   input reads as a distinct chip against the muted fill without needing
+   hover. Using a direct selector rather than --sjs-shadow-inner because the
+   token-based approach didn't land consistently across Tailwind v4's
+   cascade layers. */
+.sd-input,
+.sd-input.sd-dropdown,
+.sd-input.sd-tagbox,
+.sd-input.sd-comment {
+  box-shadow: inset 0 0 0 1px #ffffff;
+}
+
+.sd-input:focus,
+.sd-input:focus-within {
+  box-shadow: inset 0 0 0 1px #ffffff, 0 0 0 2px var(--primary);
 }
 
 .dark {
@@ -1029,6 +1072,7 @@ export function rendererBlock(): string {
   return `import type { Block as BlockDNA } from './types'
 import { useThemeTokens } from './context'
 import FormBlock from './blocks/FormBlock'
+import SurveyBlock from './blocks/SurveyBlock'
 import TableBlock from './blocks/TableBlock'
 import DetailBlock from './blocks/DetailBlock'
 import ActionsBlock from './blocks/ActionsBlock'
@@ -1048,6 +1092,7 @@ function toLabel(name: string): string {
 function BlockContent({ block, resource }: Props) {
   switch (block.type) {
     case 'form':        return <FormBlock block={block} />
+    case 'survey':      return <SurveyBlock block={block} />
     case 'table':       return <TableBlock block={block} resource={resource} />
     case 'detail':      return <DetailBlock block={block} resource={resource} />
     case 'actions':     return <ActionsBlock block={block} resource={resource} />
@@ -1063,7 +1108,7 @@ function BlockContent({ block, resource }: Props) {
 
 export default function Block({ block, resource }: Props) {
   const t = useThemeTokens()
-  const showHeader = block.type !== 'actions' && block.type !== 'empty-state'
+  const showHeader = block.type !== 'actions' && block.type !== 'empty-state' && block.type !== 'survey'
   return (
     <section style={{ marginBottom: '1.5rem' }}>
       {showHeader && (
@@ -1208,6 +1253,197 @@ export default function FormBlock({ block }: { block: Block }) {
         </button>
       )}
     </form>
+  )
+}
+`
+}
+
+/**
+ * SurveyBlock — renders a form via SurveyJS so the marketing site can ship
+ * a branded intake with validation, progress, and a thank-you state without
+ * hand-authoring inputs.
+ *
+ * The survey model is built directly from block.fields (the product.ui.json
+ * entry) and wired to the endpoint resolved from block.operation. Theme is
+ * applied via SurveyJS v1.12+ CSS variables so brand colors flow through from
+ * globals.css (which maps them to the layout DNA theme config).
+ */
+export function rendererSurveyBlock(): string {
+  return `import { useEffect, useMemo, useState } from 'react'
+import { Model } from 'survey-core'
+import { Survey } from 'survey-react-ui'
+import 'survey-core/survey-core.css'
+import { useDna, useThemeTokens } from '../context'
+import { useApi } from '../useApi'
+import type { Block, Field } from '../types'
+
+// Note: SurveyJS brand tokens (--sjs-primary-backcolor, --sjs-editor-background,
+// --sjs-shadow-inner, etc.) are declared at :root in globals.css so every
+// survey block inherits the layout theme without ref-based runtime theming.
+
+type SurveyQuestion = Record<string, unknown>
+
+/**
+ * Map a Product API Field to a SurveyJS question definition.
+ * SurveyJS question type reference:
+ *   text       — single-line input (use inputType for number/date/email/phone)
+ *   comment    — multi-line textarea
+ *   dropdown   — select menu
+ *   radiogroup — radio buttons
+ */
+function fieldToQuestion(field: Field): SurveyQuestion {
+  const base: SurveyQuestion = {
+    name: field.name,
+    title: field.label ?? field.name,
+    isRequired: !!field.required,
+  }
+
+  if (field.type === 'enum' && field.values && field.values.length > 0) {
+    const niceChoices = field.values.map((v: string) => ({
+      value: v,
+      text: v.replace(/_/g, ' ').replace(/\\b\\w/g, (c) => c.toUpperCase()),
+    }))
+    // Radio for small sets, dropdown for larger ones
+    const questionType = field.values.length <= 5 ? 'radiogroup' : 'dropdown'
+    return { ...base, type: questionType, choices: niceChoices }
+  }
+
+  if (field.type === 'text') {
+    return { ...base, type: 'comment', rows: 4 }
+  }
+
+  const typeMap: Record<string, string> = {
+    number: 'number',
+    date: 'date',
+    datetime: 'datetime-local',
+    email: 'email',
+    phone: 'tel',
+    password: 'password',
+  }
+  const inputType = typeMap[field.type]
+  if (inputType) {
+    return { ...base, type: 'text', inputType }
+  }
+
+  return { ...base, type: 'text' }
+}
+
+export default function SurveyBlock({ block }: { block: Block }) {
+  const fields = block.fields ?? []
+  const t = useThemeTokens()
+  const { apiBase } = useDna()
+  const { endpoint, submit } = useApi(block.operation)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Mock-submit mode: when no apiBase is configured (e.g. marketing-only
+  // preview with no api-cell running), we log the payload and show the
+  // success state instead of attempting a network call.
+  const isMock = !apiBase || !endpoint
+
+  const survey = useMemo(() => {
+    const actionLabel = block.operation?.split('.').pop() ?? 'Submit'
+    const model = new Model({
+      showQuestionNumbers: 'off',
+      completeText: actionLabel,
+      showCompletedPage: false,
+      questionErrorLocation: 'bottom',
+      elements: fields.map(fieldToQuestion),
+    })
+    return model
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(fields), block.operation])
+
+  useEffect(() => {
+    const handler = async (sender: Model) => {
+      setError(null)
+      const payload = sender.data as Record<string, unknown>
+      if (isMock) {
+        // eslint-disable-next-line no-console
+        console.info('[SurveyBlock] mock-submit', { operation: block.operation, payload })
+        setSuccess(true)
+        return
+      }
+      try {
+        await submit(payload)
+        setSuccess(true)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    }
+    survey.onComplete.add(handler)
+    return () => {
+      survey.onComplete.remove(handler)
+    }
+  }, [survey, submit, isMock, block.operation])
+
+  if (success) {
+    return (
+      <div
+        style={{
+          padding: '2rem',
+          background: 'var(--accent, #fef2f2)',
+          color: 'var(--accent-foreground, #b91c1c)',
+          border: '1px solid var(--border)',
+          borderRadius: 8,
+          textAlign: 'center',
+        }}
+      >
+        <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>
+          Thank you — your intake has been received.
+        </h3>
+        <p style={{ margin: 0, color: t.textMuted, fontSize: '0.9375rem' }}>
+          An attorney will review your submission and follow up within two business days.
+        </p>
+        {isMock && (
+          <p
+            style={{
+              margin: '1rem 0 0',
+              padding: '0.375rem 0.75rem',
+              display: 'inline-block',
+              background: 'var(--muted)',
+              color: 'var(--muted-foreground)',
+              border: '1px dashed var(--border)',
+              borderRadius: 6,
+              fontSize: '0.75rem',
+              fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+            }}
+          >
+            preview mode — submission was logged to console, not sent
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  if (fields.length === 0) {
+    return (
+      <div style={{ color: t.textMuted, fontSize: '0.875rem' }}>
+        No fields configured for this survey block.
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <Survey model={survey} />
+      {error && (
+        <div
+          role="alert"
+          style={{
+            marginTop: '1rem',
+            padding: '0.75rem 1rem',
+            background: 'var(--accent, #fef2f2)',
+            color: 'var(--destructive, #dc2626)',
+            border: '1px solid var(--destructive, #dc2626)',
+            borderRadius: 8,
+            fontSize: '0.875rem',
+          }}
+        >
+          {error}
+        </div>
+      )}
+    </div>
   )
 }
 `

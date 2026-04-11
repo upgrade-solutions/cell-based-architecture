@@ -21,6 +21,7 @@ import {
   rendererPage,
   rendererBlock,
   rendererFormBlock,
+  rendererSurveyBlock,
   rendererTableBlock,
   rendererDetailBlock,
   rendererActionsBlock,
@@ -114,6 +115,7 @@ export const generate: UiCellAdapter['generate'] = (
   write(outputDir, 'src/renderer/Page.tsx',                     rendererPage())
   write(outputDir, 'src/renderer/Block.tsx',                    rendererBlock())
   write(outputDir, 'src/renderer/blocks/FormBlock.tsx',         rendererFormBlock())
+  write(outputDir, 'src/renderer/blocks/SurveyBlock.tsx',       rendererSurveyBlock())
   write(outputDir, 'src/renderer/blocks/TableBlock.tsx',        rendererTableBlock())
   write(outputDir, 'src/renderer/blocks/DetailBlock.tsx',       rendererDetailBlock())
   write(outputDir, 'src/renderer/blocks/ActionsBlock.tsx',      rendererActionsBlock())

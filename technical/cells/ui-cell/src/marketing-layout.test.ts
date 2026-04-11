@@ -115,4 +115,31 @@ describe('vite/react ui-cell — marketing layout', () => {
       expect(content).toContain("location.pathname === '/'")
     })
   })
+
+  it('generates a SurveyBlock and wires survey-core into package.json', () => {
+    withTempDir((dir) => {
+      generate(marketingUi, dir)
+
+      // SurveyBlock.tsx exists and pulls from survey-core + survey-react-ui
+      const surveyBlock = path.join(dir, 'src/renderer/blocks/SurveyBlock.tsx')
+      expect(fs.existsSync(surveyBlock)).toBe(true)
+      const content = fs.readFileSync(surveyBlock, 'utf-8')
+      expect(content).toContain("from 'survey-core'")
+      expect(content).toContain("from 'survey-react-ui'")
+      expect(content).toContain('fieldToQuestion')
+      expect(content).toContain('--sjs-primary-backcolor')
+      expect(content).toContain('useApi(block.operation)')
+
+      // Block dispatcher wires 'survey' case to SurveyBlock
+      const blockFile = path.join(dir, 'src/renderer/Block.tsx')
+      const blockContent = fs.readFileSync(blockFile, 'utf-8')
+      expect(blockContent).toContain("import SurveyBlock from './blocks/SurveyBlock'")
+      expect(blockContent).toContain("case 'survey':")
+
+      // survey-core + survey-react-ui pinned in generated package.json
+      const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'))
+      expect(pkg.dependencies['survey-core']).toBeDefined()
+      expect(pkg.dependencies['survey-react-ui']).toBeDefined()
+    })
+  })
 })
