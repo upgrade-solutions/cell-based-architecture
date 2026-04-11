@@ -1,0 +1,38 @@
+{
+  "environments": [
+    { "name": "dev", "description": "Local development environment." },
+    { "name": "prod", "description": "Production environment serving live traffic." }
+  ],
+  "providers": [
+    {
+      "name": "aws",
+      "type": "cloud",
+      "region": "us-west-2",
+      "description": "Primary cloud provider (Colorado-adjacent).",
+      "config": { "account_id": "000000000000" }
+    }
+  ],
+  "constructs": [],
+  "variables": [],
+  "profiles": {
+    "default": ["ui-cell"]
+  },
+  "cells": [
+    {
+      "name": "ui-cell",
+      "description": "Marshall Fire public marketing site — Vite + React with the marketing layout.",
+      "dna": "torts/marshall/product.ui",
+      "adapter": {
+        "type": "vite/react",
+        "version": "5",
+        "config": {
+          "core_dna": "torts/marshall/product.core",
+          "api_dna": "torts/marshall/product.api",
+          "api_base": ""
+        }
+      },
+      "constructs": [],
+      "variables": []
+    }
+  ]
+}

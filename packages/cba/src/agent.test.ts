@@ -30,7 +30,9 @@ describe('cba agent', () => {
     expect(r.stdout).toContain('cell:ui-cell')
     expect(r.stdout).toContain('cell:db-cell')
     expect(r.stdout).toContain('cell:event-bus-cell')
-    expect(r.stdout).toContain('domain:torts/marshall')
+    expect(r.stdout).toContain('dna')
+    // No per-domain AGENTS.md — dna/AGENTS.md is the meta-agent
+    expect(r.stdout).not.toContain('domain:')
   })
 
   it('resolves layer shorthand', () => {
@@ -47,11 +49,11 @@ describe('cba agent', () => {
     expect(r.stdout).toContain('api-cell Agent')
   })
 
-  it('resolves nested domain shorthand', () => {
-    const r = cba(['agent', 'torts/marshall'])
+  it('resolves the top-level dna meta-agent', () => {
+    const r = cba(['agent', 'dna'])
     expect(r.code).toBe(0)
-    expect(r.stdout).toContain('domain:torts/marshall')
-    expect(r.stdout).toContain('Marshall Fire Domain Agent')
+    expect(r.stdout).toContain('AGENTS.md: dna')
+    expect(r.stdout).toContain('DNA Directory Agent')
   })
 
   it('errors on unknown concern', () => {

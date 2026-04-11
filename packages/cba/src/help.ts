@@ -305,16 +305,16 @@ CONCERN SHORTHANDS
   operational                        → operational/AGENTS.md
   product                            → product/AGENTS.md
   technical                          → technical/AGENTS.md
+  dna                                → dna/AGENTS.md (DNA generator meta-agent)
   api-cell | ui-cell | db-cell | event-bus-cell
                                      → technical/cells/<name>/AGENTS.md
-  lending | torts/marshall | ...     → dna/<name>/AGENTS.md
 
 EXAMPLES
   cba agent list                            # see every contract in the repo
   cba agent operational                     # operational layer agent
   cba agent product                         # product layer (3 sub-agents)
   cba agent api-cell                        # api-cell per-adapter contract
-  cba agent torts/marshall                  # Marshall Fire domain orchestrator
+  cba agent dna                             # top-level DNA generator
 
 NOTE
   This command does NOT spawn a sub-agent itself. It resolves the contract

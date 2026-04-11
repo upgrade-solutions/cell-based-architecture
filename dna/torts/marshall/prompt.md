@@ -51,7 +51,7 @@ Two cross-cutting pieces underlie the pipeline above. Both are tracked in `ROADM
 - `product/AGENTS.md` — how to spawn agents that materialize `product.core.json`, design API surfaces, and design UI surfaces from a settled Operational DNA
 - `technical/AGENTS.md` — how to spawn the stack designer, and an index of per-cell agents
 - `technical/cells/<cell>/AGENTS.md` — per-cell agent responsible for calling `cba develop --cell <name>`, selecting adapters, iterating on generated output, and reporting back up. There's one of these for every cell type (api-cell, ui-cell, db-cell, event-bus-cell).
-- `dna/torts/marshall/AGENTS.md` — domain-specific agent for this demo (knows the research sources, the prompt, and which of the above layer agents to spawn at each stage)
+- `dna/AGENTS.md` — top-level DNA generator meta-agent; knows how to orchestrate the layer/cell agents for any domain under `dna/` (including this one). Per-domain AGENTS.md files are not used — the meta-agent reads each domain's `prompt.md` and dispatches the pipeline.
 
 Each `AGENTS.md` is a prompt-level contract: *given this DNA layer (or this cell), here's what you can do, what you must not touch, and how to hand off to the next agent.*
 

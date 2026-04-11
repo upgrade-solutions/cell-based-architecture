@@ -43,6 +43,22 @@ function loadDna(dnaBase: string, ref: string): unknown {
   return JSON.parse(fs.readFileSync(resolved, 'utf-8'))
 }
 
+/**
+ * Walk up from a technical.json path to find its `dna/` ancestor directory.
+ * This replaces a hardcoded `../../dna` that broke for nested domain paths
+ * like `torts/marshall`. Falls back to the old calculation if no `dna` ancestor
+ * is found (shouldn't happen in normal usage).
+ */
+function findDnaBase(technicalPath: string): string {
+  let dir = path.dirname(path.resolve(technicalPath))
+  const root = path.parse(dir).root
+  while (dir !== root) {
+    if (path.basename(dir) === 'dna') return dir
+    dir = path.dirname(dir)
+  }
+  return path.join(path.dirname(path.resolve(technicalPath)), '..', '..', 'dna')
+}
+
 export function run(technicalPath: string, cellName: string, outputDir: string): void {
   const validator = new DnaValidator()
 
@@ -59,7 +75,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   }
 
   // ── Resolve DNA base directory ──────────────────────────────────────────────
-  const dnaBase = path.join(path.dirname(path.resolve(technicalPath)), '..', '..', 'dna')
+  const dnaBase = findDnaBase(technicalPath)
 
   // ── Load and validate Product UI DNA ───────────────────────────────────────
   const uiDnaRaw = loadDna(dnaBase, cell.dna)

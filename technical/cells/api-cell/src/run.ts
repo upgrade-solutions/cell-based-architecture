@@ -55,6 +55,17 @@ function loadDna(dnaBase: string, ref: string): unknown {
   return JSON.parse(fs.readFileSync(resolved, 'utf-8'))
 }
 
+/** Walk up from a technical.json path to find its `dna/` ancestor directory. */
+function findDnaBase(technicalPath: string): string {
+  let dir = path.dirname(path.resolve(technicalPath))
+  const root = path.parse(dir).root
+  while (dir !== root) {
+    if (path.basename(dir) === 'dna') return dir
+    dir = path.dirname(dir)
+  }
+  return path.join(path.dirname(path.resolve(technicalPath)), '..', '..', 'dna')
+}
+
 export function run(technicalPath: string, cellName: string, outputDir: string): void {
   const validator = new DnaValidator()
 
@@ -70,8 +81,8 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     )
   }
 
-  // ── Resolve DNA base directory (sibling of technical.json) ─────────────────
-  const dnaBase = path.join(path.dirname(path.resolve(technicalPath)), '..', '..', 'dna')
+  // ── Resolve DNA base directory (the `dna/` ancestor of technical.json) ────
+  const dnaBase = findDnaBase(technicalPath)
 
   // ── Load and validate Product API DNA ──────────────────────────────────────
   const apiDnaRaw = loadDna(dnaBase, cell.dna)

@@ -1,0 +1,66 @@
+{
+  "namespace": {
+    "name": "marshall",
+    "path": "/marshall",
+    "domain": "justice.masstort.marshall",
+    "description": "Public API for the Marshall Fire mass-tort intake.",
+    "resources": ["IntakeSubmission"]
+  },
+  "resources": [
+    {
+      "name": "IntakeSubmission",
+      "noun": "IntakeSubmission",
+      "description": "A public intake submission from a potential Marshall Fire claimant.",
+      "fields": [
+        { "name": "id", "label": "ID", "type": "string" },
+        { "name": "first_name", "label": "First Name", "type": "string", "required": true },
+        { "name": "last_name", "label": "Last Name", "type": "string", "required": true },
+        { "name": "email", "label": "Email", "type": "string", "required": true },
+        { "name": "phone", "label": "Phone", "type": "string" },
+        { "name": "address", "label": "Street Address", "type": "string", "required": true },
+        { "name": "city", "label": "Jurisdiction", "type": "enum", "required": true, "values": ["Superior", "Louisville", "Unincorporated Boulder County"] },
+        { "name": "damage_type", "label": "Damage Type", "type": "enum", "required": true, "values": ["real_property", "personal_property", "business_loss", "personal_injury", "evacuation"] },
+        { "name": "description", "label": "Describe your loss", "type": "text" }
+      ],
+      "actions": [
+        { "name": "Submit", "verb": "Submit", "description": "Submit the intake form." }
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "resource": "IntakeSubmission",
+      "action": "Submit",
+      "name": "IntakeSubmission.Submit",
+      "capability": "IntakeSubmission.Submit"
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/marshall/intake",
+      "operation": "IntakeSubmission.Submit",
+      "description": "Submit a public intake for Marshall Fire case review. No authentication required.",
+      "request": {
+        "name": "IntakeSubmissionRequest",
+        "fields": [
+          { "name": "first_name", "label": "First Name", "type": "string", "required": true },
+          { "name": "last_name", "label": "Last Name", "type": "string", "required": true },
+          { "name": "email", "label": "Email", "type": "string", "required": true },
+          { "name": "phone", "label": "Phone", "type": "string" },
+          { "name": "address", "label": "Street Address", "type": "string", "required": true },
+          { "name": "city", "label": "Jurisdiction", "type": "enum", "required": true, "values": ["Superior", "Louisville", "Unincorporated Boulder County"] },
+          { "name": "damage_type", "label": "Damage Type", "type": "enum", "required": true, "values": ["real_property", "personal_property", "business_loss", "personal_injury", "evacuation"] },
+          { "name": "description", "label": "Describe your loss", "type": "text" }
+        ]
+      },
+      "response": {
+        "name": "IntakeSubmissionResponse",
+        "fields": [
+          { "name": "id", "type": "string" },
+          { "name": "status", "type": "string" }
+        ]
+      }
+    }
+  ]
+}

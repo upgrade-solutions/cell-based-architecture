@@ -1,0 +1,118 @@
+{
+  "domain": {
+    "name": "justice",
+    "path": "justice",
+    "description": "Legal services root domain.",
+    "domains": [
+      {
+        "name": "masstort",
+        "path": "justice.masstort",
+        "description": "Mass tort litigation.",
+        "domains": [
+          {
+            "name": "marshall",
+            "path": "justice.masstort.marshall",
+            "description": "Marshall Fire mass tort — Boulder County, Colorado, December 30, 2021. Representing homeowners, renters, and business owners affected by the most destructive wildfire in Colorado history.",
+            "nouns": [
+              {
+                "name": "IntakeSubmission",
+                "description": "A public submission from a potential Marshall Fire claimant seeking a free case review.",
+                "domain": "justice.masstort.marshall",
+                "attributes": [
+                  { "name": "id", "type": "string", "required": true, "description": "Unique identifier." },
+                  { "name": "first_name", "type": "string", "required": true },
+                  { "name": "last_name", "type": "string", "required": true },
+                  { "name": "email", "type": "string", "required": true },
+                  { "name": "phone", "type": "string", "description": "Best contact phone number." },
+                  { "name": "address", "type": "string", "required": true, "description": "Street address of the affected property." },
+                  { "name": "city", "type": "enum", "required": true, "values": ["Superior", "Louisville", "Unincorporated Boulder County"], "description": "One of the three affected jurisdictions." },
+                  { "name": "damage_type", "type": "enum", "required": true, "values": ["real_property", "personal_property", "business_loss", "personal_injury", "evacuation"], "description": "Primary category of loss or harm." },
+                  { "name": "description", "type": "text", "description": "Free-form description of what happened and what was lost." },
+                  { "name": "status", "type": "enum", "required": true, "values": ["received", "under_review", "qualified", "rejected"], "description": "Internal review state." },
+                  { "name": "submitted_at", "type": "datetime", "description": "Timestamp the intake was submitted." }
+                ],
+                "verbs": [
+                  { "name": "Submit", "description": "A public visitor submits the intake form." }
+                ],
+                "examples": [
+                  {
+                    "id": "intake-1",
+                    "first_name": "Jordan",
+                    "last_name": "Hawthorne",
+                    "email": "jordan.h@example.com",
+                    "phone": "303-555-0142",
+                    "address": "1284 Paragon Dr",
+                    "city": "Superior",
+                    "damage_type": "real_property",
+                    "description": "Total loss of primary residence and two vehicles on Dec 30, 2021.",
+                    "status": "received",
+                    "submitted_at": "2026-01-14T16:22:00Z"
+                  },
+                  {
+                    "id": "intake-2",
+                    "first_name": "Priya",
+                    "last_name": "Saito",
+                    "email": "priya.saito@example.com",
+                    "phone": "720-555-0188",
+                    "address": "448 Walnut St",
+                    "city": "Louisville",
+                    "damage_type": "personal_property",
+                    "description": "Smoke and heat damage to contents; roof and siding partially destroyed.",
+                    "status": "under_review",
+                    "submitted_at": "2026-01-10T09:05:00Z"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "capabilities": [
+    {
+      "noun": "IntakeSubmission",
+      "verb": "Submit",
+      "name": "IntakeSubmission.Submit",
+      "description": "Records a new intake submission from a public visitor."
+    }
+  ],
+  "causes": [
+    {
+      "capability": "IntakeSubmission.Submit",
+      "source": "user",
+      "description": "Public visitor submits the intake form from the marketing site."
+    }
+  ],
+  "rules": [
+    {
+      "capability": "IntakeSubmission.Submit",
+      "type": "access",
+      "allow": [{ "role": "public" }],
+      "description": "Intake is open to the public. No authentication required."
+    },
+    {
+      "capability": "IntakeSubmission.Submit",
+      "type": "condition",
+      "conditions": [
+        { "attribute": "intake_submission.city", "operator": "in", "value": ["Superior", "Louisville", "Unincorporated Boulder County"] }
+      ],
+      "description": "Property must fall within the affected Boulder County jurisdictions."
+    }
+  ],
+  "outcomes": [
+    {
+      "capability": "IntakeSubmission.Submit",
+      "description": "Records the submission and starts the review workflow.",
+      "changes": [
+        { "attribute": "intake_submission.status", "set": "received" }
+      ]
+    }
+  ],
+  "lifecycles": [
+    {
+      "noun": "IntakeSubmission",
+      "steps": ["IntakeSubmission.Submit"]
+    }
+  ]
+}

@@ -12,7 +12,7 @@
  *   cba agent <name-or-path>           # show the contract for a concern
  *   cba agent operational              # shorthand for operational/AGENTS.md
  *   cba agent api-cell                 # shorthand for technical/cells/api-cell/AGENTS.md
- *   cba agent torts/marshall           # shorthand for dna/torts/marshall/AGENTS.md
+ *   cba agent dna                      # shorthand for dna/AGENTS.md (DNA generator meta-agent)
  *
  * This command does NOT spawn a sub-agent itself — spawning is the caller's
  * responsibility (Claude Code's Agent tool, etc.). It just resolves the
@@ -134,9 +134,9 @@ function runShow(nameOrPath: string, _rest: string[], opts: { json: boolean }): 
  *   operational                    → operational/AGENTS.md
  *   product                        → product/AGENTS.md
  *   technical                      → technical/AGENTS.md
+ *   dna                            → dna/AGENTS.md (DNA generator meta-agent)
  *   api-cell|ui-cell|db-cell|event-bus-cell
  *                                  → technical/cells/<name>/AGENTS.md
- *   torts/marshall, lending, ...   → dna/<name>/AGENTS.md
  *   any absolute or relative path to an AGENTS.md file
  */
 function resolveAgentFile(
@@ -156,18 +156,12 @@ function resolveAgentFile(
     if (fs.existsSync(asDirFile)) {
       return { concern: concernFor(asDirFile, root), file: asDirFile }
     }
-    // Try under dna/ for domain-shaped paths
-    const asDnaFile = path.join(root, 'dna', nameOrPath, 'AGENTS.md')
-    if (fs.existsSync(asDnaFile)) {
-      return { concern: concernFor(asDnaFile, root), file: asDnaFile }
-    }
   }
 
   // Short name resolution
   const candidates = [
     path.join(root, nameOrPath, 'AGENTS.md'),
     path.join(root, 'technical/cells', nameOrPath, 'AGENTS.md'),
-    path.join(root, 'dna', nameOrPath, 'AGENTS.md'),
   ]
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {
@@ -187,10 +181,9 @@ function concernFor(file: string, root: string): string {
   if (rel === 'operational/AGENTS.md') return 'operational'
   if (rel === 'product/AGENTS.md') return 'product'
   if (rel === 'technical/AGENTS.md') return 'technical'
+  if (rel === 'dna/AGENTS.md') return 'dna'
   const cellMatch = rel.match(/^technical\/cells\/([^/]+)\/AGENTS\.md$/)
   if (cellMatch) return `cell:${cellMatch[1]}`
-  const domainMatch = rel.match(/^dna\/(.+)\/AGENTS\.md$/)
-  if (domainMatch) return `domain:${domainMatch[1]}`
   return rel.replace(/\/AGENTS\.md$/, '')
 }
 
@@ -217,11 +210,11 @@ function findAllAgentsFiles(root: string): AgentContract[] {
     }
   }
 
-  // Domain-level (walk dna/ recursively since domains can be nested)
-  const dnaDir = path.join(root, 'dna')
-  if (fs.existsSync(dnaDir)) {
-    walkForAgentsFiles(dnaDir, candidates)
-  }
+  // DNA directory — just the top-level contract. Per-domain AGENTS.md files
+  // are not supported; dna/AGENTS.md is a meta-agent that orchestrates DNA
+  // generation for any domain under dna/.
+  const dnaAgents = path.join(root, 'dna/AGENTS.md')
+  if (fs.existsSync(dnaAgents)) candidates.push(dnaAgents)
 
   return candidates.map((file) => {
     const content = fs.readFileSync(file, 'utf-8')
@@ -232,20 +225,6 @@ function findAllAgentsFiles(root: string): AgentContract[] {
       content: '',
     }
   })
-}
-
-function walkForAgentsFiles(dir: string, out: string[]): void {
-  for (const entry of fs
-    .readdirSync(dir, { withFileTypes: true })
-    .sort((a, b) => a.name.localeCompare(b.name))) {
-    if (entry.name === 'node_modules' || entry.name === 'dist') continue
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      const agentsFile = path.join(full, 'AGENTS.md')
-      if (fs.existsSync(agentsFile)) out.push(agentsFile)
-      walkForAgentsFiles(full, out)
-    }
-  }
 }
 
 function extractTitle(content: string): string | undefined {
