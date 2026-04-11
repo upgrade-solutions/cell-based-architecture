@@ -182,8 +182,8 @@ Two cross-cutting pieces land first because the demo's prompt-to-deploy flow dep
   - `product-ui-designer` — produces `product.ui.json` from `product.core.json`
 - [x] **`technical/AGENTS.md`** — technical-stack-designer agent contract (produces `technical.json`) plus an index of per-cell agents that dispatch during `cba develop`
 - [x] **`technical/cells/<cell>/AGENTS.md`** — one per cell type. Each agent owns its cell's CLI invocation (`cba develop --cell <name>`), adapter selection, generated-output iteration, and failure reporting. Initial set: `api-cell`, `ui-cell`, `db-cell`, `event-bus-cell`.
-- [x] **`dna/torts/marshall/AGENTS.md`** — domain-specific agent that orchestrates the five layer/cell agents for this demo. Knows the prompt sections, the research sources, and the hand-off order.
-- [x] **`cba agent` CLI** — new subcommand that resolves the AGENTS.md contract for a given concern (`cba agent operational`, `cba agent api-cell`, `cba agent torts/marshall`). Supports layer shorthand, cell shorthand, nested domain paths, explicit file paths, `--json` output, and a `list` mode. Spawning the actual agent is the caller's job.
+- [x] **`dna/AGENTS.md`** (top-level meta-agent, not per-domain) — orchestrates DNA generation for any domain under `dna/`. Reads an optional `dna/<domain>/prompt.md` and dispatches the layer/cell agents in hand-off order. Replaces the earlier per-domain concept.
+- [x] **`cba agent` CLI** — new subcommand that resolves the AGENTS.md contract for a given concern (`cba agent operational`, `cba agent api-cell`, `cba agent dna`). Supports layer shorthand, cell shorthand, explicit file paths, `--json` output, and a `list` mode. Spawning the actual agent is the caller's job.
 
 #### Product core — `product.core.json` as the product/technical interface
 
@@ -199,27 +199,24 @@ Today, technical DNA and cells read operational DNA directly via cross-layer val
 ### Prompt → Operational DNA
 
 - [ ] Research extraction — build a pipeline that takes `prompt.md` + the referenced mass-tort sites (LA Fire Justice, Maui Wildfire Cases) and produces candidate Nouns, Capabilities, Rules, Lifecycles, and Signals
-- [ ] Generate `dna/torts/marshall/operational.json` — domain `justice.masstort.marshall`, full Noun set (Claimant, Claim, Incident, Property, Evidence, IntakeSubmission, CaseStatus, Firm, Attorney)
+- [~] `dna/torts/marshall/operational.json` — **v1 shipped** with `justice.masstort.marshall` domain and the `IntakeSubmission` noun driving the public marketing intake. Full noun set (Claimant, Claim, Incident, Property, Evidence, CaseStatus, Firm, Attorney) still to expand.
 - [ ] Author reference Signals — `marshall.IntakeSubmission.Received`, `marshall.Claimant.Qualified`, `marshall.Claim.Filed`
-- [ ] Author Rules — public intake access, staff-only qualify/review, affected-zone validation, statute-of-limitations checks
-- [ ] Validate with `cba validate` cross-layer checks
+- [~] Author Rules — **public intake access** and **affected-zone jurisdiction check** shipped with IntakeSubmission; staff-only qualify/review and statute-of-limitations checks still to add.
+- [x] Validate with `cba validate` cross-layer checks — `cba validate torts/marshall` green across all 5 layers plus cross-layer
 
 ### Prompt → Product DNA
 
-- [ ] Generate `dna/torts/marshall/product.api.json` — public intake endpoints (unauthenticated) plus authenticated staff admin endpoints for intake queue, claimants, claims, evidence, firms, attorneys
-- [ ] Generate `dna/torts/marshall/product.ui.json` with two surfaces:
-  - **Public web presence** — home, eligibility, intake form, FAQ, contact (marketing layout)
-  - **Staff admin** — intake queue, claimants, claims, firms/attorneys (universal layout with nested nav, protected by auth)
-- [ ] Multi-step intake form — the public intake is the demo's most visible feature; must handle contact info, property address, damage type(s), insurance status, residency proof
+- [~] `dna/torts/marshall/product.api.json` — **v1 shipped** with `POST /marshall/intake` (public, unauthenticated, typed request + response). Staff admin endpoints (intake queue, claimants, claims, evidence, firms, attorneys) still to add as the noun set grows.
+- [~] `dna/torts/marshall/product.ui.json` — **v1 shipped** as a single marketing surface: home, eligibility, intake form, FAQ using the new `marketing` layout with fire-red branding. Staff admin surface (universal layout, protected) still to add.
+- [ ] Multi-step intake form — the public intake is the demo's most visible feature; must handle contact info, property address, damage type(s), insurance status, residency proof (current v1 is a single-step FormBlock bound to `IntakeSubmission.Submit`).
 
 ### Prompt → Technical DNA
 
-- [ ] Generate `dna/torts/marshall/technical.json` declaring:
-  - `api-cell` with `python/django` adapter
-  - `ui-cell-public` (vite/react, static, marketing layout)
-  - `ui-cell-admin` (vite/react, static, universal layout)
-  - `db-cell` (postgres)
-  - `event-bus-cell` (node/event-bus)
+- [~] `dna/torts/marshall/technical.json` — **v1 shipped** with the `ui-cell` (`vite/react`, marketing layout). Expand with:
+  - `api-cell` with `python/django` adapter (once the adapter exists)
+  - `ui-cell-admin` (vite/react, universal layout) once the admin surface lands
+  - `db-cell` (postgres) once there's persistent data
+  - `event-bus-cell` (node/event-bus) once Signals are authored
 - [ ] Constructs — `primary-db` (Postgres 15 → RDS), `event-bus` (RabbitMQ → SNS+SQS), `evidence-bucket` (Minio → S3), `public-cdn` + `admin-cdn` (CloudFront+S3), `api-service` (ECS Fargate), `api-gateway` (ALB)
 - [ ] Environments — `dev` (docker-compose) and `prod` (terraform/aws)
 
