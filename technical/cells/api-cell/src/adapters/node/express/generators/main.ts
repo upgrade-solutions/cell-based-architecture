@@ -73,6 +73,7 @@ async function bootstrap() {
   app.use(express.json())
   app.use(cors())
 
+  app.get('/health', (_req, res) => res.json({ status: 'ok' }))
   app.get('/api-json', (_req, res) => res.json(currentSpec))
   app.use('/api', swaggerUi.serve, swaggerUi.setup(null as any, { swaggerOptions: { url: '/api-json' } }))
 
