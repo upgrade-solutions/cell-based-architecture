@@ -125,25 +125,22 @@ Constructs are declared once and referenced by multiple Cells — e.g. a `databa
 
 ---
 
-### Architecture views (part of Technical DNA)
+### Architecture views (derived from Technical DNA)
 
-Technical DNA includes architecture **views** — interactive visual diagrams of system topology. Each domain can have multiple named views (deployment topology, data flow, domain map, etc.) composed of **nodes**, **connections**, and **zones**.
-
-Views are both derivable from other technical primitives (cells and constructs become nodes, their relationships become connections) and independently editable via the `cba-viz` interactive viewer.
+Technical DNA auto-derives an architecture graph — a visual diagram of system topology — from the `cells`, `constructs`, and `providers` arrays. The derivation happens at read time via `cba views <domain> --env <env>`, which emits JSON consumed by the `cba-viz` viewer.
 
 | Primitive | Description |
 |-----------|-------------|
-| `View` | A named diagram perspective (e.g. `deployment`, `data-flow`, `domain-map`) with a layout hint |
-| `Node` | A visual element representing a system component — typed as `cell`, `construct`, `provider`, `domain`, `noun`, `external`, or `custom` |
-| `Connection` | A directed relationship between two nodes — typed as `depends-on`, `data-flow`, `communicates-with`, or `publishes-to` |
-| `Zone` | A visual container grouping related nodes — typed as `tier`, `boundary`, `environment`, or `domain` |
+| `View` | A named diagram perspective (e.g. `deployment`) — currently one per domain, auto-derived from technical DNA |
+| `Node` | A visual element representing a cell, construct, or provider. Auto-generated; not hand-maintained |
+| `Connection` | A directed relationship — currently cells link to their constructs as `depends-on`. Auto-generated |
+| `Zone` | A tier container (Compute for cells, Storage for constructs). Auto-generated |
 
-Nodes can reference other DNA primitives via the `source` field (e.g. `"technical:cell:api-cell"`), enabling cross-layer traceability.
+The `views[]` section in `technical.json` is a **layout overlay** — each entry stores only `id` + `position` + `size`, and the derive function merges those onto the corresponding derived node or zone. Adding a cell/construct/provider makes it appear on the graph automatically; removing one removes it. Manual position edits persist across DNA changes.
 
 ```bash
-npx cba technical list lending --type View
-npx cba technical show lending --type View --name deployment
-npx cba technical schema Node
+npx cba views lending --env dev                    # derived graph for the dev environment
+npx cba views torts/marshall --env prod --json     # derived graph, JSON output
 ```
 
 ---
@@ -157,16 +154,21 @@ cd packages/cba-viz
 npm run dev                                # http://localhost:5174
 ```
 
-Open the viewer for a specific domain and adapter via URL params:
+Open the viewer for a specific domain, environment, and adapter via URL params:
 
 ```
-http://localhost:5174/?domain=torts/marshall&adapter=terraform/aws
+http://localhost:5175/?domain=torts/marshall&env=prod&adapter=terraform/aws
 ```
 
 | Param | Default | Description |
 |-------|---------|-------------|
 | `domain` | `lending` | DNA domain path (supports nested paths like `torts/marshall`) |
+| `env` | `dev` | Environment for overlay resolution (e.g. dev uses rabbitmq, prod uses eventbridge) |
 | `adapter` | `docker-compose` | Status probe adapter: `docker-compose` or `terraform/aws` |
+
+All three are also selectable in the toolbar at runtime.
+
+**Data flow:** cba-viz calls `GET /api/load-views/:domain?env=<env>`, which the vite middleware proxies by shelling out to `cba views <domain> --env <env> --json`. The graph is always the derived view — adding a cell/construct/provider to `technical.json` makes it appear automatically.
 
 **Features:**
 - **View switching** — dropdown to switch between views in the architecture DNA

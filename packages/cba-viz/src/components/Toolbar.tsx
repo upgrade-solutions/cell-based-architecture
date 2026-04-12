@@ -9,6 +9,8 @@ interface ToolbarProps {
   onSave: () => void
   saving: boolean
   domain: string
+  env: string
+  onEnvChange: (env: string) => void
   adapter: string
   onAdapterChange: (adapter: string) => void
 }
@@ -21,6 +23,8 @@ export const Toolbar = observer(function Toolbar({
   onSave,
   saving,
   domain,
+  env,
+  onEnvChange,
   adapter,
   onAdapterChange,
 }: ToolbarProps) {
@@ -50,6 +54,21 @@ export const Toolbar = observer(function Toolbar({
     >
       {/* Domain label */}
       <span style={{ color: '#f8fafc', fontWeight: 700, fontSize: 13 }}>{domain}</span>
+
+      <div style={{ width: 1, height: 20, background: '#475569' }} />
+
+      {/* Environment selector */}
+      <label style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Env
+      </label>
+      <select
+        value={env}
+        onChange={(e) => onEnvChange(e.target.value)}
+        style={selectStyle}
+      >
+        <option value="dev">dev</option>
+        <option value="prod">prod</option>
+      </select>
 
       <div style={{ width: 1, height: 20, background: '#475569' }} />
 

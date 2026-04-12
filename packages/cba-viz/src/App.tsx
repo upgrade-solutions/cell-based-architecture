@@ -14,6 +14,12 @@ function getDomain(): string {
   return params.get('domain') ?? 'lending'
 }
 
+/** Read environment from ?env= URL param, default to 'dev' */
+function getEnv(): string {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('env') ?? 'dev'
+}
+
 /** Read adapter from ?adapter= URL param, default to 'docker-compose' */
 function getAdapter(): string {
   const params = new URLSearchParams(window.location.search)
@@ -29,15 +35,16 @@ const App = observer(function App() {
   const [currentViewName, setCurrentViewName] = useState('deployment')
   const liveStatus = useRef<Record<string, string>>({})
   const [domain] = useState(getDomain)
+  const [env, setEnv] = useState(getEnv)
   const [adapter, setAdapter] = useState(getAdapter)
 
-  // Load DNA from the dev server API at runtime
+  // Load DNA from the dev server API at runtime (derived from technical.json)
   useEffect(() => {
-    fetch(`/api/load-views/${encodeURIComponent(domain)}`)
+    fetch(`/api/load-views/${encodeURIComponent(domain)}?env=${encodeURIComponent(env)}`)
       .then(r => r.json())
       .then(json => setDna(parseArchitectureDNA(json)))
       .catch(err => console.error('Failed to load DNA:', err))
-  }, [domain])
+  }, [domain, env])
 
   // Poll live status from the selected adapter and merge into DNA
   useEffect(() => {
@@ -129,6 +136,8 @@ const App = observer(function App() {
           onSave={handleSave}
           saving={saving}
           domain={domain}
+          env={env}
+          onEnvChange={setEnv}
           adapter={adapter}
           onAdapterChange={setAdapter}
         />

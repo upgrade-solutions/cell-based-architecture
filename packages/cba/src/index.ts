@@ -12,6 +12,7 @@ import { runStatus } from './status'
 import { runRun } from './run'
 import { runValidate } from './validate'
 import { runAgent } from './agent'
+import { runViews } from './views'
 import { listDomains, findRepoRoot } from './context'
 import { emit } from './output'
 
@@ -73,6 +74,9 @@ function main(): void {
       return
     case 'agent':
       runAgent(rest, args)
+      return
+    case 'views':
+      runViews(rest, args)
       return
     case 'domains': {
       const opts = { json: boolFlag(args, 'json') }

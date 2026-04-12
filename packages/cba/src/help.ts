@@ -19,6 +19,7 @@ UTILITIES
   run            Run generated output locally (dev servers)
   validate       Validate DNA across all layers + cross-layer refs
   domains        List domains found under dna/
+  views          Derive architecture graph JSON from technical DNA (for cba-viz)
   agent          Find and show AGENTS.md contracts for layer/cell agents
   help           Show this help, or help for a specific command
 
@@ -399,6 +400,33 @@ NOTE
   Code) and uses the other cba commands as its tools.
 `
 
+export const VIEWS_HELP = `cba views — derive architecture graph JSON from technical DNA
+
+USAGE
+  cba views <domain> [--env <environment>] [--json]
+
+The graph is auto-derived from the \`cells\`, \`constructs\`, and \`providers\`
+arrays in the domain's technical.json (with environment overlay applied).
+The \`views[]\` section of technical.json is treated as a layout overlay:
+each entry's \`id\` + saved \`position\` + \`size\` is merged onto the derived
+node of the same id.
+
+This means:
+  - Adding a cell/construct/provider to technical DNA makes it appear in the graph
+  - Removing one removes it from the graph automatically
+  - Manual position edits persist across DNA changes
+
+OUTPUT
+  Prints a JSON document: { "views": [ { name, nodes, connections, zones } ] }
+
+CONSUMED BY
+  cba-viz fetches this endpoint at /api/load-views/:domain?env=<env>.
+
+EXAMPLES
+  cba views lending --env dev
+  cba views torts/marshall --env prod --json
+`
+
 export const AGENT_HELP = `cba agent — find and describe AGENTS.md contracts
 
 Each concern boundary in the repo (operational layer, product layer,
@@ -462,6 +490,8 @@ export function helpFor(command?: string): string {
       return DISCOVER_HELP
     case 'agent':
       return AGENT_HELP
+    case 'views':
+      return VIEWS_HELP
     default:
       return ROOT_HELP
   }

@@ -117,124 +117,21 @@
   "views": [
     {
       "name": "deployment",
-      "description": "Marshall Fire production deployment topology — cells, constructs, and providers.",
+      "description": "Layout overlay for the derived deployment view — positions only. Nodes, connections, and zones are auto-derived from cells/constructs/providers.",
       "nodes": [
-        {
-          "id": "aws",
-          "name": "AWS",
-          "type": "provider",
-          "status": "deployed",
-          "position": { "x": 600, "y": 20 },
-          "size": { "width": 140, "height": 50 },
-          "description": "Primary cloud provider.",
-          "metadata": {}
-        },
-        {
-          "id": "built-in",
-          "name": "Built-in JWT Auth",
-          "type": "provider",
-          "status": "deployed",
-          "position": { "x": 780, "y": 20 },
-          "size": { "width": 160, "height": 50 },
-          "description": "Built-in JWT authentication.",
-          "metadata": {}
-        },
-        {
-          "id": "primary-db",
-          "name": "primary-db",
-          "type": "construct",
-          "status": "planned",
-          "position": { "x": 100, "y": 380 },
-          "size": { "width": 160, "height": 60 },
-          "description": "Primary Postgres database for all Marshall Fire mass-tort data.",
-          "metadata": { "category": "storage", "engine": "postgres" }
-        },
-        {
-          "id": "event-bus",
-          "name": "event-bus",
-          "type": "construct",
-          "status": "planned",
-          "position": { "x": 380, "y": 380 },
-          "size": { "width": 160, "height": 60 },
-          "description": "Event bus — EventBridge with SQS subscriber targets.",
-          "metadata": { "category": "storage", "engine": "eventbridge" }
-        },
-        {
-          "id": "db-cell",
-          "name": "db-cell",
-          "type": "cell",
-          "status": "planned",
-          "position": { "x": 80, "y": 240 },
-          "size": { "width": 160, "height": 70 },
-          "description": "Provisions Postgres database, application role, and permissions.",
-          "metadata": { "adapter": "postgres" }
-        },
-        {
-          "id": "event-bus-cell",
-          "name": "event-bus-cell",
-          "type": "cell",
-          "status": "planned",
-          "position": { "x": 320, "y": 240 },
-          "size": { "width": 180, "height": 70 },
-          "description": "Schema registry, typed publishers, routing config, subscriber stubs.",
-          "metadata": { "adapter": "node/event-bus" }
-        },
-        {
-          "id": "api-cell",
-          "name": "api-cell",
-          "type": "cell",
-          "status": "planned",
-          "position": { "x": 560, "y": 180 },
-          "size": { "width": 160, "height": 70 },
-          "description": "Express + drizzle interpreter for all Marshall endpoints.",
-          "metadata": { "adapter": "node/express" }
-        },
-        {
-          "id": "ui-cell",
-          "name": "ui-cell",
-          "type": "cell",
-          "status": "planned",
-          "position": { "x": 780, "y": 120 },
-          "size": { "width": 160, "height": 70 },
-          "description": "Public marketing site — Vite + React.",
-          "metadata": { "adapter": "vite/react" }
-        },
-        {
-          "id": "admin-ui-cell",
-          "name": "admin-ui-cell",
-          "type": "cell",
-          "status": "planned",
-          "position": { "x": 780, "y": 240 },
-          "size": { "width": 160, "height": 70 },
-          "description": "Staff admin SPA — Vite + React.",
-          "metadata": { "adapter": "vite/react" }
-        }
-      ],
-      "connections": [
-        { "id": "db-cell->primary-db", "source": "db-cell", "target": "primary-db", "type": "depends-on", "label": "provisions" },
-        { "id": "event-bus-cell->event-bus", "source": "event-bus-cell", "target": "event-bus", "type": "depends-on", "label": "provisions" },
-        { "id": "api-cell->primary-db", "source": "api-cell", "target": "primary-db", "type": "data-flow", "label": "reads/writes" },
-        { "id": "api-cell->event-bus", "source": "api-cell", "target": "event-bus", "type": "publishes-to", "label": "signals" },
-        { "id": "admin-ui-cell->api-cell", "source": "admin-ui-cell", "target": "api-cell", "type": "communicates-with", "label": "API calls" },
-        { "id": "api-cell->built-in", "source": "api-cell", "target": "built-in", "type": "depends-on", "label": "auth" }
+        { "id": "aws", "position": { "x": 600, "y": 20 }, "size": { "width": 140, "height": 50 } },
+        { "id": "built-in", "position": { "x": 780, "y": 20 }, "size": { "width": 160, "height": 50 } },
+        { "id": "primary-db", "position": { "x": 100, "y": 380 }, "size": { "width": 160, "height": 60 } },
+        { "id": "event-bus", "position": { "x": 380, "y": 380 }, "size": { "width": 160, "height": 60 } },
+        { "id": "db-cell", "position": { "x": 80, "y": 240 }, "size": { "width": 160, "height": 70 } },
+        { "id": "event-bus-cell", "position": { "x": 320, "y": 240 }, "size": { "width": 180, "height": 70 } },
+        { "id": "api-cell", "position": { "x": 560, "y": 180 }, "size": { "width": 160, "height": 70 } },
+        { "id": "ui-cell", "position": { "x": 780, "y": 120 }, "size": { "width": 160, "height": 70 } },
+        { "id": "admin-ui-cell", "position": { "x": 780, "y": 240 }, "size": { "width": 160, "height": 70 } }
       ],
       "zones": [
-        {
-          "id": "zone-compute",
-          "name": "Compute",
-          "type": "tier",
-          "nodes": ["db-cell", "event-bus-cell", "api-cell", "ui-cell", "admin-ui-cell"],
-          "position": { "x": 50, "y": 100 },
-          "size": { "width": 920, "height": 240 }
-        },
-        {
-          "id": "zone-storage",
-          "name": "Storage",
-          "type": "tier",
-          "nodes": ["primary-db", "event-bus"],
-          "position": { "x": 50, "y": 360 },
-          "size": { "width": 530, "height": 100 }
-        }
+        { "id": "zone-compute", "position": { "x": 50, "y": 100 }, "size": { "width": 920, "height": 240 } },
+        { "id": "zone-storage", "position": { "x": 50, "y": 360 }, "size": { "width": 530, "height": 100 } }
       ]
     }
   ],

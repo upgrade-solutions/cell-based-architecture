@@ -1,9 +1,13 @@
 import { dia } from '@joint/plus'
-import type { ArchitectureDNA, ArchView, ArchNode, ArchConnection, ArchZone } from '../loaders/dna-loader.ts'
+import type { ArchitectureDNA, ArchView, ArchNode, ArchZone } from '../loaders/dna-loader.ts'
 
 /**
- * Extract the current graph state back into Architecture DNA format.
- * This enables write-back: edit in the diagram → save to architecture.json.
+ * Extract the current graph state as a layout overlay.
+ *
+ * The derived graph (nodes, connections, zones, metadata) is computed from
+ * cells/constructs/providers in technical DNA — we only persist layout data:
+ * each element's id, position, and size. On reload, the derive function merges
+ * these saved positions onto the derived nodes.
  */
 export function graphToArchView(
   graph: dia.Graph,
@@ -11,9 +15,7 @@ export function graphToArchView(
   originalView: ArchView,
 ): ArchView {
   const elements = graph.getElements()
-  const links = graph.getLinks()
 
-  // Rebuild nodes from graph elements (skip zones)
   const nodes: ArchNode[] = []
   const zones: ArchZone[] = []
 
@@ -23,63 +25,26 @@ export function graphToArchView(
 
     const pos = el.position()
     const size = el.size()
+    const layoutEntry = {
+      id: dna.id as string,
+      position: { x: Math.round(pos.x), y: Math.round(pos.y) },
+      size: { width: Math.round(size.width), height: Math.round(size.height) },
+    }
 
-    // Check if this is a zone container
+    // Zone containers go into the zones array
     const embeddedCells = el.getEmbeddedCells()
     if (embeddedCells.length > 0 || el.get('type') === 'cbaViz.ZoneContainer') {
-      // This is a zone — find the original zone definition
-      const originalZone = (originalView.zones ?? []).find(z => z.id === el.id)
-      if (originalZone) {
-        zones.push({
-          ...originalZone,
-          position: { x: Math.round(pos.x), y: Math.round(pos.y) },
-          size: { width: Math.round(size.width), height: Math.round(size.height) },
-        })
-      }
+      zones.push(layoutEntry as unknown as ArchZone)
       continue
     }
 
-    // Find original node to preserve fields we don't edit
-    const originalNode = originalView.nodes.find(n => n.id === dna.id)
-
-    nodes.push({
-      id: dna.id,
-      name: dna.name,
-      type: dna.type,
-      source: dna.source,
-      position: { x: Math.round(pos.x), y: Math.round(pos.y) },
-      size: { width: Math.round(size.width), height: Math.round(size.height) },
-      description: dna.description,
-      metadata: dna.metadata ?? originalNode?.metadata,
-    })
+    nodes.push(layoutEntry as unknown as ArchNode)
   }
-
-  // Rebuild connections from graph links
-  const connections: ArchConnection[] = links.map(link => {
-    const dna = link.get('dna')
-    const sourceId = (link.source() as { id: string }).id
-    const targetId = (link.target() as { id: string }).id
-    const vertices = link.vertices().map((v: { x: number; y: number }) => ({
-      x: Math.round(v.x),
-      y: Math.round(v.y),
-    }))
-
-    return {
-      id: dna?.id ?? link.id as string,
-      source: sourceId,
-      target: targetId,
-      type: dna?.type ?? 'depends-on',
-      label: dna?.label,
-      ...(vertices.length > 0 ? { vertices } : {}),
-    }
-  })
 
   return {
     name: viewName,
     description: originalView.description,
-    layout: originalView.layout,
     nodes,
-    connections,
     zones,
   }
 }

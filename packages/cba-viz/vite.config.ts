@@ -3,7 +3,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
 import path from 'node:path'
-import { exec } from 'node:child_process'
+import { exec, execFile } from 'node:child_process'
+
+/** Path to the cba CLI binary, resolved from the monorepo root. */
+const CBA_BIN = path.resolve(__dirname, '../cba/bin/cba')
 
 /**
  * Vite plugin that provides a POST /api/save-views/:domain endpoint
@@ -14,26 +17,28 @@ function saveViewsPlugin() {
     name: 'save-views',
     configureServer(server: { middlewares: { use: Function } }) {
       server.middlewares.use((req: any, res: any, next: any) => {
-        // GET /api/load-views/:domain — read views from technical.json
-        // Domain can be nested (e.g. torts/marshall)
-        const loadMatch = req.url?.match(/^\/api\/load-views\/(.+)$/)
+        // GET /api/load-views/:domain?env=dev|prod
+        // Derives the graph by shelling out to `cba views <domain> --env <env>`.
+        // Domain can be nested (e.g. torts/marshall).
+        const loadMatch = req.url?.match(/^\/api\/load-views\/([^?]+)/)
         if (req.method === 'GET' && loadMatch) {
-          try {
-            const domain = decodeURIComponent(loadMatch[1])
-            const filePath = path.resolve(__dirname, '../../dna', domain, 'technical.json')
-            if (!fs.existsSync(filePath)) {
-              res.statusCode = 404
-              res.end(JSON.stringify({ error: `technical.json not found for domain "${domain}"` }))
+          const domain = decodeURIComponent(loadMatch[1])
+          const urlObj = new URL(req.url!, `http://${req.headers.host}`)
+          const env = urlObj.searchParams.get('env')
+          const cbaArgs = ['views', domain, '--json']
+          if (env) cbaArgs.push('--env', env)
+
+          execFile(CBA_BIN, cbaArgs, { timeout: 10000 }, (err, stdout, stderr) => {
+            if (err) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: stderr?.toString() || err.message }))
               return
             }
-            const technical = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
             res.statusCode = 200
             res.setHeader('Content-Type', 'application/json')
-            res.end(JSON.stringify({ views: technical.views ?? [] }))
-          } catch (err) {
-            res.statusCode = 500
-            res.end(JSON.stringify({ error: String(err) }))
-          }
+            res.end(stdout)
+          })
           return
         }
 
