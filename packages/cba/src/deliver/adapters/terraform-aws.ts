@@ -1774,7 +1774,49 @@ export async function teardownTerraform(ctx: LaunchContext): Promise<number> {
   }
   const initCode = await runTerraform(['init', '-input=false'], ctx)
   if (initCode !== 0) return initCode
-  return runTerraform(['destroy', '-input=false', '-auto-approve'], ctx)
+
+  // Read manifest to discover task definition families before destroy
+  const fs = require('fs')
+  const manifestPath = path.join(ctx.deployDir, 'cba-manifest.json')
+  let taskFamilies: string[] = []
+  if (fs.existsSync(manifestPath)) {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+    const prefix = `${manifest.domain.replace(/\//g, '-')}-${manifest.environment}`
+    taskFamilies = manifest.cells
+      .filter((c: any) => c.kind === 'container')
+      .map((c: any) => `${prefix}-${tfId(c.name)}`)
+  }
+
+  const destroyCode = await runTerraform(['destroy', '-input=false', '-auto-approve'], ctx)
+  if (destroyCode !== 0) return destroyCode
+
+  // Terraform only deregisters ECS task definitions — permanently delete them
+  for (const family of taskFamilies) {
+    try {
+      const listRaw = execSync(
+        `aws ecs list-task-definitions --family-prefix ${family} --output json`,
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+      )
+      const arns: string[] = JSON.parse(listRaw).taskDefinitionArns ?? []
+      if (arns.length === 0) continue
+      // Deregister any still-active revisions
+      for (const arn of arns) {
+        execSync(`aws ecs deregister-task-definition --task-definition ${arn}`, {
+          stdio: ['pipe', 'pipe', 'pipe'],
+        })
+      }
+      // Permanently delete all revisions
+      const revisions = arns.map((a) => a.split('/').pop()!).join(' ')
+      execSync(`aws ecs delete-task-definitions --task-definitions ${revisions}`, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+      console.log(`✓ Deleted ${arns.length} task definition revision(s) for ${family}`)
+    } catch {
+      console.log(`⚠ Could not clean up task definitions for ${family}`)
+    }
+  }
+
+  return 0
 }
 
 /**
