@@ -192,14 +192,19 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
   const connections: ArchConnection[] = []
 
   // ── Layout constants ──
+  //
+  // ROW_GAP must leave enough space for the manhattan router to elbow in
+  // the middle of the channel between rows (router padding is 20px per
+  // side in cba-viz, so a ~80px row gap gives a comfortable 40px routing
+  // channel where arrows can bend without touching node edges).
   const CELL_W = 160
   const CELL_H = 70
   const CONSTRUCT_W = 160
   const CONSTRUCT_H = 60
-  const GAP_X = 40   // horizontal gap between siblings
-  const ROW_GAP = 40 // vertical gap between rows within a zone
-  const ZONE_GAP = 50 // extra gap between zones
-  const MARGIN = 40  // margin inside a zone
+  const GAP_X = 40    // horizontal gap between siblings
+  const ROW_GAP = 90  // vertical gap between rows within a zone
+  const ZONE_GAP = 60 // extra gap between zones
+  const MARGIN = 40   // margin inside a zone
 
   // Row Ys — frontend on top, backend below, constructs at the bottom
   const FRONTEND_Y = MARGIN + 30 // room for zone header
