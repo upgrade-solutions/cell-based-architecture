@@ -1583,7 +1583,7 @@ async function postApply(ctx: LaunchContext): Promise<number> {
     }
 
     console.log(`→ build ${cell.name} (docker)`)
-    const buildCode = runSync(`docker build -t ${ecrUrl}:latest ${cell.outputDir}`, ctx)
+    const buildCode = runSync(`docker build --platform linux/amd64 -t ${ecrUrl}:latest ${cell.outputDir}`, ctx)
     if (buildCode !== 0) return buildCode
 
     console.log(`→ push ${cell.name} → ECR`)
