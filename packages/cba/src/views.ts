@@ -120,6 +120,22 @@ function isProvisioner(cell: { adapterType: string }): boolean {
 }
 
 /**
+ * Adapters that produce a frontend/UI service. Used to arrange cells in the
+ * deployment view top-to-bottom: frontend → backend → storage.
+ */
+function isFrontend(cell: { adapterType: string }): boolean {
+  const t = cell.adapterType
+  return (
+    t.startsWith('vite/') ||
+    t.startsWith('next/') ||
+    t.startsWith('nuxt/') ||
+    t === 'react' ||
+    t === 'vue' ||
+    t === 'svelte'
+  )
+}
+
+/**
  * Infer the deployed URL for a cell from its DNA:
  *   1. first outputs[] entry whose value starts with `http`
  *   2. else `http://localhost:<port>` if adapterConfig.port is set
@@ -146,19 +162,22 @@ function cellUrl(cell: {
 /**
  * Derive a single deployment view from an EnvironmentPlan.
  *
- * Layout rules:
- *   - Cells (excluding provisioners) in a row at the top
- *   - Constructs in a row below
+ * Layout rules — top to bottom, frontend → backend → storage:
+ *   - Frontend cells (UI) in the top row
+ *   - Backend cells (API/service) in the middle row
+ *   - Constructs (storage) in the bottom row
  *   - If savedView has a node with the same id, its position/size wins
  *
  * Providers are NOT rendered on the deployment view — they're config
  * (which cloud, which auth backend), not deployable infrastructure.
- * The provider reference still lives on each Construct's `provider` field.
  */
 function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
   // Visible cells excludes provisioner cells (those whose job is to set up
   // a construct — they have no independent runtime service)
   const visibleCells = plan.cells.filter((c) => !isProvisioner(c))
+  const frontendCells = visibleCells.filter(isFrontend)
+  const backendCells = visibleCells.filter((c) => !isFrontend(c))
+
   // Build a lookup of saved positions by node id
   const savedPositions = new Map<string, { pos?: ArchNode['position']; size?: ArchNode['size'] }>()
   for (const node of savedView?.nodes ?? []) {
@@ -172,36 +191,48 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
   const nodes: ArchNode[] = []
   const connections: ArchConnection[] = []
 
-  // ── Layout constants — tight grid, single-row tiers ──
+  // ── Layout constants ──
   const CELL_W = 160
   const CELL_H = 70
   const CONSTRUCT_W = 160
   const CONSTRUCT_H = 60
-  const GAP_X = 40  // horizontal gap between siblings
-  const GAP_Y = 80  // vertical gap between tiers (inside a zone)
-  const MARGIN = 40 // margin inside a zone
-  const CELL_ROW_Y = MARGIN + 30 // room for zone header
+  const GAP_X = 40   // horizontal gap between siblings
+  const ROW_GAP = 40 // vertical gap between rows within a zone
+  const ZONE_GAP = 50 // extra gap between zones
+  const MARGIN = 40  // margin inside a zone
 
-  // ── Cells (compute tier) — provisioners excluded ──
-  let cellX = MARGIN
-  for (const cell of visibleCells) {
-    const saved = savedPositions.get(cell.name)
-    nodes.push({
-      id: cell.name,
-      name: cell.name,
-      type: 'cell',
-      status: 'planned',
-      position: saved?.pos ?? { x: cellX, y: CELL_ROW_Y },
-      size: saved?.size ?? { width: CELL_W, height: CELL_H },
-      description: cell.description,
-      metadata: { adapter: cell.adapterType, url: cellUrl(cell) },
-    })
-    cellX += CELL_W + GAP_X
+  // Row Ys — frontend on top, backend below, constructs at the bottom
+  const FRONTEND_Y = MARGIN + 30 // room for zone header
+  const BACKEND_Y = FRONTEND_Y + CELL_H + ROW_GAP
+  const CONSTRUCT_Y = BACKEND_Y + CELL_H + ROW_GAP + ZONE_GAP + 30 // room for next zone header
+
+  // Layout a row of cells centered inside the compute zone width.
+  // Currently left-aligned starting at MARGIN — same as constructs.
+  const layoutRow = (cells: typeof visibleCells, y: number) => {
+    let x = MARGIN
+    for (const cell of cells) {
+      const saved = savedPositions.get(cell.name)
+      nodes.push({
+        id: cell.name,
+        name: cell.name,
+        type: 'cell',
+        status: 'planned',
+        position: saved?.pos ?? { x, y },
+        size: saved?.size ?? { width: CELL_W, height: CELL_H },
+        description: cell.description,
+        metadata: { adapter: cell.adapterType, url: cellUrl(cell) },
+      })
+      x += CELL_W + GAP_X
+    }
   }
 
-  // ── Constructs (storage tier) ──
-  // Put the storage tier below compute with a zone gap in between
-  const constructRowY = CELL_ROW_Y + CELL_H + GAP_Y + 30 // extra for next zone header
+  // ── Frontend row (top) ──
+  layoutRow(frontendCells, FRONTEND_Y)
+
+  // ── Backend row (middle) ──
+  layoutRow(backendCells, BACKEND_Y)
+
+  // ── Constructs (bottom) ──
   let constructX = MARGIN
   for (const construct of plan.constructs) {
     const saved = savedPositions.get(construct.name)
@@ -211,7 +242,7 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
       name: construct.name,
       type: 'construct',
       status: 'planned',
-      position: saved?.pos ?? { x: constructX, y: constructRowY },
+      position: saved?.pos ?? { x: constructX, y: CONSTRUCT_Y },
       size: saved?.size ?? { width: CONSTRUCT_W, height: CONSTRUCT_H },
       description: construct.description,
       metadata: {
