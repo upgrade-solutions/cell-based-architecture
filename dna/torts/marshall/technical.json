@@ -13,11 +13,8 @@
     {
       "name": "aws",
       "type": "cloud",
-      "region": "us-west-2",
-      "description": "Primary cloud provider (Colorado-adjacent).",
-      "config": {
-        "account_id": "000000000000"
-      }
+      "region": "us-east-1",
+      "description": "Primary cloud provider."
     }
   ],
   "constructs": [

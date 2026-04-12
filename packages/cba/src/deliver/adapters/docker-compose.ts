@@ -520,6 +520,14 @@ export function teardownCompose(ctx: LaunchContext): Promise<number> {
   return runDocker(args, ctx)
 }
 
+/**
+ * `docker compose ps` in the generated deploy dir — shows running containers
+ * and their current state.
+ */
+export function statusCompose(ctx: LaunchContext): Promise<number> {
+  return runDocker(['compose', 'ps'], ctx)
+}
+
 function runDocker(args: string[], ctx: LaunchContext): Promise<number> {
   return new Promise((resolve, reject) => {
     const child = spawn('docker', args, {

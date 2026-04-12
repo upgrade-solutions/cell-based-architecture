@@ -8,6 +8,7 @@ import { runDevelop } from './develop'
 import { runDeliver } from './deliver/index'
 import { runUp } from './up'
 import { runDown } from './down'
+import { runStatus } from './status'
 import { runRun } from './run'
 import { runValidate } from './validate'
 import { runAgent } from './agent'
@@ -60,6 +61,9 @@ function main(): void {
       return
     case 'down':
       runDown(rest, args)
+      return
+    case 'status':
+      runStatus(rest, args)
       return
     case 'run':
       runRun(rest, args)

@@ -1,5 +1,5 @@
 import * as path from 'path'
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import {
   EnvironmentPlan,
   ResolvedCell,
@@ -36,7 +36,6 @@ export function generateTerraformAws(plan: EnvironmentPlan): TerraformResult {
   // Find the AWS provider from DNA
   const awsProvider = plan.providers.find((p) => p.name === 'aws' || p.type === 'cloud')
   const region = awsProvider?.region ?? 'us-east-1'
-  const accountId = awsProvider?.config?.account_id ?? '000000000000'
 
   // ── main.tf ──
   const mainTf = buildMainTf(region)
@@ -56,7 +55,7 @@ export function generateTerraformAws(plan: EnvironmentPlan): TerraformResult {
 
   // ── compute.tf (ECS cluster, task definitions, services) ──
   const { content: computeTf, resourceNames: computeResources, skipped: computeSkipped } =
-    buildComputeTf(plan, prefix, region, accountId)
+    buildComputeTf(plan, prefix, region)
   resources.push(...computeResources)
   skipped.push(...computeSkipped)
 
@@ -556,7 +555,6 @@ function buildComputeTf(
   plan: EnvironmentPlan,
   prefix: string,
   region: string,
-  accountId: string,
 ): BuildResult {
   const blocks: string[] = []
   const resourceNames: string[] = []
@@ -1363,6 +1361,49 @@ export async function teardownTerraform(ctx: LaunchContext): Promise<number> {
   const initCode = await runTerraform(['init', '-input=false'], ctx)
   if (initCode !== 0) return initCode
   return runTerraform(['destroy', '-input=false', '-auto-approve'], ctx)
+}
+
+/**
+ * `terraform show` + AWS resource summary. Shows what terraform has deployed
+ * and queries AWS APIs for a quick resource count.
+ */
+export async function statusTerraform(ctx: LaunchContext): Promise<number> {
+  // 1. terraform show (state)
+  const hasState = require('fs').existsSync(path.join(ctx.deployDir, 'terraform.tfstate'))
+  if (hasState) {
+    const showCode = await runTerraform(['show', '-no-color'], ctx)
+    if (showCode !== 0) return showCode
+  } else {
+    console.log('  (no terraform state found — has `cba up` been run with --auto-approve?)')
+  }
+
+  // 2. Quick AWS resource count
+  console.log('')
+  console.log('── AWS Resource Summary ──')
+  const checks: Array<{ label: string; cmd: string; countFn: (json: any) => number }> = [
+    { label: 'EC2 instances', cmd: 'aws ec2 describe-instances --output json', countFn: (j) => (j.Reservations || []).flatMap((r: any) => r.Instances || []).filter((i: any) => i.State?.Name !== 'terminated').length },
+    { label: 'RDS databases', cmd: 'aws rds describe-db-instances --output json', countFn: (j) => (j.DBInstances || []).length },
+    { label: 'Load balancers', cmd: 'aws elbv2 describe-load-balancers --output json', countFn: (j) => (j.LoadBalancers || []).length },
+    { label: 'ECS clusters', cmd: 'aws ecs list-clusters --output json', countFn: (j) => (j.clusterArns || []).length },
+    { label: 'CloudFront distributions', cmd: 'aws cloudfront list-distributions --output json', countFn: (j) => (j.DistributionList?.Items || []).length },
+    { label: 'S3 buckets', cmd: 'aws s3api list-buckets --output json', countFn: (j) => (j.Buckets || []).length },
+    { label: 'ECR repositories', cmd: 'aws ecr describe-repositories --output json', countFn: (j) => (j.repositories || []).length },
+    { label: 'SNS topics', cmd: 'aws sns list-topics --output json', countFn: (j) => (j.Topics || []).length },
+    { label: 'SQS queues', cmd: 'aws sqs list-queues --output json', countFn: (j) => (j.QueueUrls || []).length },
+  ]
+
+  for (const check of checks) {
+    try {
+      const raw = execSync(check.cmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+      const count = check.countFn(JSON.parse(raw || '{}'))
+      console.log(`  ${check.label.padEnd(30)} ${count}`)
+    } catch {
+      console.log(`  ${check.label.padEnd(30)} (error)`)
+    }
+  }
+  console.log('')
+
+  return 0
 }
 
 function runTerraform(args: string[], ctx: LaunchContext): Promise<number> {

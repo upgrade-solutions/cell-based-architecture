@@ -1,6 +1,6 @@
 import { LaunchContext } from './adapters/types'
-import { launchCompose, teardownCompose } from './adapters/docker-compose'
-import { launchTerraform, teardownTerraform } from './adapters/terraform-aws'
+import { launchCompose, teardownCompose, statusCompose } from './adapters/docker-compose'
+import { launchTerraform, teardownTerraform, statusTerraform } from './adapters/terraform-aws'
 
 /**
  * Shared registry of launch/teardown hooks per delivery adapter. Consumed by
@@ -30,5 +30,14 @@ export function teardownWith(id: DeliveryAdapterId, ctx: LaunchContext): Promise
       return teardownCompose(ctx)
     case 'terraform/aws':
       return teardownTerraform(ctx)
+  }
+}
+
+export function statusWith(id: DeliveryAdapterId, ctx: LaunchContext): Promise<number> {
+  switch (id) {
+    case 'docker-compose':
+      return statusCompose(ctx)
+    case 'terraform/aws':
+      return statusTerraform(ctx)
   }
 }

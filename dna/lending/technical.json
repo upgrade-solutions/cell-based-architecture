@@ -14,10 +14,7 @@
       "name": "aws",
       "type": "cloud",
       "region": "us-east-1",
-      "description": "Primary cloud provider for compute, storage, and networking.",
-      "config": {
-        "account_id": "123456789012"
-      }
+      "description": "Primary cloud provider for compute, storage, and networking."
     },
     {
       "name": "auth0",

@@ -667,6 +667,7 @@ npx cba domains                                     # list domains under dna/
 | `cba deploy <domain> --env <env> [--adapter X]` | Composes generated cells into a deployable topology (default: `docker-compose`) |
 | `cba up <domain> --env <env> [--adapter X]` | Full pipeline: `validate` → `develop` → `deploy` → launch the stack |
 | `cba down <domain> --env <env> [--adapter X]` | Tear down a deployed stack (`docker compose down -v` / `terraform destroy`) |
+| `cba status <domain> --env <env> [--adapter X]` | Show what's running (`docker compose ps` / `terraform show` + AWS resource summary) |
 
 Plus utilities: `cba run <domain> --adapter <x>` (start generated output), `cba validate <domain>` (all-layer + cross-layer validation).
 
@@ -710,8 +711,10 @@ cd output/lending-deploy && docker compose up -d    # run the full stack locally
 npx cba up torts/marshall --env dev --seed --build                      # validate → develop → deploy → launch
 npx cba up torts/marshall --env dev --skip-develop --attach             # rerun, stream logs
 npx cba down torts/marshall --env dev                                   # docker compose down -v
+npx cba status torts/marshall --env dev                                 # docker compose ps
 npx cba up torts/marshall --env prod --adapter terraform/aws            # stops at terraform plan
 npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve   # actually applies
+npx cba status torts/marshall --env prod --adapter terraform/aws        # terraform show + AWS summary
 npx cba down torts/marshall --env prod --adapter terraform/aws --auto-approve # actually destroys
 
 # Validate
@@ -744,7 +747,7 @@ See `packages/cba/README.md` for full command reference and flags.
 | `terraform/aws` | **Built** | `output/<domain>-deploy/*.tf` — AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront) |
 | `aws-sam` | Planned | AWS serverless deployment for function-category Constructs |
 
-## `cba up` / `cba down` — one command from DNA to running stack
+## `cba up` / `cba down` / `cba status` — one command from DNA to running stack
 
 `cba deploy` only **writes** the deploy topology; you still have to `cd` into the deploy dir and run `docker compose up` or `terraform apply` yourself. `cba up` chains the whole pipeline:
 
@@ -757,12 +760,12 @@ cba up <domain> --env <env> [--adapter <name>] [flags]
   └─ 4. adapter.launch                    (bring the stack up)
 ```
 
-Each delivery adapter exposes a `launch` and `teardown` hook that `cba up`/`cba down` dispatch to:
+Each delivery adapter exposes `launch`, `teardown`, and `status` hooks that `cba up`/`cba down`/`cba status` dispatch to:
 
-| Adapter | `launch` | `teardown` |
-|---------|----------|------------|
-| `docker-compose` | `docker compose up -d` in the deploy dir | `docker compose down -v` |
-| `terraform/aws` | `terraform init` + `terraform plan`; applies only with `--auto-approve` | `terraform destroy` — requires `--auto-approve` |
+| Adapter | `launch` | `teardown` | `status` |
+|---------|----------|------------|----------|
+| `docker-compose` | `docker compose up -d` in the deploy dir | `docker compose down -v` | `docker compose ps` |
+| `terraform/aws` | `terraform init` + `terraform plan`; applies only with `--auto-approve` | `terraform destroy` — requires `--auto-approve` | `terraform show` + AWS resource count |
 
 **Safety rails:** `cba up … --adapter terraform/aws` without `--auto-approve` stops after `terraform plan` so you can review the diff before anything touches AWS. `cba down … --adapter terraform/aws` always requires `--auto-approve` because it destroys real resources.
 
@@ -771,12 +774,14 @@ Each delivery adapter exposes a `launch` and `teardown` hook that `cba up`/`cba 
 npx cba up torts/marshall --env dev --seed --build                # full pipeline
 npx cba up torts/marshall --env dev --skip-develop --attach       # rerun with streaming logs
 npx cba up torts/marshall --env dev --cell api-cell --force-recreate  # regen one cell, recreate container
-npx cba down torts/marshall --env dev                             # compose down -v
-npx cba down torts/marshall --env dev --keep-volumes              # keep postgres data
+npx cba status torts/marshall --env dev                              # docker compose ps
+npx cba down torts/marshall --env dev                                # compose down -v
+npx cba down torts/marshall --env dev --keep-volumes                 # keep postgres data
 
 # AWS path — terraform/aws
 npx cba up torts/marshall --env prod --adapter terraform/aws                   # stops at plan
 npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve    # applies
+npx cba status torts/marshall --env prod --adapter terraform/aws               # terraform show + AWS summary
 npx cba down torts/marshall --env prod --adapter terraform/aws --auto-approve  # destroys
 ```
 

@@ -13,6 +13,7 @@ BUILD + DEPLOY
   deploy         Compose generated cells into a deployable topology  (infra provisioning)
   up             Full pipeline: validate -> develop -> deploy -> launch the stack
   down           Tear down a deployed stack (docker compose down / terraform destroy)
+  status         Show what's running (docker compose ps / terraform show + AWS summary)
 
 UTILITIES
   run            Run generated output locally (dev servers)
@@ -38,6 +39,8 @@ EXAMPLES
   cba deploy lending --env dev --profile python-stack  # deploy a named profile
   cba up lending --env dev --seed --build        # validate + develop + deploy + launch
   cba down lending --env dev                     # docker compose down -v
+  cba status lending --env dev                   # docker compose ps
+  cba status lending --env prod --adapter terraform/aws  # terraform show + AWS summary
   cba technical list lending --type View              # list architecture views
 
 See 'cba help <command>' for details.
@@ -304,6 +307,30 @@ EXAMPLES
   cba down torts --env prod --adapter terraform/aws --auto-approve
 `
 
+export const STATUS_HELP = `cba status — show what's running for a deployed topology
+
+USAGE
+  cba status <domain> --env <environment> [--adapter <name>]
+
+Shows the current state of a deployed stack. The output depends on the
+delivery adapter:
+
+DEPLOYMENT ADAPTERS
+  docker-compose    \`docker compose ps\` — container names, state, and ports
+  terraform/aws     \`terraform show\` (if state exists) + an AWS resource
+                    count across EC2, RDS, ECS, ALB, S3, CloudFront,
+                    ECR, SNS, and SQS
+
+FLAGS
+  --env <name>        Target environment (must exist in technical DNA)
+  --adapter <name>    docker-compose | terraform/aws (default: docker-compose)
+  --json              Machine-readable output
+
+EXAMPLES
+  cba status torts/marshall --env dev                              # docker compose ps
+  cba status torts/marshall --env prod --adapter terraform/aws     # terraform + AWS summary
+`
+
 export const RUN_HELP = `cba run — run generated output locally
 
 USAGE
@@ -424,6 +451,8 @@ export function helpFor(command?: string): string {
       return UP_HELP
     case 'down':
       return DOWN_HELP
+    case 'status':
+      return STATUS_HELP
     case 'run':
       return RUN_HELP
     case 'validate':
