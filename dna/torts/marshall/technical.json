@@ -117,22 +117,9 @@
   "views": [
     {
       "name": "deployment",
-      "description": "Layout overlay for the derived deployment view — positions only. Nodes, connections, and zones are auto-derived from cells/constructs/providers.",
-      "nodes": [
-        { "id": "aws", "position": { "x": 600, "y": 20 }, "size": { "width": 140, "height": 50 } },
-        { "id": "built-in", "position": { "x": 780, "y": 20 }, "size": { "width": 160, "height": 50 } },
-        { "id": "primary-db", "position": { "x": 100, "y": 380 }, "size": { "width": 160, "height": 60 } },
-        { "id": "event-bus", "position": { "x": 380, "y": 380 }, "size": { "width": 160, "height": 60 } },
-        { "id": "db-cell", "position": { "x": 80, "y": 240 }, "size": { "width": 160, "height": 70 } },
-        { "id": "event-bus-cell", "position": { "x": 320, "y": 240 }, "size": { "width": 180, "height": 70 } },
-        { "id": "api-cell", "position": { "x": 560, "y": 180 }, "size": { "width": 160, "height": 70 } },
-        { "id": "ui-cell", "position": { "x": 780, "y": 120 }, "size": { "width": 160, "height": 70 } },
-        { "id": "admin-ui-cell", "position": { "x": 780, "y": 240 }, "size": { "width": 160, "height": 70 } }
-      ],
-      "zones": [
-        { "id": "zone-compute", "position": { "x": 50, "y": 100 }, "size": { "width": 920, "height": 240 } },
-        { "id": "zone-storage", "position": { "x": 50, "y": 360 }, "size": { "width": 530, "height": 100 } }
-      ]
+      "description": "Layout overlay for the derived deployment view — positions only. Empty = use auto-layout from cba views.",
+      "nodes": [],
+      "zones": []
     }
   ],
   "cells": [

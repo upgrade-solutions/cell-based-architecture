@@ -148,10 +148,18 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
   const nodes: ArchNode[] = []
   const connections: ArchConnection[] = []
 
-  // ── Cells (middle row) — provisioners excluded ──
-  const cellY = 180
-  const cellSpacing = 200
-  let cellX = 60
+  // ── Layout constants — tight grid, single-row tiers ──
+  const CELL_W = 160
+  const CELL_H = 70
+  const CONSTRUCT_W = 160
+  const CONSTRUCT_H = 60
+  const GAP_X = 40  // horizontal gap between siblings
+  const GAP_Y = 80  // vertical gap between tiers (inside a zone)
+  const MARGIN = 40 // margin inside a zone
+  const CELL_ROW_Y = MARGIN + 30 // room for zone header
+
+  // ── Cells (compute tier) — provisioners excluded ──
+  let cellX = MARGIN
   for (const cell of visibleCells) {
     const saved = savedPositions.get(cell.name)
     nodes.push({
@@ -159,18 +167,18 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
       name: cell.name,
       type: 'cell',
       status: 'planned',
-      position: saved?.pos ?? { x: cellX, y: cellY },
-      size: saved?.size ?? { width: 160, height: 70 },
+      position: saved?.pos ?? { x: cellX, y: CELL_ROW_Y },
+      size: saved?.size ?? { width: CELL_W, height: CELL_H },
       description: cell.description,
       metadata: { adapter: cell.adapterType },
     })
-    cellX += cellSpacing
+    cellX += CELL_W + GAP_X
   }
 
-  // ── Constructs (bottom row) ──
-  const constructY = 360
-  const constructSpacing = 200
-  let constructX = 60
+  // ── Constructs (storage tier) ──
+  // Put the storage tier below compute with a zone gap in between
+  const constructRowY = CELL_ROW_Y + CELL_H + GAP_Y + 30 // extra for next zone header
+  let constructX = MARGIN
   for (const construct of plan.constructs) {
     const saved = savedPositions.get(construct.name)
     const engine = (construct.config?.engine as string | undefined) ?? construct.type
@@ -179,8 +187,8 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
       name: construct.name,
       type: 'construct',
       status: 'planned',
-      position: saved?.pos ?? { x: constructX, y: constructY },
-      size: saved?.size ?? { width: 160, height: 60 },
+      position: saved?.pos ?? { x: constructX, y: constructRowY },
+      size: saved?.size ?? { width: CONSTRUCT_W, height: CONSTRUCT_H },
       description: construct.description,
       metadata: {
         category: construct.category,
@@ -189,7 +197,7 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
         provider: construct.provider,
       },
     })
-    constructX += constructSpacing
+    constructX += CONSTRUCT_W + GAP_X
   }
 
   // ── Connections: visible cells → their constructs (depends-on) ──
@@ -204,6 +212,28 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
         type: 'depends-on',
       })
     }
+  }
+
+  // ── Connections: cell → cell (communicates-with) by api_base matching ──
+  // If cell A has `api_base` in its adapter config, find a cell B whose
+  // outputs[] contains a value matching that api_base, and emit an edge.
+  const cellByOutputUrl = new Map<string, string>()
+  for (const cell of visibleCells) {
+    for (const output of cell.outputs ?? []) {
+      if (output?.value) cellByOutputUrl.set(output.value, cell.name)
+    }
+  }
+  for (const cell of visibleCells) {
+    const apiBase = cell.adapterConfig?.api_base as string | undefined
+    if (!apiBase) continue
+    const target = cellByOutputUrl.get(apiBase)
+    if (!target || target === cell.name) continue
+    connections.push({
+      id: `${cell.name}->${target}`,
+      source: cell.name,
+      target,
+      type: 'communicates-with',
+    })
   }
 
   // ── Zones: Compute tier (cells) + Storage tier (constructs) ──
