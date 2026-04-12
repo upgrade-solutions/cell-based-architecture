@@ -180,7 +180,18 @@ export class ShapesFactory {
           },
         },
       },
-      router: { name: 'manhattan', args: { step: 20, padding: 20 } },
+      router: {
+        name: 'manhattan',
+        args: {
+          step: 20,
+          padding: 20,
+          // Force top-to-bottom flow: exit source going down, enter target
+          // from above. Without these the router may pick an L-shape that
+          // runs along the top or bottom edge of the target cell.
+          startDirections: ['bottom'],
+          endDirections: ['top'],
+        },
+      },
       connector: { name: 'rounded', args: { radius: 8 } },
     })
   }

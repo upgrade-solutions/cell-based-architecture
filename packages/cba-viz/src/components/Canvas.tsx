@@ -46,7 +46,15 @@ export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
         linkMove: true,
         labelMove: true,
       },
-      defaultRouter: { name: 'manhattan', args: { step: 20, padding: 20 } },
+      defaultRouter: {
+        name: 'manhattan',
+        args: {
+          step: 20,
+          padding: 20,
+          startDirections: ['bottom'],
+          endDirections: ['top'],
+        },
+      },
       defaultConnector: { name: 'rounded', args: { radius: 8 } },
       embeddingMode: true,
       validateEmbedding: (_childView, parentView) => {
