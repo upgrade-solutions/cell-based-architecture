@@ -965,6 +965,7 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
   }
 
   // CloudFront for static UI cells (vite/*)
+  const hasAlb = plan.cells.some((c) => !c.adapterType.startsWith('vite/') && c.adapterType !== 'postgres' && c.adapterType !== 'node/event-bus')
   for (const cell of plan.cells) {
     if (!cell.adapterType.startsWith('vite/')) continue
     const cellId = tfId(cell.name)
@@ -1004,6 +1005,38 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
             assignment('origin_access_identity', raw(`aws_cloudfront_origin_access_identity.${cellId}.cloudfront_access_identity_path`)),
           ]),
         ]),
+        ...(hasAlb ? [
+        '',
+        comment('ALB origin — proxies API calls through CloudFront (avoids mixed-content)'),
+        block('origin', [], [
+          assignment('domain_name', raw(`aws_lb.${id}.dns_name`)),
+          assignment('origin_id', `alb-${id}`),
+          '',
+          block('custom_origin_config', [], [
+            assignment('http_port', raw('80')),
+            assignment('https_port', raw('443')),
+            assignment('origin_protocol_policy', 'http-only'),
+            assignment('origin_ssl_protocols', raw('["TLSv1.2"]')),
+          ]),
+        ]),
+        '',
+        comment('Forward API traffic to ALB — no caching, pass all headers'),
+        block('ordered_cache_behavior', [], [
+          assignment('path_pattern', `/${plan.domain.split('/').pop()}/*`),
+          assignment('allowed_methods', raw('["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]')),
+          assignment('cached_methods', raw('["GET", "HEAD"]')),
+          assignment('target_origin_id', `alb-${id}`),
+          assignment('viewer_protocol_policy', 'redirect-to-https'),
+          '',
+          block('forwarded_values', [], [
+            assignment('query_string', raw('true')),
+            assignment('headers', raw('["*"]')),
+            block('cookies', [], [
+              assignment('forward', 'all'),
+            ]),
+          ]),
+        ]),
+        ] : []),
         '',
         block('default_cache_behavior', [], [
           assignment('allowed_methods', raw('["GET", "HEAD", "OPTIONS"]')),
@@ -1602,16 +1635,15 @@ async function postApply(ctx: LaunchContext): Promise<number> {
   for (const cell of staticCells) {
     if (!cell.s3Bucket) continue
 
-    // Patch config.json with the live API URL before building
-    if (albUrl) {
-      const configPath = path.join(cell.outputDir, 'public', 'config.json')
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-        if (config.apiBase !== undefined) {
-          config.apiBase = albUrl
-          fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n')
-          console.log(`→ patched ${cell.name} config.json apiBase → ${albUrl}`)
-        }
+    // Patch config.json — use empty apiBase so API calls go through CloudFront
+    // (CloudFront proxies /<domain>/* to the ALB, avoiding mixed-content issues)
+    const configPath = path.join(cell.outputDir, 'public', 'config.json')
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      if (config.apiBase !== undefined && config.apiBase) {
+        config.apiBase = ''
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n')
+        console.log(`→ patched ${cell.name} config.json apiBase → "" (proxied via CloudFront)`)
       }
     }
 
