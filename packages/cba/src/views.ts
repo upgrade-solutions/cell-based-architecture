@@ -255,8 +255,11 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
     constructX += CONSTRUCT_W + GAP_X
   }
 
-  // ── Connections: visible cells → their constructs (depends-on) ──
+  // ── Connections: visible cells → their constructs (communicates-with) ──
   // Provisioner cells are excluded, so we don't emit edges from them.
+  // Backend cells talk to their storage constructs at runtime (reads/writes,
+  // publishes signals), which is `communicates-with` semantics — not a
+  // build-time `depends-on` relationship.
   for (const cell of visibleCells) {
     for (const constructName of cell.constructs) {
       if (!plan.constructs.some((c) => c.name === constructName)) continue
@@ -264,7 +267,7 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
         id: `${cell.name}->${constructName}`,
         source: cell.name,
         target: constructName,
-        type: 'depends-on',
+        type: 'communicates-with',
       })
     }
   }

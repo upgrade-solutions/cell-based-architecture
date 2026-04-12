@@ -135,13 +135,22 @@ export class ShapesFactory {
   createConnection(conn: ArchConnection): shapes.standard.Link {
     const style = CONNECTION_STYLES[conn.type] ?? CONNECTION_STYLES['depends-on']
     // The deployment view layout is strictly top-to-bottom (frontend → backend
-    // → storage), so force every edge to exit the source's bottom edge and
-    // enter the target's top edge. Without this the manhattan router sometimes
-    // picks side anchors when it's bundling multiple edges to the same target.
+    // → storage), so force every edge to exit the source's bottom-middle and
+    // enter the target's top-middle. Setting connectionPoint to 'anchor'
+    // stops the manhattan router from spreading multiple incoming edges
+    // along the target's top edge — all edges terminate exactly at top-middle.
     return new shapes.standard.Link({
       id: conn.id,
-      source: { id: conn.source, anchor: { name: 'bottom' } },
-      target: { id: conn.target, anchor: { name: 'top' } },
+      source: {
+        id: conn.source,
+        anchor: { name: 'bottom' },
+        connectionPoint: { name: 'anchor' },
+      },
+      target: {
+        id: conn.target,
+        anchor: { name: 'top' },
+        connectionPoint: { name: 'anchor' },
+      },
       vertices: conn.vertices ?? [],
       labels: conn.label ? [{
         attrs: {
