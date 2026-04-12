@@ -28,7 +28,6 @@ export const ConstructShape = dia.Element.define('cbaViz.ConstructShape', {
       fill: '#1e293b',
       stroke: '#8b5cf6',
       strokeWidth: 2,
-      strokeDasharray: '6,3',
       cursor: 'move',
     },
     categoryBadge: {
