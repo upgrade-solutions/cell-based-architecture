@@ -123,10 +123,13 @@ function isProvisioner(cell: { adapterType: string }): boolean {
  * Derive a single deployment view from an EnvironmentPlan.
  *
  * Layout rules:
- *   - Providers in a row at the top
- *   - Cells (excluding provisioners) in a row below
- *   - Constructs in a row below the cells
+ *   - Cells (excluding provisioners) in a row at the top
+ *   - Constructs in a row below
  *   - If savedView has a node with the same id, its position/size wins
+ *
+ * Providers are NOT rendered on the deployment view — they're config
+ * (which cloud, which auth backend), not deployable infrastructure.
+ * The provider reference still lives on each Construct's `provider` field.
  */
 function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
   // Visible cells excludes provisioner cells (those whose job is to set up
@@ -144,25 +147,6 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
 
   const nodes: ArchNode[] = []
   const connections: ArchConnection[] = []
-
-  // ── Providers (top row) ──
-  const providerY = 20
-  const providerSpacing = 180
-  let providerX = 60
-  for (const provider of plan.providers) {
-    const saved = savedPositions.get(provider.name)
-    nodes.push({
-      id: provider.name,
-      name: provider.type === 'cloud' ? provider.name.toUpperCase() : provider.name,
-      type: 'provider',
-      status: 'deployed',
-      position: saved?.pos ?? { x: providerX, y: providerY },
-      size: saved?.size ?? { width: 140, height: 50 },
-      description: provider.description,
-      metadata: { providerType: provider.type, region: provider.region },
-    })
-    providerX += providerSpacing
-  }
 
   // ── Cells (middle row) — provisioners excluded ──
   const cellY = 180

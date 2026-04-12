@@ -127,7 +127,9 @@ Constructs are declared once and referenced by multiple Cells — e.g. a `databa
 
 ### Architecture views (derived from Technical DNA)
 
-Technical DNA auto-derives an architecture graph — a visual diagram of system topology — from the `cells`, `constructs`, and `providers` arrays. The derivation happens at read time via `cba views <domain> --env <env>`, which emits JSON consumed by the `cba-viz` viewer.
+Technical DNA auto-derives an architecture graph — a visual diagram of system topology — from the `cells` and `constructs` arrays. The derivation happens at read time via `cba views <domain> --env <env>`, which emits JSON consumed by the `cba-viz` viewer.
+
+Providers are *not* rendered on the deployment view — they're config (which cloud, which auth backend), not deployable infrastructure. Their reference lives on each Construct's `provider` field.
 
 | Primitive | Description |
 |-----------|-------------|
