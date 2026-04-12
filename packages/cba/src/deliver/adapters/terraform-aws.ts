@@ -692,7 +692,7 @@ function buildComputeTf(
       // We still need an S3 bucket here
       blocks.push(hcl(
         block('resource', ['"aws_s3_bucket"', `"${cellId}"`], [
-          assignment('bucket', `${prefix}-${cellId}-assets`),
+          assignment('bucket', `${prefix}-${cellId.replace(/_/g, '-')}-assets`),
           assignment('tags', objectLiteral({ Name: `${prefix}-${cellId}` })),
         ]),
         '',
@@ -1344,7 +1344,7 @@ function buildManifest(plan: EnvironmentPlan): string {
       kind: isDb ? 'database' : isStatic ? 'static' : 'container',
       // Terraform output keys for post-apply wiring
       ecrOutput: !isStatic && !isDb ? `ecr_url_${cellId}` : null,
-      s3Bucket: isStatic ? `${plan.domain.replace(/\//g, '-')}-${plan.environment}-${cellId}-assets` : null,
+      s3Bucket: isStatic ? `${plan.domain.replace(/\//g, '-')}-${plan.environment}-${cellId.replace(/_/g, '-')}-assets` : null,
       cloudfrontOutput: isStatic ? `cloudfront_domain_${cellId}` : null,
     }
   })
@@ -1683,17 +1683,6 @@ export async function teardownTerraform(ctx: LaunchContext): Promise<number> {
  * and queries AWS APIs for a quick resource count.
  */
 export async function statusTerraform(ctx: LaunchContext): Promise<number> {
-  // 1. terraform show (state)
-  const hasState = require('fs').existsSync(path.join(ctx.deployDir, 'terraform.tfstate'))
-  if (hasState) {
-    const showCode = await runTerraform(['show', '-no-color'], ctx)
-    if (showCode !== 0) return showCode
-  } else {
-    console.log('  (no terraform state found — has `cba up` been run with --auto-approve?)')
-  }
-
-  // 2. Quick AWS resource count — covers every category the terraform adapter provisions
-  console.log('')
   console.log('── AWS Resource Summary ──')
 
   type Check = { label: string; cmd: string; countFn: (json: any) => number }
