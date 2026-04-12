@@ -783,6 +783,8 @@ Each delivery adapter exposes `launch`, `teardown`, and `status` hooks that `cba
 
 **Safety rails:** `cba up … --adapter terraform/aws` without `--auto-approve` stops after `terraform plan` so you can review the diff before anything touches AWS. `cba down … --adapter terraform/aws` always requires `--auto-approve` because it destroys real resources.
 
+**Clean teardown:** S3 buckets are created with `force_destroy = true` and ECR repositories with `force_delete = true`, so `terraform destroy` can remove them even when they contain objects/images.
+
 ```bash
 # Local demo — docker-compose path
 npx cba up torts/marshall --env dev --seed --build                # full pipeline
