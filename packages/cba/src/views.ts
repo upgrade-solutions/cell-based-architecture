@@ -214,26 +214,50 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
     }
   }
 
-  // ── Connections: cell → cell (communicates-with) by api_base matching ──
-  // If cell A has `api_base` in its adapter config, find a cell B whose
-  // outputs[] contains a value matching that api_base, and emit an edge.
+  // ── Connections: cell → cell (communicates-with) ──
+  //
+  // Two inference rules, both emit a `communicates-with` edge:
+  //
+  //   1. adapter.config.api_dna matches another cell's `dna` field.
+  //      (e.g. ui-cell.api_dna = torts/marshall/product.api, api-cell.dna = same)
+  //      This catches the authoring-time relationship: a UI cell is built
+  //      against a specific Product API DNA, so it talks to whichever cell
+  //      serves that DNA. Works even when the UI has no explicit api_base URL.
+  //
+  //   2. adapter.config.api_base matches another cell's outputs[].value.
+  //      (e.g. admin-ui-cell.api_base = http://localhost:3001 matches
+  //       api-cell outputs.api_url = http://localhost:3001)
+  //      This catches the runtime-URL relationship.
+  //
+  // Rule 1 subsumes rule 2 for well-formed DNA, but we keep both for robustness.
+  // Duplicates are deduped by edge id.
+  const cellByDna = new Map<string, string>()
   const cellByOutputUrl = new Map<string, string>()
   for (const cell of visibleCells) {
+    if (cell.dna) cellByDna.set(cell.dna, cell.name)
     for (const output of cell.outputs ?? []) {
       if (output?.value) cellByOutputUrl.set(output.value, cell.name)
     }
   }
+  const addedEdges = new Set<string>()
+  const addEdge = (source: string, target: string) => {
+    if (!target || source === target) return
+    const id = `${source}->${target}`
+    if (addedEdges.has(id)) return
+    addedEdges.add(id)
+    connections.push({ id, source, target, type: 'communicates-with' })
+  }
   for (const cell of visibleCells) {
+    const apiDna = cell.adapterConfig?.api_dna as string | undefined
+    if (apiDna) {
+      const target = cellByDna.get(apiDna)
+      if (target) addEdge(cell.name, target)
+    }
     const apiBase = cell.adapterConfig?.api_base as string | undefined
-    if (!apiBase) continue
-    const target = cellByOutputUrl.get(apiBase)
-    if (!target || target === cell.name) continue
-    connections.push({
-      id: `${cell.name}->${target}`,
-      source: cell.name,
-      target,
-      type: 'communicates-with',
-    })
+    if (apiBase) {
+      const target = cellByOutputUrl.get(apiBase)
+      if (target) addEdge(cell.name, target)
+    }
   }
 
   // ── Zones: Compute tier (cells) + Storage tier (constructs) ──

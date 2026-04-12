@@ -23,6 +23,7 @@ export interface ResolvedVariable {
 export interface ResolvedCell {
   name: string
   description?: string
+  dna?: string
   adapterType: string
   adapterConfig?: Record<string, any>
   constructs: string[]
@@ -126,6 +127,7 @@ function resolveCell(cell: any, domain: string, root: string, environment: strin
   return {
     name: cell.name,
     description: cell.description,
+    dna: cell.dna,
     adapterType: cell.adapter.type,
     adapterConfig: cell.adapter.config,
     constructs: cell.constructs ?? [],
