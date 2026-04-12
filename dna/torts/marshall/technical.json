@@ -48,9 +48,9 @@
       "category": "storage",
       "type": "queue",
       "provider": "aws",
-      "description": "Event bus for cross-cell async Signals — SNS fan-out to SQS subscriber queues.",
+      "description": "Event bus for cross-cell async Signals — EventBridge with SQS subscriber targets.",
       "config": {
-        "engine": "sns+sqs"
+        "engine": "eventbridge"
       }
     },
     {
@@ -78,7 +78,19 @@
     {
       "name": "EVENT_BUS_URL",
       "source": "secret",
-      "description": "RabbitMQ (dev) or SNS+SQS (prod) connection URL for the event bus.",
+      "description": "RabbitMQ connection URL for local development.",
+      "required": false
+    },
+    {
+      "name": "EVENT_BUS_NAME",
+      "source": "secret",
+      "description": "EventBridge custom bus name for prod signal publishing.",
+      "required": false
+    },
+    {
+      "name": "EVENT_BUS_QUEUE_URL",
+      "source": "secret",
+      "description": "SQS queue URL for prod signal subscriber polling.",
       "required": false
     }
   ],
@@ -133,7 +145,7 @@
       "adapter": {
         "type": "node/event-bus",
         "config": {
-          "engine": "rabbitmq"
+          "engine": "eventbridge"
         }
       },
       "constructs": [
@@ -141,7 +153,12 @@
       ],
       "variables": [
         {
-          "name": "EVENT_BUS_URL",
+          "name": "EVENT_BUS_NAME",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "EVENT_BUS_QUEUE_URL",
           "source": "secret",
           "required": true
         }
@@ -155,7 +172,8 @@
         "type": "node/express",
         "config": {
           "core_dna": "torts/marshall/product.core",
-          "port": 3001
+          "port": 3001,
+          "event_bus_engine": "eventbridge"
         }
       },
       "constructs": [
@@ -169,7 +187,7 @@
           "required": true
         },
         {
-          "name": "EVENT_BUS_URL",
+          "name": "EVENT_BUS_NAME",
           "source": "secret",
           "required": false
         }

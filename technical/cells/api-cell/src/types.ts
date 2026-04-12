@@ -187,5 +187,5 @@ export type SignalDispatchConfig = Record<string, string[]>
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface ApiCellAdapter {
-  generate(api: ProductApiDNA, core: ProductCoreDNA, outputDir: string, authConfig?: AuthProviderConfig, signalDispatch?: SignalDispatchConfig): void
+  generate(api: ProductApiDNA, core: ProductCoreDNA, outputDir: string, authConfig?: AuthProviderConfig, signalDispatch?: SignalDispatchConfig, eventBusEngine?: string): void
 }

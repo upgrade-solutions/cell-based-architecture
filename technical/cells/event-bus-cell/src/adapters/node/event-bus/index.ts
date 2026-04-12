@@ -6,7 +6,7 @@ import { generatePublishers } from './generators/publishers'
 import { generateRouting } from './generators/routing'
 import { generateSubscriberWorker } from './generators/subscriber'
 import { generateClient } from './generators/client'
-import { generatePackageJson, generateTsConfig } from './generators/scaffold'
+import { generatePackageJson, generateTsConfig, generateDockerfile, generateDockerIgnore } from './generators/scaffold'
 
 function write(outputDir: string, relativePath: string, content: string): void {
   const fullPath = path.join(outputDir, relativePath)
@@ -40,4 +40,6 @@ export const generate: EventBusCellAdapter['generate'] = (
   // ── Scaffold ────────────────────────────────────────────────────────────────
   write(outputDir, 'package.json', generatePackageJson(appName, engine))
   write(outputDir, 'tsconfig.json', generateTsConfig())
+  write(outputDir, 'Dockerfile', generateDockerfile())
+  write(outputDir, '.dockerignore', generateDockerIgnore())
 }

@@ -58,9 +58,9 @@
       "category": "storage",
       "type": "queue",
       "provider": "aws",
-      "description": "Event bus for cross-domain async Signals — SNS fan-out to SQS subscriber queues.",
+      "description": "Event bus for cross-domain async Signals — EventBridge with SQS subscriber targets.",
       "config": {
-        "engine": "sns+sqs"
+        "engine": "eventbridge"
       }
     },
     {

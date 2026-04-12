@@ -317,9 +317,10 @@ delivery adapter:
 
 DEPLOYMENT ADAPTERS
   docker-compose    \`docker compose ps\` — container names, state, and ports
-  terraform/aws     \`terraform show\` (if state exists) + an AWS resource
-                    count across EC2, RDS, ECS, ALB, S3, CloudFront,
-                    ECR, SNS, and SQS
+  terraform/aws     \`terraform show\` (if state exists) + a grouped AWS
+                    resource count: Networking (VPC, subnets, NAT, IGW,
+                    SGs, ALB, TGs), Compute (ECS, ECR, EC2), Storage
+                    (RDS, S3, SNS, SQS), CDN (CloudFront), IAM
 
 FLAGS
   --env <name>        Target environment (must exist in technical DNA)

@@ -117,10 +117,13 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   // ── Extract signal dispatch config ──────────────────────────────────────────
   const signalDispatch = cell.adapter.config?.signal_dispatch as SignalDispatchConfig | undefined
 
+  // ── Extract event bus engine (rabbitmq, eventbridge, etc.) ─────────────────
+  const eventBusEngine = cell.adapter.config?.event_bus_engine as string | undefined
+
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(apiDnaRaw as ProductApiDNA, coreRaw as ProductCoreDNA, path.resolve(outputDir), authConfig, signalDispatch)
+  adapter.generate(apiDnaRaw as ProductApiDNA, coreRaw as ProductCoreDNA, path.resolve(outputDir), authConfig, signalDispatch, eventBusEngine)
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

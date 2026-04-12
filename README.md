@@ -576,7 +576,7 @@ This keeps superuser operations (role creation, grants) separate from applicatio
 
 ### `event-bus-cell` (Planned)
 
-The `event-bus-cell` is a platform-level cell that reads Operational DNA Signals across all domains and generates event infrastructure code. It mirrors the `db-cell` / `api-cell` split: the `storage/queue` Construct declares the bus infrastructure (RabbitMQ for dev, SNS+SQS for prod), while the `event-bus-cell` generates application-level event handling code.
+The `event-bus-cell` is a platform-level cell that reads Operational DNA Signals across all domains and generates event infrastructure code. It mirrors the `db-cell` / `api-cell` split: the `storage/queue` Construct declares the bus infrastructure (RabbitMQ for dev, EventBridge for prod), while the `event-bus-cell` generates application-level event handling code. The `engine` config in technical.json selects the transport: `rabbitmq` (amqplib), `eventbridge` (AWS SDK — EventBridge for publishing, SQS for subscribing).
 
 **What it generates:**
 
@@ -758,6 +758,12 @@ cba up <domain> --env <env> [--adapter <name>] [flags]
   ├─ 2. cba develop <domain>              (regenerate cells — skip with --skip-develop)
   ├─ 3. cba deploy <domain> --env <env>   (compose the deploy topology)
   └─ 4. adapter.launch                    (bring the stack up)
+       │
+       └─ terraform/aws post-apply:
+            ├─ ECR login
+            ├─ docker build + push (container cells → ECR)
+            ├─ npm build + s3 sync (static cells → S3)
+            └─ ECS force-new-deployment
 ```
 
 Each delivery adapter exposes `launch`, `teardown`, and `status` hooks that `cba up`/`cba down`/`cba status` dispatch to:
@@ -765,7 +771,7 @@ Each delivery adapter exposes `launch`, `teardown`, and `status` hooks that `cba
 | Adapter | `launch` | `teardown` | `status` |
 |---------|----------|------------|----------|
 | `docker-compose` | `docker compose up -d` in the deploy dir | `docker compose down -v` | `docker compose ps` |
-| `terraform/aws` | `terraform init` + `terraform plan`; applies only with `--auto-approve` | `terraform destroy` — requires `--auto-approve` | `terraform show` + AWS resource count |
+| `terraform/aws` | `terraform init` + `plan` + `apply` (with `--auto-approve`) + post-apply build/push | `terraform destroy` — requires `--auto-approve` | `terraform show` + AWS resource count |
 
 **Safety rails:** `cba up … --adapter terraform/aws` without `--auto-approve` stops after `terraform plan` so you can review the diff before anything touches AWS. `cba down … --adapter terraform/aws` always requires `--auto-approve` because it destroys real resources.
 
@@ -836,28 +842,27 @@ Generated files:
 | File | Contents |
 |------|----------|
 | `main.tf` | Terraform block, required providers, `provider "aws"` |
-| `variables.tf` | Input variables for secrets, VPC CIDR, env vars |
+| `variables.tf` | Input variables (VPC CIDR, env vars) |
+| `locals.tf` | Derived secrets — `DATABASE_URL` from RDS, `EVENT_BUS_NAME`/`EVENT_BUS_QUEUE_URL` from EventBridge |
 | `vpc.tf` | VPC, public/private subnets (2 AZs), NAT gateway, security groups |
-| `storage.tf` | RDS instances, ElastiCache clusters |
+| `storage.tf` | RDS instances, ElastiCache clusters, EventBridge buses, SQS queues |
 | `compute.tf` | ECS cluster, task definitions, services, S3 buckets for static cells |
-| `network.tf` | ALB + target groups + listener rules, API Gateway, CloudFront |
-| `secrets.tf` | Secrets Manager entries |
+| `network.tf` | ALB + target groups + listener rules, CloudFront |
+| `secrets.tf` | Secrets Manager entries (external secrets only) |
 | `iam.tf` | ECS execution/task roles, secrets read policy |
 | `ecr.tf` | ECR repositories per container cell |
 | `outputs.tf` | ALB DNS, ECR URLs, RDS endpoints, CloudFront domains |
-| `terraform.tfvars.example` | Example variable values (copy to `terraform.tfvars`) |
+| `cba-manifest.json` | Cell metadata for post-apply build/push phase |
 
 ```bash
-npx cba develop lending                                         # generate all cells first
-npx cba deploy lending --env prod --adapter terraform/aws --plan  # preview resources
-npx cba deploy lending --env prod --adapter terraform/aws         # write output/lending-deploy/
+# One command — creates infra, builds artifacts, pushes to ECR/S3, deploys ECS
+npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve
 
-cd output/lending-deploy
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with real secret values
-terraform init
-terraform plan
-terraform apply
+# Or step by step:
+npx cba deploy torts/marshall --env prod --adapter terraform/aws   # write terraform files
+cd output/torts/marshall-deploy
+terraform init && terraform plan                                    # review
+terraform apply                                                     # create resources
 ```
 
 Environment overlays work the same as docker-compose — `--env dev` uses the dev-scoped Construct configs (e.g. `db.t3.micro` instead of `db.t3.medium`). External providers (auth0, etc.) and db-cells are skipped.
@@ -970,7 +975,7 @@ cell-based-architecture/
       product.ui.json               # Public marketing site (marketing layout, intake survey block)
       product.admin.ui.json         # Staff admin SPA (universal layout, 12 pages, 36 blocks)
       technical.json                # Full stack — ui-cell, admin-ui-cell, api-cell (node/express),
-                                    #             db-cell (postgres), event-bus-cell (rabbitmq).
+                                    #             db-cell (postgres), event-bus-cell (eventbridge).
                                     # Profiles: 'marketing-only' (Phase 1) and 'default' (Phases 2+3)
       prompt.md                     # Source prompt — Sections 1–3 all reflected in DNA
   operational/
