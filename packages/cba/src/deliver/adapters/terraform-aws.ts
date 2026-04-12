@@ -1597,9 +1597,23 @@ async function postApply(ctx: LaunchContext): Promise<number> {
   }
 
   // ── Build + upload static cells ─────────────────────────────────────────
+  const albUrl = outputs.alb_dns_name?.value ? `http://${outputs.alb_dns_name.value}` : ''
   const staticCells = cells.filter((c) => c.kind === 'static')
   for (const cell of staticCells) {
     if (!cell.s3Bucket) continue
+
+    // Patch config.json with the live API URL before building
+    if (albUrl) {
+      const configPath = path.join(cell.outputDir, 'public', 'config.json')
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        if (config.apiBase !== undefined) {
+          config.apiBase = albUrl
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n')
+          console.log(`→ patched ${cell.name} config.json apiBase → ${albUrl}`)
+        }
+      }
+    }
 
     console.log(`→ build ${cell.name} (npm install + build)`)
     const installCode = runSync(`npm install --no-audit --no-fund`, ctx, cell.outputDir)
