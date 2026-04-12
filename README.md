@@ -293,14 +293,17 @@ Pattern B (queue + worker) is planned — same handler contract, different trans
 
 **Dual-mode storage**: The Express adapter supports both in-memory and PostgreSQL (Drizzle ORM) storage. Without `DATABASE_URL`, it runs with in-memory Maps seeded from Operational DNA examples. With `DATABASE_URL`, it connects to Postgres, runs migrations on startup, and seeds from DNA.
 
-**Authentication and authorization**: Both adapters generate IDP-agnostic JWT verification using JWKS (JSON Web Key Sets). The auth middleware:
+**Authentication and authorization**: The api-cell supports two auth modes, selected via the Technical DNA `auth` provider:
 
-1. Fetches and caches public keys from `https://{domain}/.well-known/jwks.json`
-2. Verifies JWT signatures (RS256), audience, and issuer claims
-3. Enforces role-based access from Operational DNA Rules (type: `access`)
-4. Flags ownership-required operations for handler-level enforcement
+**Built-in JWT** (`provider: "built-in"`) — the API issues its own HS256 tokens via `/auth/login`. Includes hardcoded demo users. The admin UI renders a login gate and attaches Bearer tokens to all API calls. Best for demos and development.
 
-Auth config comes from the Technical DNA `auth` provider — `domain`, `audience`, and `roleClaim`. Swapping IDPs (Auth0, Clerk, Okta, Keycloak, Cognito) is a DNA-only change:
+```json
+{ "name": "built-in", "type": "auth", "config": { "provider": "built-in" } }
+```
+
+Demo credentials: `admin@marshall.demo` / `demo123` (roles: admin), `staff@marshall.demo` / `demo123` (roles: intake_staff), `attorney@marshall.demo` / `demo123` (roles: attorney).
+
+**External OIDC** (Auth0, Clerk, Okta, etc.) — JWKS-based RS256 verification against an external IDP:
 
 ```json
 {
@@ -313,6 +316,11 @@ Auth config comes from the Technical DNA `auth` provider — `domain`, `audience
   }
 }
 ```
+
+Both modes share the same middleware pipeline:
+1. Verify JWT (HS256 for built-in, RS256 via JWKS for OIDC)
+2. Enforce role-based access from Operational DNA Rules (type: `access`)
+3. Flag ownership-required operations for handler-level enforcement
 
 #### Generate and run
 

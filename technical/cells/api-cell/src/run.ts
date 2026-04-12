@@ -107,11 +107,13 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   // ── Extract auth provider config ────────────────────────────────────────────
   const authProvider = (technicalRaw.providers ?? []).find(p => p.type === 'auth')
   const authConfig: AuthProviderConfig | undefined = authProvider?.config
-    ? {
-        domain: authProvider.config.domain as string,
-        audience: authProvider.config.audience as string,
-        roleClaim: (authProvider.config.roleClaim as string) ?? 'roles',
-      }
+    ? authProvider.config.provider === 'built-in'
+      ? { provider: 'built-in' } as any
+      : {
+          domain: authProvider.config.domain as string,
+          audience: authProvider.config.audience as string,
+          roleClaim: (authProvider.config.roleClaim as string) ?? 'roles',
+        }
     : undefined
 
   // ── Extract signal dispatch config ──────────────────────────────────────────

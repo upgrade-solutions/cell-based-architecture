@@ -17,6 +17,7 @@ export function generatePackageJson(appName: string, eventBusEngine?: string): s
         'db:seed': 'ts-node src/seed.ts',
       },
       dependencies: {
+        bcryptjs: '^2.4.0',
         cors: '^2.8.5',
         dotenv: '^16.0.0',
         'drizzle-orm': '^0.30.0',
@@ -28,6 +29,7 @@ export function generatePackageJson(appName: string, eventBusEngine?: string): s
         ...eventBusDeps,
       },
       devDependencies: {
+        '@types/bcryptjs': '^2.4.0',
         '@types/cors': '^2.8.0',
         '@types/express': '^4.17.0',
         '@types/jsonwebtoken': '^9.0.0',

@@ -322,6 +322,7 @@ function devSecretDefault(name: string, plan: EnvironmentPlan): string {
     )
     if (queue) return `amqp://${queue.name}:${queue.config?.port ?? 5672}`
   }
+  if (name === 'JWT_SECRET') return 'dev-jwt-secret-change-me'
   // Unresolved secrets → passthrough from deployer's env
   return `\${${name}:-}`
 }

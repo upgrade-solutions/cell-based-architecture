@@ -163,6 +163,8 @@ export interface DnaContextValue {
   dna: ProductUiDNA
   api: ProductApiDNA | null
   apiBase: string
+  token: string | null
+  logout: () => void
   stubs: Record<string, Record<string, unknown>[]>
 }
 
@@ -367,7 +369,8 @@ function resolvePath(template: string, params: Record<string, string>): string {
 }
 
 export function useApi(operation: string | undefined) {
-  const { api, apiBase } = useDna()
+  const { api, apiBase, token, logout } = useDna()
+  const authHeaders: Record<string, string> = token ? { Authorization: \`Bearer \${token}\` } : {}
 
   const endpoint: ApiEndpoint | undefined = operation
     ? api?.endpoints.find(e => e.operation === operation)
@@ -385,22 +388,24 @@ export function useApi(operation: string | undefined) {
         const qs = params.toString()
         if (qs) url += '?' + qs
       }
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: authHeaders })
+      if (res.status === 401) { logout(); throw new Error('Session expired') }
       if (!res.ok) throw new Error(\`\${res.status} \${res.statusText}\`)
       return res.json()
     },
-    [endpoint, apiBase],
+    [endpoint, apiBase, token],
   )
 
   const fetchOne = useCallback(
     async (pathParams: Record<string, string>) => {
       if (!endpoint) return null
       const resolved = resolvePath(endpoint.path, pathParams)
-      const res = await fetch(apiBase + resolved)
+      const res = await fetch(apiBase + resolved, { headers: authHeaders })
+      if (res.status === 401) { logout(); throw new Error('Session expired') }
       if (!res.ok) throw new Error(\`\${res.status} \${res.statusText}\`)
       return res.json()
     },
-    [endpoint, apiBase],
+    [endpoint, apiBase, token],
   )
 
   const submit = useCallback(
@@ -409,9 +414,10 @@ export function useApi(operation: string | undefined) {
       const resolved = pathParams ? resolvePath(endpoint.path, pathParams) : endpoint.path
       const res = await fetch(apiBase + resolved, {
         method: endpoint.method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(body),
       })
+      if (res.status === 401) { logout(); throw new Error('Session expired') }
       if (!res.ok) {
         const errBody = await res.json().catch(() => null)
         const msg = errBody?.message ?? \`\${res.status} \${res.statusText}\`
@@ -419,7 +425,7 @@ export function useApi(operation: string | undefined) {
       }
       return res.json()
     },
-    [endpoint, apiBase],
+    [endpoint, apiBase, token],
   )
 
   return { endpoint, fetchList, fetchOne, submit }
@@ -469,7 +475,7 @@ export function useApiFetch(
 }
 
 export function rendererApp(): string {
-  return `import { useState, useEffect } from 'react'
+  return `import { useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import type { ProductUiDNA, ProductApiDNA } from './types'
 import { DnaContext } from './context'
@@ -493,12 +499,76 @@ function collectStubs(core: unknown): Record<string, Record<string, unknown>[]> 
   return stubs
 }
 
+function LoginForm({ apiBase, onLogin }: { apiBase: string; onLogin: (token: string) => void }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch(apiBase + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.message ?? 'Login failed')
+      }
+      const { token } = await res.json()
+      onLogin(token)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'system-ui', background: '#f3f4f6' }}>
+      <form onSubmit={handleSubmit} style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', width: '100%', maxWidth: '24rem' }}>
+        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', fontWeight: 600 }}>Sign in</h2>
+        {error && <div style={{ color: '#dc2626', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Email</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Password</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box' }} />
+        </div>
+        <button type="submit" disabled={loading}
+          style={{ width: '100%', padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'Signing in...' : 'Sign in'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 export default function App() {
   const [dna, setDna] = useState<ProductUiDNA | null>(null)
   const [api, setApi] = useState<ProductApiDNA | null>(null)
   const [apiBase, setApiBase] = useState('')
+  const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'))
   const [stubs, setStubs] = useState<Record<string, Record<string, unknown>[]>>({})
   const [error, setError] = useState<string | null>(null)
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('auth_token')
+    setToken(null)
+  }, [])
+
+  const handleLogin = useCallback((newToken: string) => {
+    localStorage.setItem('auth_token', newToken)
+    setToken(newToken)
+  }, [])
 
   // Initialize dark mode class on document
   useEffect(() => {
@@ -546,8 +616,13 @@ export default function App() {
     )
   }
 
+  // Auth gate — require login if apiBase is configured (not marketing-only)
+  if (apiBase !== undefined && !token && dna.layout?.type !== 'marketing') {
+    return <LoginForm apiBase={apiBase} onLogin={handleLogin} />
+  }
+
   return (
-    <DnaContext.Provider value={{ dna, api, apiBase, stubs }}>
+    <DnaContext.Provider value={{ dna, api, apiBase, token, logout, stubs }}>
       <BrowserRouter>
         <Routes>
           <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
@@ -2103,6 +2178,7 @@ function ProfileDropdown({
   showTenantPicker: boolean
   currentTenant?: { id: string; name: string }
 }) {
+  const { logout } = useDna()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -2118,7 +2194,7 @@ function ProfileDropdown({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => console.log('Settings')}>Settings</DropdownMenuItem>
-        <DropdownMenuItem className="text-destructive" onClick={() => console.log('Sign out')}>Sign out</DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive" onClick={logout}>Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

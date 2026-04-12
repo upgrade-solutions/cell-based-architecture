@@ -38,7 +38,7 @@ export function generateTerraformAws(plan: EnvironmentPlan): TerraformResult {
   const region = awsProvider?.region ?? 'us-east-1'
 
   // ── main.tf ──
-  const mainTf = buildMainTf(region)
+  const mainTf = buildMainTf(region, plan)
 
   // ── variables.tf ──
   const { content: variablesTf, varNames } = buildVariablesTf(plan, prefix)
@@ -107,22 +107,47 @@ export function generateTerraformAws(plan: EnvironmentPlan): TerraformResult {
 
 // ──────────────── main.tf ────────────────
 
-function buildMainTf(region: string): string {
-  return hcl(
-    block('terraform', [], [
-      block('required_providers', [], [
-        assignment('aws', objectLiteral({
-          source: 'hashicorp/aws',
-          version: '~> 5.0',
-        })),
+function buildMainTf(region: string, plan: EnvironmentPlan): string {
+  const secrets = collectSecrets(plan)
+  const needsRandom = secrets.includes('JWT_SECRET')
+
+  const providers: string[] = [
+    assignment('aws', objectLiteral({
+      source: 'hashicorp/aws',
+      version: '~> 5.0',
+    })),
+  ]
+  if (needsRandom) {
+    providers.push(assignment('random', objectLiteral({
+      source: 'hashicorp/random',
+      version: '~> 3.0',
+    })))
+  }
+
+  const parts = [
+    hcl(
+      block('terraform', [], [
+        block('required_providers', [], providers),
+        assignment('required_version', '>= 1.5'),
       ]),
-      assignment('required_version', '>= 1.5'),
-    ]),
-    '',
-    block('provider', ['"aws"'], [
-      assignment('region', region),
-    ]),
-  )
+      '',
+      block('provider', ['"aws"'], [
+        assignment('region', region),
+      ]),
+    ),
+  ]
+
+  if (needsRandom) {
+    parts.push(hcl(
+      '',
+      block('resource', ['"random_password"', '"jwt_secret"'], [
+        assignment('length', raw('32')),
+        assignment('special', raw('false')),
+      ]),
+    ))
+  }
+
+  return parts.join('\n')
 }
 
 // ──────────────── variables.tf ────────────────
@@ -238,6 +263,11 @@ function derivableSecrets(plan: EnvironmentPlan): Map<string, string> {
     }
   } else if (queueConstruct && secrets.includes('EVENT_BUS_URL')) {
     derived.set('EVENT_BUS_URL', 'aws_sns_topic.event_bus.arn')
+  }
+
+  // JWT_SECRET for built-in auth — use a random_password resource
+  if (secrets.includes('JWT_SECRET')) {
+    derived.set('JWT_SECRET', 'random_password.jwt_secret.result')
   }
 
   return derived
@@ -1020,9 +1050,25 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
           ]),
         ]),
         '',
-        comment('Forward API traffic to ALB — no caching, pass all headers'),
+        comment('Forward API + auth traffic to ALB — no caching, pass all headers'),
         block('ordered_cache_behavior', [], [
           assignment('path_pattern', `/${plan.domain.split('/').pop()}/*`),
+          assignment('allowed_methods', raw('["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]')),
+          assignment('cached_methods', raw('["GET", "HEAD"]')),
+          assignment('target_origin_id', `alb-${id}`),
+          assignment('viewer_protocol_policy', 'redirect-to-https'),
+          '',
+          block('forwarded_values', [], [
+            assignment('query_string', raw('true')),
+            assignment('headers', raw('["*"]')),
+            block('cookies', [], [
+              assignment('forward', 'all'),
+            ]),
+          ]),
+        ]),
+        '',
+        block('ordered_cache_behavior', [], [
+          assignment('path_pattern', '/auth*'),
           assignment('allowed_methods', raw('["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]')),
           assignment('cached_methods', raw('["GET", "HEAD"]')),
           assignment('target_origin_id', `alb-${id}`),

@@ -1,6 +1,6 @@
 import { Namespace } from '../../../../types'
 
-export function generateMain(namespace: Namespace): string {
+export function generateMain(namespace: Namespace, authMode?: string): string {
   const title = namespace.name
 
   return `import 'dotenv/config'
@@ -13,7 +13,7 @@ import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
 import { buildSignalReceiver } from './interpreter/signal-receiver'
 import { seedFromProductCoreDna, getStoreMode } from './interpreter/store'
-import { connectEventBus, disconnectEventBus } from './interpreter/signal-middleware'
+import { connectEventBus, disconnectEventBus } from './interpreter/signal-middleware'${authMode === 'built-in' ? `\nimport authRoutes from './interpreter/auth-routes'` : ''}
 
 const DNA_API = path.resolve(__dirname, 'dna/api.json')
 const DNA_CORE = path.resolve(__dirname, 'dna/product.core.json')
@@ -73,7 +73,7 @@ async function bootstrap() {
   app.use(express.json())
   app.use(cors())
 
-  app.get('/health', (_req, res) => res.json({ status: 'ok' }))
+  app.get('/health', (_req, res) => res.json({ status: 'ok' }))${authMode === 'built-in' ? `\n  app.use('/auth', authRoutes)` : ''}
   app.get('/api-json', (_req, res) => res.json(currentSpec))
   app.use('/api', swaggerUi.serve, swaggerUi.setup(null as any, { swaggerOptions: { url: '/api-json' } }))
 

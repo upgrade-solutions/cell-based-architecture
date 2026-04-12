@@ -15,6 +15,14 @@
       "type": "cloud",
       "region": "us-east-1",
       "description": "Primary cloud provider."
+    },
+    {
+      "name": "built-in",
+      "type": "auth",
+      "description": "Built-in JWT authentication — API issues its own tokens.",
+      "config": {
+        "provider": "built-in"
+      }
     }
   ],
   "constructs": [
@@ -190,6 +198,12 @@
           "name": "EVENT_BUS_NAME",
           "source": "secret",
           "required": false
+        },
+        {
+          "name": "JWT_SECRET",
+          "source": "secret",
+          "description": "Secret key for signing built-in JWT tokens.",
+          "required": true
         }
       ],
       "outputs": [

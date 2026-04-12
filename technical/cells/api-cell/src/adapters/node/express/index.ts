@@ -7,6 +7,7 @@ import { generateDrizzleSchema, generateDrizzleConfig } from '../shared/drizzle'
 import { generatePackageJson, generateTsConfig, generateEnv } from './generators/scaffold'
 import { generateMain } from './generators/main'
 import { generateAuth } from './generators/auth'
+import { generateAuthRoutes } from './generators/auth-routes'
 import { generateStore } from './generators/store'
 import { generateHandler } from './generators/handler'
 import { generateSignalMiddleware } from './generators/signal-middleware'
@@ -33,6 +34,7 @@ export const generate: ApiCellAdapter['generate'] = (
 ): void => {
   const appName = api.namespace.name.toLowerCase() + '-api'
   const nouns = collectNouns(core)
+  const authMode = (authConfig as any)?.provider as string | undefined
 
   // ── DNA — loaded at runtime ─────────────────────────────────────────────────
   write(outputDir, 'src/dna/api.json', JSON.stringify(api, null, 2) + '\n')
@@ -47,7 +49,10 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/db/index.ts', generateDbConnection())
 
   // ── Runtime interpreter — generic, reads DNA at startup ─────────────────────
-  write(outputDir, 'src/interpreter/auth.ts', generateAuth())
+  write(outputDir, 'src/interpreter/auth.ts', generateAuth(authMode))
+  if (authMode === 'built-in') {
+    write(outputDir, 'src/interpreter/auth-routes.ts', generateAuthRoutes())
+  }
   write(outputDir, 'src/interpreter/store.ts', generateStore())
   write(outputDir, 'src/interpreter/drizzle-store.ts', generateDrizzleStore())
   write(outputDir, 'src/interpreter/validators.ts', generateValidators())
@@ -58,7 +63,7 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/interpreter/router.ts', generateRouter())
 
   // ── Entry point + seed ──────────────────────────────────────────────────────
-  write(outputDir, 'src/main.ts', generateMain(api.namespace))
+  write(outputDir, 'src/main.ts', generateMain(api.namespace, authMode))
   write(outputDir, 'src/seed.ts', generateSeed())
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
