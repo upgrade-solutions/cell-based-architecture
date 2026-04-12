@@ -723,6 +723,7 @@ function buildComputeTf(
       blocks.push(hcl(
         block('resource', ['"aws_s3_bucket"', `"${cellId}"`], [
           assignment('bucket', `${prefix}-${cellId.replace(/_/g, '-')}-assets`),
+          assignment('force_destroy', raw('true')),
           assignment('tags', objectLiteral({ Name: `${prefix}-${cellId}` })),
         ]),
         '',
@@ -1272,6 +1273,7 @@ function buildEcrTf(
       block('resource', ['"aws_ecr_repository"', `"${cellId}"`], [
         assignment('name', `${prefix}-${cellId}`),
         assignment('image_tag_mutability', 'MUTABLE'),
+        assignment('force_delete', raw('true')),
         '',
         block('image_scanning_configuration', [], [
           assignment('scan_on_push', raw('true')),

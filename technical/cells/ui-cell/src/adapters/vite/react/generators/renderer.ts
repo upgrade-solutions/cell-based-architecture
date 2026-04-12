@@ -529,22 +529,28 @@ function LoginForm({ apiBase, onLogin }: { apiBase: string; onLogin: (token: str
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'system-ui', background: '#f3f4f6' }}>
-      <form onSubmit={handleSubmit} style={{ background: 'white', padding: '2rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', width: '100%', maxWidth: '24rem' }}>
-        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', fontWeight: 600 }}>Sign in</h2>
-        {error && <div style={{ color: '#dc2626', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'system-ui', background: '#111827' }}>
+      <form onSubmit={handleSubmit} style={{ background: '#1f2937', padding: '2.5rem', borderRadius: '0.75rem', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', width: '100%', maxWidth: '24rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ width: '3rem', height: '3rem', background: '#3b82f6', borderRadius: '0.75rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h2 style={{ margin: '0', fontSize: '1.5rem', fontWeight: 700, color: '#f9fafb' }}>Admin Login</h2>
+          <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', color: '#9ca3af' }}>Sign in to your account</p>
+        </div>
+        {error && <div style={{ color: '#f87171', marginBottom: '1rem', fontSize: '0.875rem', background: '#7f1d1d33', padding: '0.5rem 0.75rem', borderRadius: '0.375rem' }}>{error}</div>}
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Email</label>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem', color: '#d1d5db' }}>Email</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #374151', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box', background: '#111827', color: '#f9fafb' }} />
         </div>
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Password</label>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem', color: '#d1d5db' }}>Password</label>
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-            style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #374151', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box', background: '#111827', color: '#f9fafb' }} />
         </div>
         <button type="submit" disabled={loading}
-          style={{ width: '100%', padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+          style={{ width: '100%', padding: '0.625rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
           {loading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
