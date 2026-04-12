@@ -714,7 +714,7 @@ function buildComputeTf(
     )
     const cpu = construct?.config?.cpu ?? 256
     const memory = construct?.config?.memory ?? 512
-    const port = construct?.config?.port ?? 3000
+    const port = cell.adapterConfig?.port ?? construct?.config?.port ?? 3000
 
     // Environment variables for the container
     const envVars = buildContainerEnv(cell, plan)
@@ -863,7 +863,7 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
     const construct = plan.constructs.find(
       (c) => c.category === 'compute' && c.type === 'container' && cell.constructs.includes(c.name),
     )
-    const port = construct?.config?.port ?? 3000
+    const port = cell.adapterConfig?.port ?? construct?.config?.port ?? 3000
     const isApi = cell.name.includes('api')
 
     blocks.push(hcl(
