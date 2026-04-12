@@ -709,6 +709,7 @@ function buildComputeTf(
     }
 
     // Container-based cell → ECS task definition + service
+    const isWorker = cell.adapterType === 'node/event-bus'
     const construct = plan.constructs.find(
       (c) => c.category === 'compute' && c.type === 'container' && cell.constructs.includes(c.name),
     )
@@ -776,12 +777,13 @@ ${envVars.map((e) => `        { name = "${e.name}", value = ${e.value} }`).join(
           assignment('assign_public_ip', raw('false')),
         ]),
         '',
+        ...(isWorker ? [] : [
         block('load_balancer', [], [
           assignment('target_group_arn', raw(`aws_lb_target_group.${cellId}.arn`)),
           assignment('container_name', cellId),
           assignment('container_port', raw(String(port))),
         ]),
-        '',
+        '']),
         assignment('tags', objectLiteral({ Name: `${prefix}-${cellId}` })),
       ]),
     ))
@@ -853,11 +855,14 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
   ))
   resourceNames.push('alb')
 
-  // Target groups + listener rules for each ECS cell
+  // Target groups + listener rules for HTTP-serving cells only
+  // Worker cells (event-bus-cell, etc.) run as ECS services but don't receive ALB traffic
   let priority = 100
   for (const cell of plan.cells) {
     const isContainer = !cell.adapterType.startsWith('vite/') && cell.adapterType !== 'postgres'
     if (!isContainer) continue
+    const isWorker = cell.adapterType === 'node/event-bus'
+    if (isWorker) continue
 
     const cellId = tfId(cell.name)
     const construct = plan.constructs.find(
