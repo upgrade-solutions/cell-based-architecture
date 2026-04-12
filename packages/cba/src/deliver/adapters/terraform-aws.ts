@@ -232,6 +232,10 @@ function derivableSecrets(plan: EnvironmentPlan): Map<string, string> {
     if (secrets.includes('EVENT_BUS_QUEUE_URL')) {
       derived.set('EVENT_BUS_QUEUE_URL', 'aws_sqs_queue.event_bus.id')
     }
+    // EVENT_BUS_URL is the dev/rabbitmq var — not needed in eventbridge deployments
+    if (secrets.includes('EVENT_BUS_URL')) {
+      derived.set('EVENT_BUS_URL', '""')
+    }
   } else if (queueConstruct && secrets.includes('EVENT_BUS_URL')) {
     derived.set('EVENT_BUS_URL', 'aws_sns_topic.event_bus.arn')
   }
