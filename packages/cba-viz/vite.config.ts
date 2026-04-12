@@ -110,7 +110,15 @@ function saveViewsPlugin() {
 
 /**
  * Probe Docker for running/stopped containers and map them to DNA node IDs.
- * Async — does not block the Vite dev server event loop.
+ *
+ * Matching strategy (uses docker-compose labels, not brittle name substring checks):
+ * 1. Filter containers whose `com.docker.compose.project.working_dir` points at
+ *    this domain's deploy dir: `<repo>/output/<domain>-deploy`
+ * 2. For each match, read `com.docker.compose.service` to get the service name
+ * 3. Map service → DNA node id:
+ *      a) direct match on a construct id             (e.g. `primary-db` → primary-db)
+ *      b) direct match + `-cell` suffix              (e.g. `api` → api-cell)
+ *      c) cell whose constructs[] contains the svc   (e.g. `primary-db` → db-cell)
  */
 function probeDockerStatusAsync(domain: string): Promise<Record<string, string>> {
   return new Promise((resolve, reject) => {
@@ -122,42 +130,64 @@ function probeDockerStatusAsync(domain: string): Promise<Record<string, string>>
 
         const containers = (stdout ?? '').trim().split('\n').filter(Boolean).map((line) => {
           const [name, state, labels] = line.split('\t')
-          return { name: name ?? '', state: state ?? '', labels: labels ?? '' }
+          return {
+            name: name ?? '',
+            state: state ?? '',
+            labels: parseLabels(labels ?? ''),
+          }
         })
 
         const techPath = path.resolve(__dirname, '../../dna', domain, 'technical.json')
         if (!fs.existsSync(techPath)) { resolve({}); return }
         const technical = JSON.parse(fs.readFileSync(techPath, 'utf-8'))
-        const views = technical.views ?? []
-        const allNodeIds: string[] = []
-        for (const view of views) {
-          for (const node of view.nodes ?? []) {
-            allNodeIds.push(node.id)
+
+        const cells: Array<{ name: string; constructs?: string[] }> = technical.cells ?? []
+        const constructIds = new Set<string>((technical.constructs ?? []).map((c: any) => c.name))
+        const cellIds = new Set<string>(cells.map((c) => c.name))
+        const cellsByConstruct = new Map<string, string>() // single-construct cells only
+        for (const cell of cells) {
+          if (cell.constructs?.length === 1) {
+            cellsByConstruct.set(cell.constructs[0], cell.name)
           }
         }
 
+        // Compute the expected deploy dir (absolute path) for this domain
+        const expectedDeployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
+
         const result: Record<string, string> = {}
 
-        for (const nodeId of allNodeIds) {
-          const svcName = nodeId.replace(/-cell/g, '').replace(/^-|-$/g, '') || nodeId
+        for (const c of containers) {
+          const workingDir = c.labels['com.docker.compose.project.working_dir']
+          if (!workingDir) continue
+          // Normalize both sides — handle symlinks, trailing slashes
+          if (path.resolve(workingDir) !== expectedDeployDir) continue
 
-          for (const c of containers) {
-            if (c.labels.includes(`cba.node=${nodeId}`)) {
-              result[nodeId] = 'deployed'
-              break
-            }
-            const cName = c.name.toLowerCase()
-            if (
-              cName.includes(domain) &&
-              (cName.includes(nodeId) || cName.includes(svcName))
-            ) {
-              result[nodeId] = 'deployed'
-              break
-            }
-            if (cName === svcName || cName === nodeId || cName.endsWith(`-${svcName}`) || cName.endsWith(`-${nodeId}`)) {
-              result[nodeId] = 'deployed'
-              break
-            }
+          const service = c.labels['com.docker.compose.service']
+          if (!service) continue
+
+          // Docker compose states: running, exited, created, restarting, paused, dead
+          const isRunning = c.state === 'running'
+          if (!isRunning) continue // only show "deployed" for running containers
+
+          // Strategy (a): service name is a construct id
+          if (constructIds.has(service)) {
+            result[service] = 'deployed'
+            // Also mark any cell whose only construct is this service (e.g. db-cell, event-bus-cell)
+            const owningCell = cellsByConstruct.get(service)
+            if (owningCell) result[owningCell] = 'deployed'
+            continue
+          }
+
+          // Strategy (b): service name + '-cell' suffix matches a cell
+          const cellCandidate = `${service}-cell`
+          if (cellIds.has(cellCandidate)) {
+            result[cellCandidate] = 'deployed'
+            continue
+          }
+
+          // Strategy (c): exact cell id match (rare — if someone named service 'api-cell' directly)
+          if (cellIds.has(service)) {
+            result[service] = 'deployed'
           }
         }
 
@@ -165,6 +195,19 @@ function probeDockerStatusAsync(domain: string): Promise<Record<string, string>>
       },
     )
   })
+}
+
+/** Parse docker labels from comma-separated key=value list */
+function parseLabels(raw: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  // Labels can contain commas inside values, so this is imperfect.
+  // But compose project labels don't contain commas, so it's fine for our purposes.
+  for (const part of raw.split(',')) {
+    const eq = part.indexOf('=')
+    if (eq === -1) continue
+    out[part.slice(0, eq).trim()] = part.slice(eq + 1).trim()
+  }
+  return out
 }
 
 /**
@@ -188,17 +231,27 @@ function probeTerraformStatusAsync(domain: string): Promise<Record<string, strin
     if (!fs.existsSync(techPath)) { resolve({}); return }
 
     const technical = JSON.parse(fs.readFileSync(techPath, 'utf-8'))
-    const views = technical.views ?? []
+
+    // Derive node list directly from cells/constructs/providers — views[] is layout-only now
     const nodes: Array<{ id: string; type: string; metadata?: Record<string, any> }> = []
-    for (const view of views) {
-      for (const node of view.nodes ?? []) {
-        nodes.push({ id: node.id, type: node.type, metadata: node.metadata })
-      }
+    for (const provider of (technical.providers ?? [])) {
+      nodes.push({ id: provider.name, type: 'provider', metadata: { providerType: provider.type } })
+    }
+    for (const cell of (technical.cells ?? [])) {
+      nodes.push({ id: cell.name, type: 'cell', metadata: { adapter: cell.adapter?.type } })
+    }
+    for (const construct of (technical.constructs ?? [])) {
+      nodes.push({
+        id: construct.name,
+        type: 'construct',
+        metadata: { category: construct.category, engine: construct.config?.engine ?? construct.type },
+      })
     }
 
-    // The deploy dir follows the same convention as cba CLI
-    const safeDomain = domain.replace(/\//g, '-')
-    const deployDir = path.resolve(__dirname, '../../output', `${safeDomain}-deploy`)
+    // Deploy dir preserves the domain slash: output/<domain>-deploy
+    // The AWS resource-name prefix collapses slashes: `<domain>-<env>` → torts-marshall-dev
+    const awsPrefix = domain.replace(/\//g, '-')
+    const deployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
 
     // Try to read terraform state for precise resource mapping
     const tfStatePath = path.join(deployDir, 'terraform.tfstate')
@@ -224,7 +277,7 @@ function probeTerraformStatusAsync(domain: string): Promise<Record<string, strin
       if (node.type === 'cell') {
         // Cells map to ECS services — check if there's a matching service
         pending.push(
-          probeEcsService(safeDomain, node.id, tfResources).then(status => {
+          probeEcsService(awsPrefix, node.id, tfResources).then(status => {
             result[node.id] = status
           })
         )
@@ -238,14 +291,14 @@ function probeTerraformStatusAsync(domain: string): Promise<Record<string, strin
         if (category === 'storage' && (engine === 'postgres' || !engine)) {
           // Database construct → RDS
           pending.push(
-            probeRdsInstance(safeDomain, node.id, tfResources).then(status => {
+            probeRdsInstance(awsPrefix, node.id, tfResources).then(status => {
               result[node.id] = status
             })
           )
         } else if (engine === 'eventbridge' || engine === 'rabbitmq') {
           // Queue/event-bus construct
           pending.push(
-            probeEventBus(safeDomain, node.id, engine, tfResources).then(status => {
+            probeEventBus(awsPrefix, node.id, engine, tfResources).then(status => {
               result[node.id] = status
             })
           )
