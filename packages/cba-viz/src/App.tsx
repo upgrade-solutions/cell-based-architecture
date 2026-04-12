@@ -8,7 +8,18 @@ import { Toolbar } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
 
-const DOMAIN = 'lending'
+/** Read domain from ?domain= URL param, default to 'lending' */
+function getDomain(): string {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('domain') ?? 'lending'
+}
+
+/** Read adapter from ?adapter= URL param, default to 'docker-compose' */
+function getAdapter(): string {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('adapter') ?? 'docker-compose'
+}
+
 const STATUS_POLL_MS = 5000
 
 const App = observer(function App() {
@@ -16,31 +27,33 @@ const App = observer(function App() {
   const [saving, setSaving] = useState(false)
   const [dna, setDna] = useState<ArchitectureDNA | null>(null)
   const [currentViewName, setCurrentViewName] = useState('deployment')
-  const dockerStatus = useRef<Record<string, string>>({})
+  const liveStatus = useRef<Record<string, string>>({})
+  const [domain] = useState(getDomain)
+  const [adapter, setAdapter] = useState(getAdapter)
 
   // Load DNA from the dev server API at runtime
   useEffect(() => {
-    fetch(`/api/load-views/${DOMAIN}`)
+    fetch(`/api/load-views/${encodeURIComponent(domain)}`)
       .then(r => r.json())
       .then(json => setDna(parseArchitectureDNA(json)))
       .catch(err => console.error('Failed to load DNA:', err))
-  }, [])
+  }, [domain])
 
-  // Poll Docker status and merge into DNA
+  // Poll live status from the selected adapter and merge into DNA
   useEffect(() => {
     let active = true
     const poll = () => {
-      fetch(`/api/status/${DOMAIN}`)
+      fetch(`/api/status/${encodeURIComponent(domain)}?adapter=${encodeURIComponent(adapter)}`)
         .then(r => r.json())
         .then((statuses: Record<string, string>) => {
           if (!active) return
-          const prev = dockerStatus.current
+          const prev = liveStatus.current
           // Only update if statuses actually changed
           const changed = Object.keys(statuses).some(k => statuses[k] !== prev[k])
             || Object.keys(prev).some(k => !(k in statuses))
           if (changed) {
-            dockerStatus.current = statuses
-            // Merge into DNA — Docker status overrides static status
+            liveStatus.current = statuses
+            // Merge into DNA — live status overrides static status
             setDna(current => {
               if (!current) return current
               return {
@@ -56,12 +69,12 @@ const App = observer(function App() {
             })
           }
         })
-        .catch(() => { /* Docker not available — keep static statuses */ })
+        .catch(() => { /* adapter not available — keep static statuses */ })
     }
     poll()
     const interval = setInterval(poll, STATUS_POLL_MS)
     return () => { active = false; clearInterval(interval) }
-  }, [])
+  }, [domain, adapter])
 
   const viewNames = dna?.views.map(v => v.name) ?? []
   const currentView = dna?.views.find(v => v.name === currentViewName) ?? dna?.views[0]
@@ -79,7 +92,7 @@ const App = observer(function App() {
         views: dna!.views.map(v => v.name === currentViewName ? updatedView : v),
       }
 
-      await saveViews(DOMAIN, updatedDna)
+      await saveViews(domain, updatedDna)
       graphModel.setDirty(false)
     } catch (err) {
       console.error('Save failed:', err)
@@ -115,6 +128,9 @@ const App = observer(function App() {
           onViewChange={setCurrentViewName}
           onSave={handleSave}
           saving={saving}
+          domain={domain}
+          adapter={adapter}
+          onAdapterChange={setAdapter}
         />
       }
       canvas={

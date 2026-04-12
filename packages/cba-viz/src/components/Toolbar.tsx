@@ -8,6 +8,9 @@ interface ToolbarProps {
   onViewChange: (name: string) => void
   onSave: () => void
   saving: boolean
+  domain: string
+  adapter: string
+  onAdapterChange: (adapter: string) => void
 }
 
 export const Toolbar = observer(function Toolbar({
@@ -17,6 +20,9 @@ export const Toolbar = observer(function Toolbar({
   onViewChange,
   onSave,
   saving,
+  domain,
+  adapter,
+  onAdapterChange,
 }: ToolbarProps) {
   const scalePercent = Math.round(model.scale * 100)
 
@@ -42,6 +48,11 @@ export const Toolbar = observer(function Toolbar({
         fontSize: 13,
       }}
     >
+      {/* Domain label */}
+      <span style={{ color: '#f8fafc', fontWeight: 700, fontSize: 13 }}>{domain}</span>
+
+      <div style={{ width: 1, height: 20, background: '#475569' }} />
+
       {/* View selector */}
       <label style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         View
@@ -49,19 +60,26 @@ export const Toolbar = observer(function Toolbar({
       <select
         value={currentView}
         onChange={(e) => onViewChange(e.target.value)}
-        style={{
-          background: '#334155',
-          color: '#f8fafc',
-          border: '1px solid #475569',
-          borderRadius: 4,
-          padding: '4px 8px',
-          fontSize: 13,
-          cursor: 'pointer',
-        }}
+        style={selectStyle}
       >
         {viewNames.map((name) => (
           <option key={name} value={name}>{name}</option>
         ))}
+      </select>
+
+      <div style={{ width: 1, height: 20, background: '#475569' }} />
+
+      {/* Adapter selector */}
+      <label style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Status
+      </label>
+      <select
+        value={adapter}
+        onChange={(e) => onAdapterChange(e.target.value)}
+        style={selectStyle}
+      >
+        <option value="docker-compose">Docker Compose</option>
+        <option value="terraform/aws">Terraform / AWS</option>
       </select>
 
       <div style={{ flex: 1 }} />
@@ -97,6 +115,17 @@ export const Toolbar = observer(function Toolbar({
     </div>
   )
 })
+
+const selectStyle: React.CSSProperties = {
+  background: '#334155',
+  color: '#f8fafc',
+  border: '1px solid #475569',
+  borderRadius: 4,
+  padding: '4px 8px',
+  fontSize: 13,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+}
 
 const buttonStyle: React.CSSProperties = {
   background: '#334155',

@@ -157,12 +157,37 @@ cd packages/cba-viz
 npm run dev                                # http://localhost:5174
 ```
 
+Open the viewer for a specific domain and adapter via URL params:
+
+```
+http://localhost:5174/?domain=torts/marshall&adapter=terraform/aws
+```
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `domain` | `lending` | DNA domain path (supports nested paths like `torts/marshall`) |
+| `adapter` | `docker-compose` | Status probe adapter: `docker-compose` or `terraform/aws` |
+
 **Features:**
 - **View switching** — dropdown to switch between views in the architecture DNA
 - **Editable** — drag nodes to reposition, inspector panel to edit properties
 - **Custom shapes** — distinct visual styles for cells (rounded rect, blue), constructs (dashed rect, purple), providers (pill, amber), zones (dashed container)
-- **Write-back** — save positions and edits back to `architecture.json` (Ctrl+S or Save button)
+- **Write-back** — save positions and edits back to `technical.json` (Ctrl+S or Save button)
 - **Dark theme** — dark canvas with dot grid, matching the cell-based architecture aesthetic
+- **Live status** — polls the selected adapter every 5 seconds and updates node status in real time
+- **Adapter selector** — toolbar dropdown to switch between Docker Compose and Terraform/AWS status probes
+- **Terraform/AWS probe** — reads `terraform.tfstate` + queries AWS APIs (ECS, RDS, EventBridge, SQS) to map live infrastructure status back to DNA node IDs
+
+**Status rendering:**
+
+| Status | Visual |
+|--------|--------|
+| `proposed` | Dashed stroke, dim (45% opacity) |
+| `planned` | Solid stroke, greyed out (60% opacity) |
+| `deployed` | Full color, solid |
+| `running` | Full color + pulsing glow animation |
+
+When the Terraform/AWS adapter is selected, nodes start as `planned` (from the DNA spec) and transition to `deployed` or `running` as resources are provisioned and verified via AWS APIs.
 
 **Tech stack:** Vite 7, React 19, JointJS Plus (v4.2), MobX, Tailwind CSS v4.
 
