@@ -133,7 +133,8 @@
         "config": {
           "core_dna": "torts/marshall/product.core",
           "api_dna": "torts/marshall/product.api",
-          "api_base": ""
+          "api_base": "",
+          "port": 5173
         }
       },
       "constructs": [],

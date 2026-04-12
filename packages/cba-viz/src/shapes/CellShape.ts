@@ -10,13 +10,13 @@ export const CellShape = dia.Element.define('cbaViz.CellShape', {
     selector: 'body',
   }, {
     tagName: 'rect',
-    selector: 'adapterBadge',
+    selector: 'urlBadge',
   }, {
     tagName: 'text',
     selector: 'label',
   }, {
     tagName: 'text',
-    selector: 'adapterLabel',
+    selector: 'urlLabel',
   }],
   attrs: {
     body: {
@@ -29,7 +29,7 @@ export const CellShape = dia.Element.define('cbaViz.CellShape', {
       strokeWidth: 2,
       cursor: 'move',
     },
-    adapterBadge: {
+    urlBadge: {
       width: 'calc(w)',
       height: 18,
       y: 'calc(h - 18)',
@@ -49,15 +49,17 @@ export const CellShape = dia.Element.define('cbaViz.CellShape', {
       fontWeight: '600',
       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
     },
-    adapterLabel: {
+    urlLabel: {
       text: '',
       x: 'calc(w/2)',
       y: 'calc(h - 9)',
       textAnchor: 'middle',
       textVerticalAnchor: 'middle',
-      fill: '#94a3b8',
+      fill: '#60a5fa',
       fontSize: 10,
-      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+      cursor: 'pointer',
+      textDecoration: 'underline',
     },
   },
 })

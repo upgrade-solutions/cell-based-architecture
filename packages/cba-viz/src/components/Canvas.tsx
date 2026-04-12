@@ -87,6 +87,29 @@ export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
       model.setSelectedCellView(null)
     })
 
+    // Open the deployed URL when the urlLabel on a cell is clicked.
+    // This event name pattern is `element:<selector>:pointerclick` in JointJS,
+    // but to keep it portable we check the click target's selector manually.
+    paper.on('element:pointerclick', (elementView: dia.ElementView, evt: dia.Event) => {
+      const target = (evt as unknown as { target: Element }).target
+      // Walk up the SVG parent chain to see if we hit a urlLabel text node
+      let el: Element | null = target
+      let hitUrlLabel = false
+      while (el && el !== elementView.el) {
+        if (el.getAttribute('joint-selector') === 'urlLabel') {
+          hitUrlLabel = true
+          break
+        }
+        el = el.parentElement
+      }
+      if (!hitUrlLabel) return
+      const dna = elementView.model.get('dna') as { metadata?: { url?: string } } | undefined
+      const url = dna?.metadata?.url
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
+    })
+
     // Blank drag to pan
     paper.on('blank:pointerdown', (evt: dia.Event) => {
       const e = evt as unknown as MouseEvent

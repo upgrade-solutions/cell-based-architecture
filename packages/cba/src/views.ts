@@ -120,6 +120,30 @@ function isProvisioner(cell: { adapterType: string }): boolean {
 }
 
 /**
+ * Infer the deployed URL for a cell from its DNA:
+ *   1. first outputs[] entry whose value starts with `http`
+ *   2. else `http://localhost:<port>` if adapterConfig.port is set
+ *   3. else undefined (unknown)
+ *
+ * For terraform/AWS deployments the real URL lives in terraform outputs —
+ * that's a follow-up. This covers the docker/local case driven entirely
+ * by DNA.
+ */
+function cellUrl(cell: {
+  outputs?: Array<{ value?: string }>
+  adapterConfig?: Record<string, any>
+}): string | undefined {
+  for (const output of cell.outputs ?? []) {
+    if (typeof output?.value === 'string' && output.value.startsWith('http')) {
+      return output.value
+    }
+  }
+  const port = cell.adapterConfig?.port
+  if (typeof port === 'number') return `http://localhost:${port}`
+  return undefined
+}
+
+/**
  * Derive a single deployment view from an EnvironmentPlan.
  *
  * Layout rules:
@@ -170,7 +194,7 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
       position: saved?.pos ?? { x: cellX, y: CELL_ROW_Y },
       size: saved?.size ?? { width: CELL_W, height: CELL_H },
       description: cell.description,
-      metadata: { adapter: cell.adapterType },
+      metadata: { adapter: cell.adapterType, url: cellUrl(cell) },
     })
     cellX += CELL_W + GAP_X
   }

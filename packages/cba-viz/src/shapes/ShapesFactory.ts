@@ -53,19 +53,26 @@ function statusLabelAttrs(status: NodeStatus | undefined): Record<string, unknow
 export class ShapesFactory {
   createNode(node: ArchNode): dia.Element {
     const pos = node.position ?? { x: 0, y: 0 }
-    const adapter = (node.metadata?.adapter as string) ?? ''
     const status = node.status
 
     switch (node.type) {
       case 'cell': {
         const size = node.size ?? { width: 160, height: 70 }
+        const url = (node.metadata?.url as string | undefined) ?? ''
+        // Display URL with http:// stripped for readability; href keeps full URL
+        const urlDisplay = url.replace(/^https?:\/\//, '')
         return new CellShape({
           id: node.id,
           position: pos,
           size,
           attrs: {
             label: { text: node.name, ...statusLabelAttrs(status) },
-            adapterLabel: { text: adapter, ...statusLabelAttrs(status) },
+            urlLabel: {
+              text: urlDisplay,
+              ...statusLabelAttrs(status),
+              // Override fill so URL keeps its link color even when deployed
+              ...(status === 'proposed' || status === 'planned' ? {} : { fill: '#60a5fa' }),
+            },
             body: statusBodyAttrs(status, '#3b82f6', 'cell'),
           },
         })
