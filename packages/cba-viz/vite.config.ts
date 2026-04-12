@@ -138,7 +138,7 @@ function probeDockerStatusAsync(domain: string): Promise<Record<string, string>>
 
           for (const c of containers) {
             if (c.labels.includes(`cba.node=${nodeId}`)) {
-              result[nodeId] = c.state === 'running' ? 'running' : 'deployed'
+              result[nodeId] = 'deployed'
               break
             }
             const cName = c.name.toLowerCase()
@@ -146,11 +146,11 @@ function probeDockerStatusAsync(domain: string): Promise<Record<string, string>>
               cName.includes(domain) &&
               (cName.includes(nodeId) || cName.includes(svcName))
             ) {
-              result[nodeId] = c.state === 'running' ? 'running' : 'deployed'
+              result[nodeId] = 'deployed'
               break
             }
             if (cName === svcName || cName === nodeId || cName.endsWith(`-${svcName}`) || cName.endsWith(`-${nodeId}`)) {
-              result[nodeId] = c.state === 'running' ? 'running' : 'deployed'
+              result[nodeId] = 'deployed'
               break
             }
           }
@@ -282,9 +282,8 @@ function awsJsonAsync(cmd: string): Promise<any> {
   })
 }
 
-/** Check if an ECS service exists and is running for a given cell */
+/** Check if an ECS service exists for a given cell */
 async function probeEcsService(prefix: string, nodeId: string, tfResources: string[]): Promise<string> {
-  // Check terraform state first
   const cellName = nodeId.replace(/-cell/g, '').replace(/^-|-$/g, '') || nodeId
   const tfName = cellName.replace(/-/g, '_')
   const hasTfResource = tfResources.some(r =>
@@ -293,34 +292,7 @@ async function probeEcsService(prefix: string, nodeId: string, tfResources: stri
     r.includes(`ecs_task_definition`) && r.includes(tfName)
   )
 
-  if (!hasTfResource) {
-    // No terraform resource — try live AWS probe
-    try {
-      const clusters = await awsJsonAsync('aws ecs list-clusters --output json')
-      const clusterArns: string[] = clusters?.clusterArns ?? []
-      for (const arn of clusterArns) {
-        if (!arn.includes(prefix)) continue
-        const services = await awsJsonAsync(
-          `aws ecs list-services --cluster "${arn}" --output json`
-        )
-        for (const svcArn of (services?.serviceArns ?? []) as string[]) {
-          if (svcArn.includes(cellName) || svcArn.includes(nodeId)) {
-            // Service exists — check if tasks are running
-            const desc = await awsJsonAsync(
-              `aws ecs describe-services --cluster "${arn}" --services "${svcArn}" --output json`
-            )
-            const svc = desc?.services?.[0]
-            if (svc?.runningCount > 0) return 'running'
-            if (svc?.desiredCount > 0) return 'deployed'
-            return 'deployed'
-          }
-        }
-      }
-    } catch { /* AWS CLI not available or not configured */ }
-    return 'planned'
-  }
-
-  // Has terraform resource — check if actually running
+  // Probe AWS for the service
   try {
     const clusters = await awsJsonAsync('aws ecs list-clusters --output json')
     const clusterArns: string[] = clusters?.clusterArns ?? []
@@ -331,17 +303,13 @@ async function probeEcsService(prefix: string, nodeId: string, tfResources: stri
       )
       for (const svcArn of (services?.serviceArns ?? []) as string[]) {
         if (svcArn.includes(cellName) || svcArn.includes(nodeId)) {
-          const desc = await awsJsonAsync(
-            `aws ecs describe-services --cluster "${arn}" --services "${svcArn}" --output json`
-          )
-          const svc = desc?.services?.[0]
-          if (svc?.runningCount > 0) return 'running'
           return 'deployed'
         }
       }
     }
-  } catch { /* fall through */ }
-  return 'deployed' // terraform says it exists even if ECS probe failed
+  } catch { /* AWS CLI not available or not configured */ }
+
+  return hasTfResource ? 'deployed' : 'planned'
 }
 
 /** Check if an RDS instance exists for a database construct */
@@ -355,7 +323,6 @@ async function probeRdsInstance(prefix: string, nodeId: string, tfResources: str
     for (const db of instances) {
       const id = (db.DBInstanceIdentifier ?? '').toLowerCase()
       if (id.includes(prefix) && (id.includes(nodeId) || id.includes(nodeId.replace(/-/g, '')))) {
-        if (db.DBInstanceStatus === 'available') return 'running'
         return 'deployed'
       }
     }
@@ -379,7 +346,7 @@ async function probeEventBus(prefix: string, nodeId: string, engine: string, tfR
       for (const bus of buses) {
         const name = (bus.Name ?? '').toLowerCase()
         if (name.includes(prefix) || name.includes(nodeId.replace(/-/g, ''))) {
-          return 'running'
+          return 'deployed'
         }
       }
     } catch { /* fall through */ }
@@ -390,7 +357,7 @@ async function probeEventBus(prefix: string, nodeId: string, engine: string, tfR
     const queues: string[] = result?.QueueUrls ?? []
     for (const url of queues) {
       if (url.toLowerCase().includes(prefix) || url.toLowerCase().includes(nodeId.replace(/-/g, ''))) {
-        return 'running'
+        return 'deployed'
       }
     }
   } catch { /* fall through */ }

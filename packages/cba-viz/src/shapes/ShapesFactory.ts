@@ -16,10 +16,9 @@ const CONNECTION_STYLES: Record<string, { stroke: string; strokeDasharray?: stri
  * Status-based style overrides.
  * - proposed: dashed stroke, very dim
  * - planned: solid stroke, greyed out
- * - deployed: full color (default)
- * - running: full color + CSS pulse class
+ * - deployed: full color (default) — deployed means running
  */
-function statusBodyAttrs(status: NodeStatus | undefined, baseStroke: string, nodeType: string): Record<string, unknown> {
+function statusBodyAttrs(status: NodeStatus | undefined, _baseStroke: string, _nodeType: string): Record<string, unknown> {
   switch (status) {
     case 'proposed':
       return {
@@ -33,14 +32,8 @@ function statusBodyAttrs(status: NodeStatus | undefined, baseStroke: string, nod
         strokeDasharray: undefined,
         opacity: 0.6,
       }
-    case 'running': {
-      const cssClass = `cba-running-${nodeType === 'cell' ? 'cell' : nodeType === 'construct' ? 'construct' : nodeType === 'provider' ? 'provider' : 'default'}`
-      return {
-        stroke: baseStroke,
-        class: cssClass,
-      }
-    }
     case 'deployed':
+    case 'running':
     default:
       return {}
   }

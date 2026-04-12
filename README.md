@@ -185,9 +185,8 @@ http://localhost:5174/?domain=torts/marshall&adapter=terraform/aws
 | `proposed` | Dashed stroke, dim (45% opacity) |
 | `planned` | Solid stroke, greyed out (60% opacity) |
 | `deployed` | Full color, solid |
-| `running` | Full color + pulsing glow animation |
 
-When the Terraform/AWS adapter is selected, nodes start as `planned` (from the DNA spec) and transition to `deployed` or `running` as resources are provisioned and verified via AWS APIs.
+When the Terraform/AWS adapter is selected, nodes start as `planned` (from the DNA spec) and transition to `deployed` as resources are provisioned and verified via AWS APIs.
 
 **Tech stack:** Vite 7, React 19, JointJS Plus (v4.2), MobX, Tailwind CSS v4.
 

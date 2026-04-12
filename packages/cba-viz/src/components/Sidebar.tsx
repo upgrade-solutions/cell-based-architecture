@@ -142,7 +142,6 @@ function Field({
 }
 
 const STATUS_LEGEND = [
-  { status: 'Running', color: '#3b82f6', dash: false, note: 'full color + pulse' },
   { status: 'Deployed', color: '#3b82f6', dash: false, note: 'full color, solid' },
   { status: 'Planned', color: '#64748b', dash: false, note: 'greyed out, solid' },
   { status: 'Proposed', color: '#475569', dash: true, note: 'dashed, dim' },

@@ -5,7 +5,7 @@
  * transforms. For a production build you'd swap this for an API fetch.
  */
 
-export type NodeStatus = 'proposed' | 'planned' | 'deployed' | 'running'
+export type NodeStatus = 'proposed' | 'planned' | 'deployed'
 
 export interface ArchNode {
   id: string
