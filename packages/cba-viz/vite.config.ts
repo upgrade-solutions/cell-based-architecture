@@ -116,9 +116,8 @@ function saveViewsPlugin() {
  *    this domain's deploy dir: `<repo>/output/<domain>-deploy`
  * 2. For each match, read `com.docker.compose.service` to get the service name
  * 3. Map service → DNA node id:
- *      a) direct match on a construct id             (e.g. `primary-db` → primary-db)
- *      b) direct match + `-cell` suffix              (e.g. `api` → api-cell)
- *      c) cell whose constructs[] contains the svc   (e.g. `primary-db` → db-cell)
+ *      a) direct match on a construct id     (e.g. `primary-db` → primary-db)
+ *      b) direct match + `-cell` suffix      (e.g. `api` → api-cell)
  */
 function probeDockerStatusAsync(domain: string): Promise<Record<string, string>> {
   return new Promise((resolve, reject) => {
@@ -141,15 +140,9 @@ function probeDockerStatusAsync(domain: string): Promise<Record<string, string>>
         if (!fs.existsSync(techPath)) { resolve({}); return }
         const technical = JSON.parse(fs.readFileSync(techPath, 'utf-8'))
 
-        const cells: Array<{ name: string; constructs?: string[] }> = technical.cells ?? []
+        const cells: Array<{ name: string }> = technical.cells ?? []
         const constructIds = new Set<string>((technical.constructs ?? []).map((c: any) => c.name))
         const cellIds = new Set<string>(cells.map((c) => c.name))
-        const cellsByConstruct = new Map<string, string>() // single-construct cells only
-        for (const cell of cells) {
-          if (cell.constructs?.length === 1) {
-            cellsByConstruct.set(cell.constructs[0], cell.name)
-          }
-        }
 
         // Compute the expected deploy dir (absolute path) for this domain
         const expectedDeployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
@@ -172,9 +165,6 @@ function probeDockerStatusAsync(domain: string): Promise<Record<string, string>>
           // Strategy (a): service name is a construct id
           if (constructIds.has(service)) {
             result[service] = 'deployed'
-            // Also mark any cell whose only construct is this service (e.g. db-cell, event-bus-cell)
-            const owningCell = cellsByConstruct.get(service)
-            if (owningCell) result[owningCell] = 'deployed'
             continue
           }
 

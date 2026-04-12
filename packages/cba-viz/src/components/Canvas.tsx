@@ -114,6 +114,10 @@ export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
       panHandler.cleanup()
       graph.clear()
       paper.remove()
+      // paper.remove() cleans up JointJS internals but doesn't necessarily
+      // detach the parent div we created. Remove it explicitly so re-runs
+      // of this effect don't stack papers on top of each other.
+      if (paperEl.parentNode) paperEl.parentNode.removeChild(paperEl)
       model.cleanup()
     }
   }, [view, model])

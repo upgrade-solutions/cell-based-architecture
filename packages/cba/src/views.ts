@@ -104,15 +104,34 @@ interface ArchView {
 // ── Derivation ──
 
 /**
+ * Adapters that don't produce a running service of their own — their entire
+ * purpose is to provision an underlying Construct (schema, queue config, etc.).
+ * On a deployment view these cells are redundant with their construct, so we
+ * hide them. The provisioning relationship still lives in technical DNA's
+ * `cell.constructs[]`; it's just not shown as a separate node.
+ */
+const PROVISIONER_ADAPTERS = new Set([
+  'postgres',
+  'node/event-bus',
+])
+
+function isProvisioner(cell: { adapterType: string }): boolean {
+  return PROVISIONER_ADAPTERS.has(cell.adapterType)
+}
+
+/**
  * Derive a single deployment view from an EnvironmentPlan.
  *
  * Layout rules:
  *   - Providers in a row at the top
- *   - Cells in a row below
+ *   - Cells (excluding provisioners) in a row below
  *   - Constructs in a row below the cells
  *   - If savedView has a node with the same id, its position/size wins
  */
 function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
+  // Visible cells excludes provisioner cells (those whose job is to set up
+  // a construct — they have no independent runtime service)
+  const visibleCells = plan.cells.filter((c) => !isProvisioner(c))
   // Build a lookup of saved positions by node id
   const savedPositions = new Map<string, { pos?: ArchNode['position']; size?: ArchNode['size'] }>()
   for (const node of savedView?.nodes ?? []) {
@@ -145,11 +164,11 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
     providerX += providerSpacing
   }
 
-  // ── Cells (middle row) ──
+  // ── Cells (middle row) — provisioners excluded ──
   const cellY = 180
   const cellSpacing = 200
   let cellX = 60
-  for (const cell of plan.cells) {
+  for (const cell of visibleCells) {
     const saved = savedPositions.get(cell.name)
     nodes.push({
       id: cell.name,
@@ -189,10 +208,10 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
     constructX += constructSpacing
   }
 
-  // ── Connections: cells → their constructs (depends-on) ──
-  for (const cell of plan.cells) {
+  // ── Connections: visible cells → their constructs (depends-on) ──
+  // Provisioner cells are excluded, so we don't emit edges from them.
+  for (const cell of visibleCells) {
     for (const constructName of cell.constructs) {
-      // Only add the connection if the construct actually exists in the plan
       if (!plan.constructs.some((c) => c.name === constructName)) continue
       connections.push({
         id: `${cell.name}->${constructName}`,
@@ -205,13 +224,13 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
 
   // ── Zones: Compute tier (cells) + Storage tier (constructs) ──
   const zones: ArchZone[] = []
-  if (plan.cells.length > 0) {
+  if (visibleCells.length > 0) {
     const savedZone = savedZoneLayout.get('zone-compute')
     zones.push({
       id: 'zone-compute',
       name: 'Compute',
       type: 'tier',
-      nodes: plan.cells.map((c) => c.name),
+      nodes: visibleCells.map((c) => c.name),
       position: savedZone?.pos,
       size: savedZone?.size,
     })

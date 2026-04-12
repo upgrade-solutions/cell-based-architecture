@@ -138,6 +138,8 @@ Technical DNA auto-derives an architecture graph — a visual diagram of system 
 
 The `views[]` section in `technical.json` is a **layout overlay** — each entry stores only `id` + `position` + `size`, and the derive function merges those onto the corresponding derived node or zone. Adding a cell/construct/provider makes it appear on the graph automatically; removing one removes it. Manual position edits persist across DNA changes.
 
+**Provisioner cells are hidden on the deployment view.** Cells whose adapter is `postgres` or `node/event-bus` have no runtime service of their own — their entire purpose is to provision a single Construct (schema, queue config, etc.). On the deployment view they'd be visually redundant with their construct, so they're filtered out. The provisioning relationship still lives in `cell.constructs[]` in technical DNA.
+
 ```bash
 npx cba views lending --env dev                    # derived graph for the dev environment
 npx cba views torts/marshall --env prod --json     # derived graph, JSON output
