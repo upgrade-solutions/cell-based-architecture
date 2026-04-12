@@ -46,7 +46,11 @@ const App = observer(function App() {
       .catch(err => console.error('Failed to load DNA:', err))
   }, [domain, env])
 
-  // Poll live status from the selected adapter and merge into DNA
+  // Poll live status from the selected adapter and merge into DNA.
+  // The change-detection check happens INSIDE the setDna updater so that:
+  //   (a) we only skip when the DNA is loaded AND statuses actually match
+  //   (b) a status response that arrives before load-views resolves doesn't
+  //       poison the `liveStatus` cache, causing subsequent polls to no-op
   useEffect(() => {
     let active = true
     const poll = () => {
@@ -54,30 +58,30 @@ const App = observer(function App() {
         .then(r => r.json())
         .then((statuses: Record<string, string>) => {
           if (!active) return
-          const prev = liveStatus.current
-          // Only update if statuses actually changed
-          const changed = Object.keys(statuses).some(k => statuses[k] !== prev[k])
-            || Object.keys(prev).some(k => !(k in statuses))
-          if (changed) {
+          setDna(current => {
+            if (!current) return current
+            const prev = liveStatus.current
+            const changed =
+              Object.keys(statuses).some(k => statuses[k] !== prev[k]) ||
+              Object.keys(prev).some(k => !(k in statuses))
+            if (!changed) return current
             liveStatus.current = statuses
-            // Merge into DNA — live status overrides static status
-            setDna(current => {
-              if (!current) return current
-              return {
-                ...current,
-                views: current.views.map(view => ({
-                  ...view,
-                  nodes: view.nodes.map(node => {
-                    const live = statuses[node.id] as NodeStatus | undefined
-                    return live ? { ...node, status: live } : node
-                  }),
-                })),
-              }
-            })
-          }
+            return {
+              ...current,
+              views: current.views.map(view => ({
+                ...view,
+                nodes: view.nodes.map(node => {
+                  const live = statuses[node.id] as NodeStatus | undefined
+                  return live ? { ...node, status: live } : node
+                }),
+              })),
+            }
+          })
         })
         .catch(() => { /* adapter not available — keep static statuses */ })
     }
+    // Reset the cache when the adapter/domain changes so we re-apply fresh
+    liveStatus.current = {}
     poll()
     const interval = setInterval(poll, STATUS_POLL_MS)
     return () => { active = false; clearInterval(interval) }
