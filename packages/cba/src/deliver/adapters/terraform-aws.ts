@@ -29,7 +29,9 @@ export function generateTerraformAws(plan: EnvironmentPlan): TerraformResult {
   const resources: string[] = []
   const skipped: Array<{ name: string; kind: string; reason: string }> = []
 
-  const prefix = `${plan.domain}-${plan.environment}`
+  // Nested domains (torts/marshall) produce slashes which are invalid in AWS
+  // resource names. Replace them with hyphens so the prefix is safe everywhere.
+  const prefix = `${plan.domain.replace(/\//g, '-')}-${plan.environment}`
 
   // Find the AWS provider from DNA
   const awsProvider = plan.providers.find((p) => p.name === 'aws' || p.type === 'cloud')
@@ -444,8 +446,8 @@ function buildStorageTf(plan: EnvironmentPlan, prefix: string): BuildResult {
           assignment('allocated_storage', raw('20')),
           assignment('max_allocated_storage', raw('100')),
           '',
-          assignment('db_name', plan.domain),
-          assignment('username', `${plan.domain}_app`),
+          assignment('db_name', plan.domain.replace(/\//g, '_')),
+          assignment('username', `${plan.domain.replace(/\//g, '_')}_app`),
           assignment('manage_master_user_password', raw('true')),
           '',
           assignment('db_subnet_group_name', raw(`aws_db_subnet_group.${rid}.name`)),
@@ -730,7 +732,7 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
   // ALB (always generated — ECS services need a load balancer)
   blocks.push(hcl(
     block('resource', ['"aws_lb"', `"${id}"`], [
-      assignment('name', `${prefix}-alb`),
+      assignment('name', awsName(`${prefix}-alb`, 32)),
       assignment('internal', raw('false')),
       assignment('load_balancer_type', 'application'),
       assignment('security_groups', raw(`[aws_security_group.${id}_alb.id]`)),
@@ -773,7 +775,7 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
     blocks.push(hcl(
       '',
       block('resource', ['"aws_lb_target_group"', `"${cellId}"`], [
-        assignment('name', `${prefix}-${cellId}-tg`),
+        assignment('name', awsName(`${prefix}-${cellId}-tg`, 32)),
         assignment('port', raw(String(port))),
         assignment('protocol', 'HTTP'),
         assignment('target_type', 'ip'),
@@ -1304,6 +1306,16 @@ function escapeHcl(s: string): string {
 /** Convert a name to a valid Terraform identifier (lowercase, underscores) */
 function tfId(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase()
+}
+
+/**
+ * Convert a name to a valid AWS resource name (lowercase, hyphens only).
+ * Many AWS resources (ALB, TG, ECS cluster, IAM role) reject underscores and
+ * slashes. Target groups also have a 32-char limit — pass `maxLen` to truncate.
+ */
+function awsName(name: string, maxLen?: number): string {
+  const safe = name.replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase()
+  return maxLen ? safe.slice(0, maxLen) : safe
 }
 
 /** Convert a variable name to a Terraform-safe variable name */
