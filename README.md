@@ -177,6 +177,8 @@ All three are also selectable in the toolbar at runtime.
 **Features:**
 - **View switching** — dropdown to switch between views in the architecture DNA
 - **Editable** — drag nodes to reposition, inspector panel to edit properties
+- **Collapsible inspector** — the right-hand inspector panel can collapse to a thin strip to reclaim canvas space; click the caret to expand/collapse
+- **Smooth re-renders** — the canvas fades in on every graph rebuild (view switch or status transition) so status flips don't flash
 - **Custom shapes** — distinct visual styles for cells (rounded rect, blue), constructs (dashed rect, purple), providers (pill, amber), zones (dashed container)
 - **Write-back** — save positions and edits back to `technical.json` (Ctrl+S or Save button)
 - **Dark theme** — dark canvas with dot grid, matching the cell-based architecture aesthetic

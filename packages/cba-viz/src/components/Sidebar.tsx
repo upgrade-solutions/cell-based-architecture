@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { dia } from '@joint/plus'
 import { observer } from 'mobx-react-lite'
 import type { GraphModel } from '../models/GraphModel.ts'
@@ -9,14 +10,31 @@ interface SidebarProps {
 }
 
 export const Sidebar = observer(function Sidebar({ model, env, adapter }: SidebarProps) {
+  const [collapsed, setCollapsed] = useState(false)
   const cellView = model.selectedCellView
   const cell = cellView?.model
   const dna = cell?.get('dna') as Record<string, unknown> | undefined
 
+  if (collapsed) {
+    return (
+      <div style={collapsedContainerStyle}>
+        <button
+          onClick={() => setCollapsed(false)}
+          style={collapseButtonStyle}
+          title="Expand inspector"
+          aria-label="Expand inspector"
+        >
+          ‹
+        </button>
+        <div style={collapsedLabelStyle}>INSPECTOR</div>
+      </div>
+    )
+  }
+
   if (!dna) {
     return (
       <div style={containerStyle}>
-        <div style={headerStyle}>Inspector</div>
+        <SidebarHeader onCollapse={() => setCollapsed(true)} />
         <AdapterSection env={env} adapter={adapter} />
         <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>
           Click a node or connection to inspect it.
@@ -32,7 +50,7 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter }: Sideba
 
   return (
     <div style={containerStyle}>
-      <div style={headerStyle}>Inspector</div>
+      <SidebarHeader onCollapse={() => setCollapsed(true)} />
       <AdapterSection env={env} adapter={adapter} />
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* Identity */}
@@ -208,12 +226,46 @@ function StatusLegend() {
   )
 }
 
+/**
+ * Sidebar header with a collapse button. The caret flips direction based on
+ * state, so the same control both collapses (›) and expands (‹) the panel.
+ */
+function SidebarHeader({ onCollapse }: { onCollapse: () => void }) {
+  return (
+    <div style={headerStyle}>
+      <span>Inspector</span>
+      <button
+        onClick={onCollapse}
+        style={collapseButtonStyle}
+        title="Collapse inspector"
+        aria-label="Collapse inspector"
+      >
+        ›
+      </button>
+    </div>
+  )
+}
+
 const containerStyle: React.CSSProperties = {
   width: 280,
   height: '100%',
   background: '#1e293b',
   borderLeft: '1px solid #334155',
   overflow: 'auto',
+  transition: 'width 200ms ease',
+}
+
+const collapsedContainerStyle: React.CSSProperties = {
+  width: 32,
+  height: '100%',
+  background: '#1e293b',
+  borderLeft: '1px solid #334155',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  paddingTop: 8,
+  gap: 12,
+  transition: 'width 200ms ease',
 }
 
 const headerStyle: React.CSSProperties = {
@@ -222,4 +274,32 @@ const headerStyle: React.CSSProperties = {
   fontWeight: 700,
   color: '#f8fafc',
   borderBottom: '1px solid #334155',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+}
+
+const collapseButtonStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #334155',
+  color: '#94a3b8',
+  borderRadius: 3,
+  width: 22,
+  height: 22,
+  lineHeight: '18px',
+  padding: 0,
+  fontSize: 16,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+}
+
+const collapsedLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  color: '#64748b',
+  letterSpacing: '0.1em',
+  writingMode: 'vertical-rl',
+  transform: 'rotate(180deg)',
+  marginTop: 8,
+  userSelect: 'none',
 }

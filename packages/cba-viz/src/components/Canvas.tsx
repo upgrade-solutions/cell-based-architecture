@@ -24,10 +24,17 @@ export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
     if (!containerRef.current) return
 
     // Create a child element for JointJS so paper.remove() doesn't
-    // destroy our React-managed container div
+    // destroy our React-managed container div.
+    //
+    // Start at opacity 0 and fade in after the graph is built so that every
+    // re-render (view switch, status flip rebuilds the DNA object, etc.)
+    // eases in instead of flashing. Cleanup below destroys this element
+    // entirely on re-run, so the next mount always starts fresh at 0.
     const paperEl = document.createElement('div')
     paperEl.style.width = '100%'
     paperEl.style.height = '100%'
+    paperEl.style.opacity = '0'
+    paperEl.style.transition = 'opacity 220ms ease-out'
     containerRef.current.appendChild(paperEl)
 
     const graph = new dia.Graph({}, { cellNamespace: shapes })
@@ -135,9 +142,14 @@ export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
     }
     containerRef.current.addEventListener('wheel', handleWheel, { passive: false })
 
-    // Fit to content after initial render
+    // Fit to content after initial render, then fade in. Double-rAF so the
+    // browser has committed the initial cell layout before the opacity
+    // transition starts — otherwise Chrome sometimes skips the animation.
     requestAnimationFrame(() => {
       try { zoomHandler.fitToContent() } catch (_) { /* paper may be removed */ }
+      requestAnimationFrame(() => {
+        paperEl.style.opacity = '1'
+      })
     })
 
     return () => {
