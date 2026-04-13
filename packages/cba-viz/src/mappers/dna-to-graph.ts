@@ -1,6 +1,23 @@
 import { dia } from '@joint/plus'
-import type { ArchView } from '../loaders/dna-loader.ts'
+import type { ArchView, NodeStatus } from '../loaders/dna-loader.ts'
 import { ShapesFactory } from '../shapes/ShapesFactory.ts'
+
+/**
+ * Edge status = the weakest of its endpoint statuses.
+ *   deployed > planned > proposed
+ * An edge connecting two deployed nodes is deployed. If either endpoint
+ * is planned or proposed, the edge demotes to that level — the
+ * connection can't really exist if one end hasn't been built. Missing
+ * endpoint defaults to 'planned' (matches what deriveView sets).
+ */
+const STATUS_RANK: Record<NodeStatus, number> = {
+  deployed: 2,
+  planned: 1,
+  proposed: 0,
+}
+function weakerStatus(a: NodeStatus, b: NodeStatus): NodeStatus {
+  return STATUS_RANK[a] <= STATUS_RANK[b] ? a : b
+}
 
 /**
  * Convert an Architecture DNA view into JointJS graph cells.
@@ -118,14 +135,26 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
     }
   }
 
-  // 4. Connections
+  // 4. Connections. Compute each edge's effective status from its endpoints
+  // at render time so it stays in sync with whatever live status polling
+  // has written onto the nodes in DNA.
+  const nodeStatus = new Map<string, NodeStatus>()
+  for (const node of view.nodes) {
+    nodeStatus.set(node.id, (node.status ?? 'planned') as NodeStatus)
+  }
+
   for (const conn of view.connections ?? []) {
-    const link = factory.createConnection(conn)
+    const sourceStatus = nodeStatus.get(conn.source) ?? 'planned'
+    const targetStatus = nodeStatus.get(conn.target) ?? 'planned'
+    const edgeStatus = weakerStatus(sourceStatus, targetStatus)
+
+    const link = factory.createConnection({ ...conn, status: edgeStatus })
     link.set('z', 3) // links above everything
     link.set('dna', {
       id: conn.id,
       type: conn.type,
       label: conn.label,
+      status: edgeStatus,
     })
     cells.push(link)
   }

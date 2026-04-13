@@ -24,6 +24,12 @@ export interface ArchConnection {
   source: string
   target: string
   type: 'depends-on' | 'data-flow' | 'communicates-with' | 'publishes-to'
+  // Connection status mirrors the weakest endpoint's status: two deployed
+  // cells give a deployed edge, any planned endpoint demotes the edge to
+  // planned, any proposed endpoint demotes it to proposed. Computed at
+  // render time in viewToGraphCells (not stored in DNA) so it stays in
+  // sync with live status polls.
+  status?: NodeStatus
   label?: string
   vertices?: Array<{ x: number; y: number }>
   metadata?: Record<string, unknown>

@@ -5,11 +5,21 @@ import { ConstructShape } from './ConstructShape.ts'
 import { ProviderShape } from './ProviderShape.ts'
 import { ZoneContainer, ZONE_COLORS } from './ZoneContainer.ts'
 
-const CONNECTION_STYLES: Record<string, { stroke: string; strokeDasharray?: string }> = {
-  'depends-on':         { stroke: '#64748b' },
-  'data-flow':          { stroke: '#3b82f6', strokeDasharray: '8,4' },
-  'communicates-with':  { stroke: '#22c55e' },
-  'publishes-to':       { stroke: '#f59e0b', strokeDasharray: '4,4' },
+/**
+ * Status-driven edge styling. Mirrors the node status palette so the graph
+ * reads coherently: deployed edges match deployed nodes, planned edges
+ * match planned nodes, proposed edges are dashed + dim like proposed
+ * nodes. The connection's semantic type (depends-on, data-flow, etc.) is
+ * no longer encoded in the stroke — it stays in the tooltip/sidebar data.
+ *
+ *   deployed → full-saturation blue (matches cell stroke) at 100% opacity
+ *   planned  → mid grey at 60% opacity (matches planned node body)
+ *   proposed → dim grey, dashed 6,4 at 45% opacity (matches proposed node)
+ */
+const CONNECTION_STATUS_STYLES: Record<NodeStatus, { stroke: string; strokeDasharray?: string; opacity: number }> = {
+  deployed: { stroke: '#60a5fa', opacity: 1.0 },
+  planned:  { stroke: '#64748b', opacity: 0.6 },
+  proposed: { stroke: '#475569', strokeDasharray: '6,4', opacity: 0.45 },
 }
 
 /**
@@ -133,7 +143,11 @@ export class ShapesFactory {
   }
 
   createConnection(conn: ArchConnection): shapes.standard.Link {
-    const style = CONNECTION_STYLES[conn.type] ?? CONNECTION_STYLES['depends-on']
+    // Edge status is computed by the mapper from its endpoints' statuses.
+    // Default to 'planned' so we never render a naked full-color edge for
+    // a connection that's missing the field (e.g. hand-authored test DNA).
+    const status: NodeStatus = conn.status ?? 'planned'
+    const style = CONNECTION_STATUS_STYLES[status]
     // The deployment view layout is strictly top-to-bottom (frontend → backend
     // → storage), so force every edge to exit the source's bottom-middle and
     // enter the target's top-middle. Setting connectionPoint to 'anchor'
@@ -173,10 +187,12 @@ export class ShapesFactory {
           stroke: style.stroke,
           strokeWidth: 1.5,
           strokeDasharray: style.strokeDasharray,
+          strokeOpacity: style.opacity,
           targetMarker: {
             type: 'path',
             d: 'M 8 -4 0 0 8 4 z',
             fill: style.stroke,
+            fillOpacity: style.opacity,
           },
         },
       },
