@@ -1,3 +1,5 @@
+import * as fs from 'fs'
+import * as path from 'path'
 import { ParsedArgs, flag, boolFlag } from './args'
 import { emitError } from './output'
 import { buildPlan, EnvironmentPlan } from './deliver/plan'
@@ -136,24 +138,32 @@ function isFrontend(cell: { adapterType: string }): boolean {
 }
 
 /**
- * Infer the deployed URL for a cell from its DNA:
- *   1. first outputs[] entry whose value starts with `http`
- *   2. else `http://localhost:<port>` from adapterConfig.port — DEV ONLY
- *   3. else undefined (unknown — renders as a blank URL ribbon in cba-viz)
+ * Infer the deployed URL for a cell. Priority order:
  *
- * The localhost fallback is scoped to `dev` because it's a docker-compose /
- * local-run concept. For `prod` (terraform/aws) the real URL lives in
- * terraform outputs, which aren't yet wired into `cba views` — in the
- * meantime prod cells render with a blank ribbon until we do the wiring,
- * rather than misleadingly advertising a localhost link.
+ *   1. Live terraform outputs (`deployedUrls` map) — CloudFront for vite
+ *      cells, ALB for non-vite. Only populated for non-dev envs.
+ *   2. First outputs[] entry whose value starts with `http`. Dev-only entries
+ *      hardcoded to localhost are filtered out under non-dev envs.
+ *   3. `http://localhost:<port>` from adapterConfig.port — DEV ONLY.
+ *   4. undefined (unknown — renders as a blank URL ribbon in cba-viz).
+ *
+ * dev and prod are strictly separated: dev cells never show terraform
+ * outputs (they should be docker-compose/local URLs), and prod cells never
+ * show localhost (those would be dead links). When prod has no tfstate
+ * yet, cells render with a blank ribbon as a placeholder.
  */
 function cellUrl(
   cell: {
+    name: string
     outputs?: Array<{ value?: string }>
     adapterConfig?: Record<string, any>
   },
   environment: string,
+  deployedUrls: Map<string, string>,
 ): string | undefined {
+  const deployed = deployedUrls.get(cell.name)
+  if (deployed) return deployed
+
   const isDev = environment === 'dev'
   for (const output of cell.outputs ?? []) {
     const value = output?.value
@@ -174,6 +184,73 @@ function cellUrl(
 }
 
 /**
+ * Convert a DNA name to a terraform identifier. Mirrors the `tfId` helper in
+ * `packages/cba/src/deliver/adapters/terraform-aws.ts` and the copy in
+ * `packages/cba-viz/vite.config.ts`. If you change this, change them all.
+ */
+function tfIdOf(name: string): string {
+  return name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase()
+}
+
+/**
+ * Build a `cellName → deployed URL` map from the domain's terraform state,
+ * if it exists. Runs on every `cba views` call, so it has to be a cheap
+ * synchronous read — no CLI spawns, no AWS probing. The tfstate itself is
+ * the source of truth: outputs only appear after a successful `terraform
+ * apply`, so "output is present" = "this resource is running".
+ *
+ * Mapping rules (must match `buildOutputsTf` in terraform-aws.ts):
+ *   - vite/*  cells → `cloudfront_domain_<tfIdOf(name)>` → `https://<value>/`
+ *   - non-vite, non-provisioner cells → `alb_dns_name`  → `http://<value>`
+ *
+ * All non-vite cells share one ALB in the current topology, so they all get
+ * the same hostname — that's accurate since the ALB routes by path.
+ * When there's no tfstate or no matching output, the cell is absent from
+ * the map and `cellUrl` falls through to its next priority rule.
+ */
+function readDeployedCellUrls(plan: EnvironmentPlan): Map<string, string> {
+  const out = new Map<string, string>()
+  const statePath = path.join(plan.deployDir, 'terraform.tfstate')
+  if (!fs.existsSync(statePath)) return out
+
+  let state: any
+  try {
+    state = JSON.parse(fs.readFileSync(statePath, 'utf-8'))
+  } catch {
+    return out
+  }
+
+  const outputs: Record<string, any> = {}
+  for (const [name, entry] of Object.entries<any>(state.outputs ?? {})) {
+    outputs[name] = entry?.value
+  }
+  if (Object.keys(outputs).length === 0) return out
+
+  const albDns = typeof outputs.alb_dns_name === 'string' ? outputs.alb_dns_name : undefined
+
+  for (const cell of plan.cells) {
+    if (isProvisioner(cell)) continue
+    const key = tfIdOf(cell.name)
+
+    if (cell.adapterType.startsWith('vite/')) {
+      const cf = outputs[`cloudfront_domain_${key}`]
+      if (typeof cf === 'string' && cf.length > 0) {
+        out.set(cell.name, `https://${cf}/`)
+      }
+      continue
+    }
+
+    // Non-vite cells ride the shared ALB. Root path is what a user wants to
+    // click; the status probe uses /health separately for healthchecks.
+    if (albDns) {
+      out.set(cell.name, `http://${albDns}`)
+    }
+  }
+
+  return out
+}
+
+/**
  * Derive a single deployment view from an EnvironmentPlan.
  *
  * Layout rules — top to bottom, frontend → backend → storage:
@@ -191,6 +268,15 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
   const visibleCells = plan.cells.filter((c) => !isProvisioner(c))
   const frontendCells = visibleCells.filter(isFrontend)
   const backendCells = visibleCells.filter((c) => !isFrontend(c))
+
+  // Read terraform outputs once per derive call — gives each visible cell
+  // its live CloudFront / ALB URL in prod mode. Scoped to non-dev so that
+  // a populated tfstate doesn't leak prod URLs into the dev view (dev is
+  // strictly docker-compose/local). Empty map before the first terraform
+  // apply; cellUrl() then falls back to its next priority.
+  const deployedUrls = plan.environment === 'dev'
+    ? new Map<string, string>()
+    : readDeployedCellUrls(plan)
 
   // Build a lookup of saved positions by node id
   const savedPositions = new Map<string, { pos?: ArchNode['position']; size?: ArchNode['size'] }>()
@@ -239,7 +325,7 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
         position: saved?.pos ?? { x, y },
         size: saved?.size ?? { width: CELL_W, height: CELL_H },
         description: cell.description,
-        metadata: { adapter: cell.adapterType, url: cellUrl(cell, plan.environment) },
+        metadata: { adapter: cell.adapterType, url: cellUrl(cell, plan.environment, deployedUrls) },
       })
       x += CELL_W + GAP_X
     }
