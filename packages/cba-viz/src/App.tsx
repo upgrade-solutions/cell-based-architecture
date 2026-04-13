@@ -20,10 +20,17 @@ function getEnv(): string {
   return params.get('env') ?? 'dev'
 }
 
-/** Read adapter from ?adapter= URL param, default to 'docker-compose' */
-function getAdapter(): string {
+/**
+ * Read adapter from ?adapter= URL param. If missing, derive from env via the
+ * coupling rule (prod↔terraform/aws, dev↔docker-compose). Explicit ?adapter=
+ * wins when present so a user can paste `?env=prod&adapter=docker-compose`
+ * for debugging without us rewriting it.
+ */
+function getAdapter(envValue: string): string {
   const params = new URLSearchParams(window.location.search)
-  return params.get('adapter') ?? 'docker-compose'
+  const fromUrl = params.get('adapter')
+  if (fromUrl) return fromUrl
+  return envValue === 'prod' ? 'terraform/aws' : 'docker-compose'
 }
 
 const STATUS_POLL_MS = 5000
@@ -36,7 +43,7 @@ const App = observer(function App() {
   const liveStatus = useRef<Record<string, string>>({})
   const [domain] = useState(getDomain)
   const [env, setEnvState] = useState(getEnv)
-  const [adapter, setAdapterState] = useState(getAdapter)
+  const [adapter, setAdapterState] = useState(() => getAdapter(getEnv()))
 
   // Env ↔ adapter are coupled: technical.json carries env-scoped construct
   // variants (dev → local postgres/RabbitMQ, prod → RDS/EventBridge) that
@@ -51,6 +58,20 @@ const App = observer(function App() {
     setAdapterState(next)
     setEnvState(next === 'terraform/aws' ? 'prod' : 'dev')
   }, [])
+
+  // Reflect the current env + adapter in the URL so reloads preserve state
+  // and copy-pasted URLs land on the same view. `replaceState` keeps this
+  // out of browser history (otherwise every selector click adds an entry).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    params.set('domain', domain)
+    params.set('env', env)
+    params.set('adapter', adapter)
+    const nextUrl = `${window.location.pathname}?${params.toString()}`
+    if (nextUrl !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, '', nextUrl)
+    }
+  }, [domain, env, adapter])
 
   // Load DNA from the dev server API at runtime (derived from technical.json)
   useEffect(() => {

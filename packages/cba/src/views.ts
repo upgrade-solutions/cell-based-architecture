@@ -138,24 +138,38 @@ function isFrontend(cell: { adapterType: string }): boolean {
 /**
  * Infer the deployed URL for a cell from its DNA:
  *   1. first outputs[] entry whose value starts with `http`
- *   2. else `http://localhost:<port>` if adapterConfig.port is set
- *   3. else undefined (unknown)
+ *   2. else `http://localhost:<port>` from adapterConfig.port — DEV ONLY
+ *   3. else undefined (unknown — renders as a blank URL ribbon in cba-viz)
  *
- * For terraform/AWS deployments the real URL lives in terraform outputs —
- * that's a follow-up. This covers the docker/local case driven entirely
- * by DNA.
+ * The localhost fallback is scoped to `dev` because it's a docker-compose /
+ * local-run concept. For `prod` (terraform/aws) the real URL lives in
+ * terraform outputs, which aren't yet wired into `cba views` — in the
+ * meantime prod cells render with a blank ribbon until we do the wiring,
+ * rather than misleadingly advertising a localhost link.
  */
-function cellUrl(cell: {
-  outputs?: Array<{ value?: string }>
-  adapterConfig?: Record<string, any>
-}): string | undefined {
+function cellUrl(
+  cell: {
+    outputs?: Array<{ value?: string }>
+    adapterConfig?: Record<string, any>
+  },
+  environment: string,
+): string | undefined {
+  const isDev = environment === 'dev'
   for (const output of cell.outputs ?? []) {
-    if (typeof output?.value === 'string' && output.value.startsWith('http')) {
-      return output.value
-    }
+    const value = output?.value
+    if (typeof value !== 'string' || !value.startsWith('http')) continue
+    // `localhost` / `127.0.0.1` is a dev-only concept — skip it under prod so
+    // we don't advertise dead links. (Technical.json currently hardcodes
+    // api-cell's output to http://localhost:3001; a proper env-scoped
+    // outputs overlay is a follow-up.)
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(value)
+    if (isLocalhost && !isDev) continue
+    return value
   }
-  const port = cell.adapterConfig?.port
-  if (typeof port === 'number') return `http://localhost:${port}`
+  if (isDev) {
+    const port = cell.adapterConfig?.port
+    if (typeof port === 'number') return `http://localhost:${port}`
+  }
   return undefined
 }
 
@@ -225,7 +239,7 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
         position: saved?.pos ?? { x, y },
         size: saved?.size ?? { width: CELL_W, height: CELL_H },
         description: cell.description,
-        metadata: { adapter: cell.adapterType, url: cellUrl(cell) },
+        metadata: { adapter: cell.adapterType, url: cellUrl(cell, plan.environment) },
       })
       x += CELL_W + GAP_X
     }
