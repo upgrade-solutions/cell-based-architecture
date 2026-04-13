@@ -97,7 +97,7 @@ export class ShapesFactory {
           attrs: {
             label: { text: node.name, ...statusLabelAttrs(status) },
             categoryLabel: { text: category, ...statusLabelAttrs(status) },
-            body: statusBodyAttrs(status, '#8b5cf6', 'construct'),
+            body: statusBodyAttrs(status, '#3b82f6', 'construct'),
           },
         })
       }
