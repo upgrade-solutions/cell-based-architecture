@@ -3,10 +3,53 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
 import path from 'node:path'
+import http from 'node:http'
+import https from 'node:https'
 import { exec, execFile } from 'node:child_process'
 
 /** Path to the cba CLI binary, resolved from the monorepo root. */
 const CBA_BIN = path.resolve(__dirname, '../cba/bin/cba')
+
+// ── Status probe cache + in-flight guard ─────────────────────────────────
+//
+// Client polls /api/status every 5s. The terraform/aws probe can take longer
+// than a single poll interval if we're not careful (HTTP healthchecks,
+// tfstate reads). These module-level maps give us two things:
+//
+//   1. TTL cache — rapid callers within CACHE_TTL_MS reuse the last result
+//   2. In-flight dedup — if a probe is still running when a second caller
+//      arrives, they await the same Promise instead of stacking probes
+//
+// TTL is set under the client's 5s poll interval so each poll naturally
+// triggers a fresh probe but bursty requests (e.g. tab refocus) coalesce.
+const STATUS_CACHE_TTL_MS = 3500
+const statusCache = new Map<string, { at: number; data: Record<string, string> }>()
+const statusInflight = new Map<string, Promise<Record<string, string>>>()
+
+function getCachedStatus(
+  key: string,
+  fetcher: () => Promise<Record<string, string>>,
+): Promise<Record<string, string>> {
+  const now = Date.now()
+  const cached = statusCache.get(key)
+  if (cached && now - cached.at < STATUS_CACHE_TTL_MS) return Promise.resolve(cached.data)
+
+  const inflight = statusInflight.get(key)
+  if (inflight) return inflight
+
+  const p = fetcher()
+    .then((data) => {
+      statusCache.set(key, { at: Date.now(), data })
+      statusInflight.delete(key)
+      return data
+    })
+    .catch((err) => {
+      statusInflight.delete(key)
+      throw err
+    })
+  statusInflight.set(key, p)
+  return p
+}
 
 /**
  * Vite plugin that provides a POST /api/save-views/:domain endpoint
@@ -70,35 +113,32 @@ function saveViewsPlugin() {
           })
           return
         }
-        // GET /api/status/:domain?adapter=docker-compose|terraform/aws
-        // Domain can be nested (e.g. torts/marshall)
+        // GET /api/status/:domain?adapter=docker-compose|terraform/aws&env=dev|prod
+        // Domain can be nested (e.g. torts/marshall). The env is used to apply
+        // the technical.json overlay before matching against the adapter's
+        // runtime surface (dev → local docker, prod → AWS).
         const statusMatch = req.url?.match(/^\/api\/status\/([^?]+)/)
         if (req.method === 'GET' && statusMatch) {
           const domain = decodeURIComponent(statusMatch[1])
           const urlObj = new URL(req.url!, `http://${req.headers.host}`)
           const adapter = urlObj.searchParams.get('adapter') ?? 'docker-compose'
+          const env = urlObj.searchParams.get('env') ?? (adapter === 'terraform/aws' ? 'prod' : 'dev')
 
-          if (adapter === 'terraform/aws') {
-            probeTerraformStatusAsync(domain).then((statuses) => {
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify(statuses))
-            }).catch(() => {
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({}))
-            })
-            return
-          }
-          probeDockerStatusAsync(domain).then((statuses) => {
+          const respond = (statuses: Record<string, string>) => {
             res.statusCode = 200
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify(statuses))
-          }).catch(() => {
-            res.statusCode = 200
-            res.setHeader('Content-Type', 'application/json')
-            res.end(JSON.stringify({}))
-          })
+          }
+
+          if (adapter === 'terraform/aws') {
+            getCachedStatus(`tf:${domain}:${env}`, () => probeTerraformStatusAsync(domain, env))
+              .then(respond)
+              .catch(() => respond({}))
+            return
+          }
+          getCachedStatus(`docker:${domain}:${env}`, () => probeDockerStatusAsync(domain, env))
+            .then(respond)
+            .catch(() => respond({}))
           return
         }
 
@@ -119,7 +159,7 @@ function saveViewsPlugin() {
  *      a) direct match on a construct id     (e.g. `primary-db` → primary-db)
  *      b) direct match + `-cell` suffix      (e.g. `api` → api-cell)
  */
-function probeDockerStatusAsync(domain: string): Promise<Record<string, string>> {
+function probeDockerStatusAsync(domain: string, env: string): Promise<Record<string, string>> {
   return new Promise((resolve, reject) => {
     exec(
       'docker ps -a --format "{{.Names}}\\t{{.State}}\\t{{.Labels}}"',
@@ -136,12 +176,14 @@ function probeDockerStatusAsync(domain: string): Promise<Record<string, string>>
           }
         })
 
-        const techPath = path.resolve(__dirname, '../../dna', domain, 'technical.json')
-        if (!fs.existsSync(techPath)) { resolve({}); return }
-        const technical = JSON.parse(fs.readFileSync(techPath, 'utf-8'))
+        const technical = loadTechnical(domain)
+        if (!technical) { resolve({}); return }
 
         const cells: Array<{ name: string }> = technical.cells ?? []
-        const constructIds = new Set<string>((technical.constructs ?? []).map((c: any) => c.name))
+        // Apply env overlay so we only match the constructs that belong to this
+        // environment (e.g. dev → local postgres/RabbitMQ, prod → RDS/EventBridge).
+        const constructs = overlayByName<{ name: string }>(technical.constructs ?? [], env)
+        const constructIds = new Set<string>(constructs.map((c) => c.name))
         const cellIds = new Set<string>(cells.map((c) => c.name))
 
         // Compute the expected deploy dir (absolute path) for this domain
@@ -203,214 +245,198 @@ function parseLabels(raw: string): Record<string, string> {
 /**
  * Probe Terraform / AWS for live resource status and map to DNA node IDs.
  *
- * Strategy:
- * 1. Read terraform.tfstate from the deploy dir (if it exists) to get
- *    resource addresses and their types.
- * 2. Map DNA node types → AWS resource checks:
- *    - cell (ECS)        → describe-services / describe-tasks
- *    - construct/database → describe-db-instances
- *    - construct/queue    → EventBridge bus / SQS queue existence
- *    - provider           → always "deployed" (implicit)
- * 3. Fall back to AWS CLI probes if no tfstate exists.
+ * Designed to complete well under the client's 5s poll interval by avoiding
+ * per-node AWS CLI spawning. Signal sources:
  *
- * Returns a map of DNA node ID → NodeStatus.
+ *   1. `terraform.tfstate` (direct fs read) → source of truth for what was
+ *      deployed. Outputs like `alb_dns_name`, `cloudfront_domain_<tfid>`,
+ *      `rds_endpoint_<tfid>`, `eventbridge_bus_name_<tfid>`, `sqs_queue_url_<tfid>`
+ *      exist iff the terraform apply that created them succeeded.
+ *
+ *   2. HTTP healthchecks on the URLs extracted from outputs:
+ *        - API cells → `http://<alb_dns>/health` (ALB target group already
+ *          health-checks /health, so the API implements it)
+ *        - UI cells  → `https://<cloudfront_domain>/`
+ *      A 2xx/3xx/4xx response means the endpoint is answering; only connection
+ *      errors / 5xx mark it as unreachable.
+ *
+ *   3. Construct presence in outputs (RDS / EventBridge / SQS). We don't
+ *      currently HTTP-probe these — their appearance in outputs is a reliable
+ *      proxy for "terraform apply finished for this resource".
+ *
+ * `env` is applied as an overlay on technical.json so that dev-only variants
+ * (local Postgres, RabbitMQ) don't show up when probing the prod surface,
+ * and vice versa. Providers are implicitly "deployed" (they're config).
  */
-function probeTerraformStatusAsync(domain: string): Promise<Record<string, string>> {
+function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<string, string>> {
   return new Promise((resolve) => {
-    const techPath = path.resolve(__dirname, '../../dna', domain, 'technical.json')
-    if (!fs.existsSync(techPath)) { resolve({}); return }
+    const technical = loadTechnical(domain)
+    if (!technical) { resolve({}); return }
 
-    const technical = JSON.parse(fs.readFileSync(techPath, 'utf-8'))
+    // Apply env overlay — for prod, dev-only constructs (local postgres,
+    // rabbitmq) are filtered out, so we only probe what's actually in AWS.
+    const cells = overlayByName<any>(technical.cells ?? [], env)
+    const constructs = overlayByName<any>(technical.constructs ?? [], env)
 
-    // Derive node list directly from cells/constructs/providers — views[] is layout-only now
-    const nodes: Array<{ id: string; type: string; metadata?: Record<string, any> }> = []
-    for (const provider of (technical.providers ?? [])) {
-      nodes.push({ id: provider.name, type: 'provider', metadata: { providerType: provider.type } })
-    }
-    for (const cell of (technical.cells ?? [])) {
-      nodes.push({ id: cell.name, type: 'cell', metadata: { adapter: cell.adapter?.type } })
-    }
-    for (const construct of (technical.constructs ?? [])) {
-      nodes.push({
-        id: construct.name,
-        type: 'construct',
-        metadata: { category: construct.category, engine: construct.config?.engine ?? construct.type },
-      })
-    }
-
-    // Deploy dir preserves the domain slash: output/<domain>-deploy
-    // The AWS resource-name prefix collapses slashes: `<domain>-<env>` → torts-marshall-dev
-    const awsPrefix = domain.replace(/\//g, '-')
     const deployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
+    const tf = readTfState(deployDir)
 
-    // Try to read terraform state for precise resource mapping
-    const tfStatePath = path.join(deployDir, 'terraform.tfstate')
-    let tfResources: string[] = []
-    if (fs.existsSync(tfStatePath)) {
-      try {
-        const state = JSON.parse(fs.readFileSync(tfStatePath, 'utf-8'))
-        tfResources = extractTfResourceAddresses(state)
-      } catch { /* ignore parse errors */ }
-    }
-
-    // Build status map by probing AWS resources
-    const pending: Array<Promise<void>> = []
     const result: Record<string, string> = {}
+    for (const c of cells) result[c.name] = 'planned'
+    for (const c of constructs) result[c.name] = 'planned'
+    for (const p of technical.providers ?? []) result[p.name] = 'deployed'
 
-    for (const node of nodes) {
-      if (node.type === 'provider') {
-        // Providers are always "deployed" — they're config, not infrastructure
-        result[node.id] = 'deployed'
-        continue
-      }
+    // No state → nothing has been applied for this domain
+    if (!tf || Object.keys(tf.outputs).length === 0) { resolve(result); return }
 
-      if (node.type === 'cell') {
-        // Cells map to ECS services — check if there's a matching service
-        pending.push(
-          probeEcsService(awsPrefix, node.id, tfResources).then(status => {
-            result[node.id] = status
-          })
-        )
-        continue
-      }
+    // Reverse tfId lookups so we can turn `cloudfront_domain_ui_cell` → `ui-cell`
+    const tfIdToCell = new Map<string, any>()
+    for (const c of cells) tfIdToCell.set(tfId(c.name), c)
+    const tfIdToConstruct = new Map<string, any>()
+    for (const c of constructs) tfIdToConstruct.set(tfId(c.name), c)
 
-      if (node.type === 'construct') {
-        const engine = node.metadata?.engine as string | undefined
-        const category = node.metadata?.category as string | undefined
-
-        if (category === 'storage' && (engine === 'postgres' || !engine)) {
-          // Database construct → RDS
-          pending.push(
-            probeRdsInstance(awsPrefix, node.id, tfResources).then(status => {
-              result[node.id] = status
-            })
-          )
-        } else if (engine === 'eventbridge' || engine === 'rabbitmq') {
-          // Queue/event-bus construct
-          pending.push(
-            probeEventBus(awsPrefix, node.id, engine, tfResources).then(status => {
-              result[node.id] = status
-            })
-          )
-        } else {
-          // Unknown construct — check tfstate for any matching resource
-          result[node.id] = tfResources.some(r => r.includes(node.id.replace(/-/g, '_')))
-            ? 'deployed'
-            : 'planned'
+    // ── Constructs: presence of their output = deployed ──
+    for (const [outName] of Object.entries(tf.outputs)) {
+      const patterns: Array<[RegExp, Map<string, any>]> = [
+        [/^rds_endpoint_(.+)$/, tfIdToConstruct],
+        [/^eventbridge_bus_name_(.+)$/, tfIdToConstruct],
+        [/^sqs_queue_url_(.+)$/, tfIdToConstruct],
+      ]
+      for (const [re, table] of patterns) {
+        const m = outName.match(re)
+        if (m) {
+          const node = table.get(m[1])
+          if (node) result[node.name] = 'deployed'
         }
-        continue
       }
-
-      // Default: unknown node type
-      result[node.id] = 'planned'
     }
 
-    Promise.all(pending).then(() => resolve(result)).catch(() => resolve(result))
-  })
-}
+    // ── Cells: build URL map from outputs, then HTTP healthcheck ──
+    const cellUrls = new Map<string, string>()
 
-/** Extract all resource addresses from terraform state JSON */
-function extractTfResourceAddresses(state: any): string[] {
-  const addrs: string[] = []
-  for (const resource of state.resources ?? []) {
-    const addr = `${resource.type}.${resource.name}`
-    addrs.push(addr)
-  }
-  return addrs
-}
+    // Any non-vite cell shares a single ALB; use /health (ALB target group
+    // already uses this path).
+    const albDns = typeof tf.outputs.alb_dns_name === 'string' ? tf.outputs.alb_dns_name : undefined
+    if (albDns) {
+      for (const c of cells) {
+        const adapterType: string = c.adapter?.type ?? ''
+        const isProvisioner = adapterType === 'postgres' || adapterType === 'node/event-bus'
+        const isVite = adapterType.startsWith('vite/')
+        if (!isProvisioner && !isVite) {
+          cellUrls.set(c.name, `http://${albDns}/health`)
+        }
+      }
+    }
 
-/** Run an AWS CLI command and parse JSON output */
-function awsJsonAsync(cmd: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { encoding: 'utf-8', timeout: 10000 }, (err, stdout) => {
-      if (err) { reject(err); return }
-      try { resolve(JSON.parse((stdout ?? '').trim() || '{}')) }
-      catch { resolve(null) }
-    })
-  })
-}
+    // Vite cells → CloudFront
+    for (const [outName, value] of Object.entries(tf.outputs)) {
+      const m = outName.match(/^cloudfront_domain_(.+)$/)
+      if (m && typeof value === 'string') {
+        const cell = tfIdToCell.get(m[1])
+        if (cell) cellUrls.set(cell.name, `https://${value}/`)
+      }
+    }
 
-/** Check if an ECS service exists for a given cell */
-async function probeEcsService(prefix: string, nodeId: string, tfResources: string[]): Promise<string> {
-  const cellName = nodeId.replace(/-cell/g, '').replace(/^-|-$/g, '') || nodeId
-  const tfName = cellName.replace(/-/g, '_')
-  const hasTfResource = tfResources.some(r =>
-    r.includes(`ecs_service`) && r.includes(tfName)
-  ) || tfResources.some(r =>
-    r.includes(`ecs_task_definition`) && r.includes(tfName)
-  )
-
-  // Probe AWS for the service
-  try {
-    const clusters = await awsJsonAsync('aws ecs list-clusters --output json')
-    const clusterArns: string[] = clusters?.clusterArns ?? []
-    for (const arn of clusterArns) {
-      if (!arn.includes(prefix)) continue
-      const services = await awsJsonAsync(
-        `aws ecs list-services --cluster "${arn}" --output json`
+    // Run healthchecks concurrently with a 2s per-request budget. The whole
+    // fan-out completes in ~max(latency) rather than sum(latency).
+    const checks: Array<Promise<void>> = []
+    for (const [cellName, url] of cellUrls) {
+      checks.push(
+        httpOk(url, 2000).then((ok) => {
+          if (ok) result[cellName] = 'deployed'
+        }),
       )
-      for (const svcArn of (services?.serviceArns ?? []) as string[]) {
-        if (svcArn.includes(cellName) || svcArn.includes(nodeId)) {
-          return 'deployed'
-        }
-      }
     }
-  } catch { /* AWS CLI not available or not configured */ }
-
-  return hasTfResource ? 'deployed' : 'planned'
+    Promise.all(checks).then(() => resolve(result)).catch(() => resolve(result))
+  })
 }
 
-/** Check if an RDS instance exists for a database construct */
-async function probeRdsInstance(prefix: string, nodeId: string, tfResources: string[]): Promise<string> {
-  const dbName = nodeId.replace(/-/g, '_')
-  const hasTfResource = tfResources.some(r => r.includes('aws_db_instance') && r.includes(dbName))
+// ── Technical DNA helpers ────────────────────────────────────────────────
 
-  try {
-    const result = await awsJsonAsync('aws rds describe-db-instances --output json')
-    const instances = result?.DBInstances ?? []
-    for (const db of instances) {
-      const id = (db.DBInstanceIdentifier ?? '').toLowerCase()
-      if (id.includes(prefix) && (id.includes(nodeId) || id.includes(nodeId.replace(/-/g, '')))) {
-        return 'deployed'
-      }
-    }
-  } catch { /* AWS CLI not available */ }
-
-  return hasTfResource ? 'deployed' : 'planned'
+/** Load technical.json for a domain. Returns null if missing. */
+function loadTechnical(domain: string): any | null {
+  const p = path.resolve(__dirname, '../../dna', domain, 'technical.json')
+  if (!fs.existsSync(p)) return null
+  try { return JSON.parse(fs.readFileSync(p, 'utf-8')) }
+  catch { return null }
 }
 
-/** Check if an EventBridge bus or SQS queue exists */
-async function probeEventBus(prefix: string, nodeId: string, engine: string, tfResources: string[]): Promise<string> {
-  const busName = nodeId.replace(/-/g, '_')
-  const hasTfResource = tfResources.some(r =>
-    (r.includes('aws_cloudwatch_event_bus') || r.includes('aws_sqs_queue') || r.includes('aws_sns_topic'))
-    && r.includes(busName)
-  )
-
-  if (engine === 'eventbridge') {
-    try {
-      const result = await awsJsonAsync('aws events list-event-buses --output json')
-      const buses = result?.EventBuses ?? []
-      for (const bus of buses) {
-        const name = (bus.Name ?? '').toLowerCase()
-        if (name.includes(prefix) || name.includes(nodeId.replace(/-/g, ''))) {
-          return 'deployed'
-        }
-      }
-    } catch { /* fall through */ }
+/**
+ * Environment overlay: when an entry has an `environment` field matching the
+ * target env, it replaces the default (no-env) entry with the same name.
+ * Mirrors packages/cba/src/deliver/plan.ts overlayByName.
+ */
+function overlayByName<T extends { name: string; environment?: string }>(
+  list: T[],
+  environment: string,
+): T[] {
+  const out = new Map<string, T>()
+  for (const item of list) {
+    if (item.environment && item.environment !== environment) continue
+    const existing = out.get(item.name)
+    if (!existing || (item.environment && !existing.environment)) {
+      out.set(item.name, item)
+    }
   }
+  return Array.from(out.values())
+}
 
+/** Convert a DNA name to a terraform identifier (mirrors terraform-aws.ts tfId). */
+function tfId(name: string): string {
+  return name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase()
+}
+
+// ── Terraform state + HTTP healthcheck helpers ───────────────────────────
+
+/** Read terraform.tfstate directly. No terraform CLI spawn. */
+function readTfState(deployDir: string): { outputs: Record<string, any>; resources: string[] } | null {
+  const p = path.join(deployDir, 'terraform.tfstate')
+  if (!fs.existsSync(p)) return null
   try {
-    const result = await awsJsonAsync('aws sqs list-queues --output json')
-    const queues: string[] = result?.QueueUrls ?? []
-    for (const url of queues) {
-      if (url.toLowerCase().includes(prefix) || url.toLowerCase().includes(nodeId.replace(/-/g, ''))) {
-        return 'deployed'
-      }
+    const state = JSON.parse(fs.readFileSync(p, 'utf-8'))
+    const outputs: Record<string, any> = {}
+    for (const [name, entry] of Object.entries<any>(state.outputs ?? {})) {
+      outputs[name] = entry?.value
     }
-  } catch { /* fall through */ }
+    const resources: string[] = []
+    for (const r of state.resources ?? []) resources.push(`${r.type}.${r.name}`)
+    return { outputs, resources }
+  } catch {
+    return null
+  }
+}
 
-  return hasTfResource ? 'deployed' : 'planned'
+/**
+ * HEAD-request a URL with a hard timeout. Returns true on any response
+ * (including 4xx) — the goal is "is something answering", not "is it healthy".
+ * 5xx and connection errors return false.
+ */
+function httpOk(urlStr: string, timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false
+    const done = (v: boolean) => { if (!settled) { settled = true; resolve(v) } }
+    try {
+      const url = new URL(urlStr)
+      const lib = url.protocol === 'https:' ? https : http
+      const req = lib.request({
+        method: 'HEAD',
+        host: url.hostname,
+        port: url.port || undefined,
+        path: url.pathname + url.search,
+        timeout: timeoutMs,
+        headers: { 'User-Agent': 'cba-viz-status/1' },
+      }, (res) => {
+        const code = res.statusCode ?? 0
+        res.resume()
+        done(code >= 200 && code < 500)
+      })
+      req.on('error', () => done(false))
+      req.on('timeout', () => { req.destroy(); done(false) })
+      req.end()
+    } catch {
+      done(false)
+    }
+  })
 }
 
 export default defineConfig({

@@ -35,8 +35,22 @@ const App = observer(function App() {
   const [currentViewName, setCurrentViewName] = useState('deployment')
   const liveStatus = useRef<Record<string, string>>({})
   const [domain] = useState(getDomain)
-  const [env, setEnv] = useState(getEnv)
-  const [adapter, setAdapter] = useState(getAdapter)
+  const [env, setEnvState] = useState(getEnv)
+  const [adapter, setAdapterState] = useState(getAdapter)
+
+  // Env ↔ adapter are coupled: technical.json carries env-scoped construct
+  // variants (dev → local postgres/RabbitMQ, prod → RDS/EventBridge) that
+  // only make sense against the matching delivery adapter. Selecting `prod`
+  // switches status polling to `terraform/aws`, and vice versa. Either
+  // selector drives both so the user can pick from whichever they think in.
+  const setEnv = useCallback((next: string) => {
+    setEnvState(next)
+    setAdapterState(next === 'prod' ? 'terraform/aws' : 'docker-compose')
+  }, [])
+  const setAdapter = useCallback((next: string) => {
+    setAdapterState(next)
+    setEnvState(next === 'terraform/aws' ? 'prod' : 'dev')
+  }, [])
 
   // Load DNA from the dev server API at runtime (derived from technical.json)
   useEffect(() => {
@@ -51,10 +65,14 @@ const App = observer(function App() {
   //   (a) we only skip when the DNA is loaded AND statuses actually match
   //   (b) a status response that arrives before load-views resolves doesn't
   //       poison the `liveStatus` cache, causing subsequent polls to no-op
+  //
+  // `env` is passed alongside `adapter` because technical.json has env-scoped
+  // construct variants (dev: local postgres/RabbitMQ, prod: RDS/EventBridge).
+  // The probe applies the env overlay before matching tfstate/docker.
   useEffect(() => {
     let active = true
     const poll = () => {
-      fetch(`/api/status/${encodeURIComponent(domain)}?adapter=${encodeURIComponent(adapter)}`)
+      fetch(`/api/status/${encodeURIComponent(domain)}?adapter=${encodeURIComponent(adapter)}&env=${encodeURIComponent(env)}`)
         .then(r => r.json())
         .then((statuses: Record<string, string>) => {
           if (!active) return
@@ -80,12 +98,12 @@ const App = observer(function App() {
         })
         .catch(() => { /* adapter not available — keep static statuses */ })
     }
-    // Reset the cache when the adapter/domain changes so we re-apply fresh
+    // Reset the cache when the adapter/domain/env changes so we re-apply fresh
     liveStatus.current = {}
     poll()
     const interval = setInterval(poll, STATUS_POLL_MS)
     return () => { active = false; clearInterval(interval) }
-  }, [domain, adapter])
+  }, [domain, adapter, env])
 
   const viewNames = dna?.views.map(v => v.name) ?? []
   const currentView = dna?.views.find(v => v.name === currentViewName) ?? dna?.views[0]
