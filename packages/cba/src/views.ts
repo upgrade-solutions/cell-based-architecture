@@ -423,8 +423,48 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
     }
   }
 
-  // ── Zones: Compute tier (cells) + Storage tier (constructs) ──
+  // ── Zones: delivery boundary + Compute tier + Storage tier ──
+  //
+  // The delivery boundary is a single zone wrapping all visible nodes,
+  // labeled by the environment's delivery target:
+  //   - dev  → "Docker" (docker-compose running locally)
+  //   - prod → "AWS / us-east-1 VPC" (or whatever cloud provider + region)
+  //
+  // Dev and prod stay structurally symmetric — same number of nodes, same
+  // zones, same connections. Only the outer boundary's label and the inner
+  // styling (status, URLs) change. Listed FIRST so cba-viz renders it
+  // behind the tier zones (see dna-to-graph.ts z-ordering).
   const zones: ArchZone[] = []
+
+  const boundaryNodes = [
+    ...visibleCells.map((c) => c.name),
+    ...plan.constructs.map((c) => c.name),
+  ]
+  const cloudProvider = plan.providers.find((p) => p.type === 'cloud')
+  let boundaryName: string | undefined
+  let boundaryId = 'zone-delivery'
+  if (plan.environment === 'dev') {
+    // All local-dev topologies we support (docker-compose) run under Docker.
+    boundaryName = 'Docker'
+    boundaryId = 'zone-docker'
+  } else if (cloudProvider) {
+    const providerLabel = cloudProvider.name.toUpperCase()
+    const regionLabel = cloudProvider.region ? ` / ${cloudProvider.region}` : ''
+    boundaryName = `${providerLabel}${regionLabel} VPC`
+    boundaryId = 'zone-vpc'
+  }
+  if (boundaryName && boundaryNodes.length > 0) {
+    const savedZone = savedZoneLayout.get(boundaryId)
+    zones.push({
+      id: boundaryId,
+      name: boundaryName,
+      type: 'boundary',
+      nodes: boundaryNodes,
+      position: savedZone?.pos,
+      size: savedZone?.size,
+    })
+  }
+
   if (visibleCells.length > 0) {
     const savedZone = savedZoneLayout.get('zone-compute')
     zones.push({

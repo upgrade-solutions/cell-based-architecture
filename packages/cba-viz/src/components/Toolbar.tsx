@@ -11,8 +11,6 @@ interface ToolbarProps {
   domain: string
   env: string
   onEnvChange: (env: string) => void
-  adapter: string
-  onAdapterChange: (adapter: string) => void
 }
 
 export const Toolbar = observer(function Toolbar({
@@ -25,8 +23,6 @@ export const Toolbar = observer(function Toolbar({
   domain,
   env,
   onEnvChange,
-  adapter,
-  onAdapterChange,
 }: ToolbarProps) {
   const scalePercent = Math.round(model.scale * 100)
 
@@ -84,21 +80,6 @@ export const Toolbar = observer(function Toolbar({
         {viewNames.map((name) => (
           <option key={name} value={name}>{name}</option>
         ))}
-      </select>
-
-      <div style={{ width: 1, height: 20, background: '#475569' }} />
-
-      {/* Adapter selector */}
-      <label style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Status
-      </label>
-      <select
-        value={adapter}
-        onChange={(e) => onAdapterChange(e.target.value)}
-        style={selectStyle}
-      >
-        <option value="docker-compose">Docker Compose</option>
-        <option value="terraform/aws">Terraform / AWS</option>
       </select>
 
       <div style={{ flex: 1 }} />

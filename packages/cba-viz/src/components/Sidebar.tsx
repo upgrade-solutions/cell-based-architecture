@@ -4,9 +4,11 @@ import type { GraphModel } from '../models/GraphModel.ts'
 
 interface SidebarProps {
   model: GraphModel
+  env: string
+  adapter: string
 }
 
-export const Sidebar = observer(function Sidebar({ model }: SidebarProps) {
+export const Sidebar = observer(function Sidebar({ model, env, adapter }: SidebarProps) {
   const cellView = model.selectedCellView
   const cell = cellView?.model
   const dna = cell?.get('dna') as Record<string, unknown> | undefined
@@ -15,6 +17,7 @@ export const Sidebar = observer(function Sidebar({ model }: SidebarProps) {
     return (
       <div style={containerStyle}>
         <div style={headerStyle}>Inspector</div>
+        <AdapterSection env={env} adapter={adapter} />
         <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>
           Click a node or connection to inspect it.
         </div>
@@ -30,6 +33,7 @@ export const Sidebar = observer(function Sidebar({ model }: SidebarProps) {
   return (
     <div style={containerStyle}>
       <div style={headerStyle}>Inspector</div>
+      <AdapterSection env={env} adapter={adapter} />
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* Identity */}
         <Section title="Identity">
@@ -77,6 +81,32 @@ export const Sidebar = observer(function Sidebar({ model }: SidebarProps) {
     </div>
   )
 })
+
+/**
+ * Always-visible section showing the current env and the delivery adapter
+ * it maps to. The Env selector in the toolbar is the single control — this
+ * is a read-only display surfacing the derived adapter so users don't need
+ * to guess which backend their status polls are hitting.
+ */
+function AdapterSection({ env, adapter }: { env: string; adapter: string }) {
+  const adapterLabel = adapter === 'terraform/aws' ? 'Terraform / AWS' : 'Docker Compose'
+  return (
+    <div style={{ padding: '12px 16px', borderBottom: '1px solid #334155' }}>
+      <div style={{
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        color: '#64748b',
+        marginBottom: 8,
+      }}>
+        Adapter
+      </div>
+      <Field label="Env" value={env} />
+      <Field label="Via" value={adapterLabel} />
+    </div>
+  )
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

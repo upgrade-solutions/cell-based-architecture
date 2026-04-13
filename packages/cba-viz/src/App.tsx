@@ -45,18 +45,15 @@ const App = observer(function App() {
   const [env, setEnvState] = useState(getEnv)
   const [adapter, setAdapterState] = useState(() => getAdapter(getEnv()))
 
-  // Env ↔ adapter are coupled: technical.json carries env-scoped construct
-  // variants (dev → local postgres/RabbitMQ, prod → RDS/EventBridge) that
-  // only make sense against the matching delivery adapter. Selecting `prod`
-  // switches status polling to `terraform/aws`, and vice versa. Either
-  // selector drives both so the user can pick from whichever they think in.
+  // Env drives adapter via the coupling rule: technical.json carries
+  // env-scoped construct variants (dev → local postgres/RabbitMQ, prod →
+  // RDS/EventBridge) that only make sense against the matching delivery
+  // adapter. Selecting `prod` routes status polling to `terraform/aws`,
+  // `dev` to `docker-compose`. The derived adapter is read-only from the
+  // sidebar's ADAPTER section — no direct selector in the toolbar.
   const setEnv = useCallback((next: string) => {
     setEnvState(next)
     setAdapterState(next === 'prod' ? 'terraform/aws' : 'docker-compose')
-  }, [])
-  const setAdapter = useCallback((next: string) => {
-    setAdapterState(next)
-    setEnvState(next === 'terraform/aws' ? 'prod' : 'dev')
   }, [])
 
   // Reflect the current env + adapter in the URL so reloads preserve state
@@ -181,8 +178,6 @@ const App = observer(function App() {
           domain={domain}
           env={env}
           onEnvChange={setEnv}
-          adapter={adapter}
-          onAdapterChange={setAdapter}
         />
       }
       canvas={
@@ -193,7 +188,7 @@ const App = observer(function App() {
         />
       }
       sidebar={
-        <Sidebar model={graphModel} />
+        <Sidebar model={graphModel} env={env} adapter={adapter} />
       }
     />
   )

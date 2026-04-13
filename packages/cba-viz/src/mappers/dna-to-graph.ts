@@ -15,7 +15,12 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
   const factory = new ShapesFactory()
   const cells: dia.Cell[] = []
 
-  // 1. Zones — create containers and compute bounding boxes from child nodes
+  // 1. Zones — create containers and compute bounding boxes from child nodes.
+  //
+  // Z-order: boundary zones (e.g. VPC) render behind tier zones (Compute,
+  // Storage) so nested layers read visually. A boundary zone wrapping the
+  // whole graph must draw first / lowest; tier zones draw on top; nodes
+  // on top of those; links on top of everything.
   const zoneElements: dia.Element[] = []
   const nodeToZone = new Map<string, string>()
 
@@ -27,7 +32,7 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
     // If zone has explicit position/size, use them
     // Otherwise, auto-calculate after nodes are placed
     const zoneEl = factory.createZone(zone)
-    zoneEl.set('z', 0) // zones behind nodes
+    zoneEl.set('z', zone.type === 'boundary' ? 0 : 1)
     zoneElements.push(zoneEl)
     cells.push(zoneEl)
   }
@@ -36,7 +41,7 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
   const nodeElements: dia.Element[] = []
   for (const node of view.nodes) {
     const el = factory.createNode(node)
-    el.set('z', 1) // nodes above zones
+    el.set('z', 2) // nodes above zones
     // Store DNA metadata for inspector
     el.set('dna', {
       id: node.id,
@@ -51,7 +56,11 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
     cells.push(el)
   }
 
-  // 3. Embed nodes into zones and auto-fit zones
+  // 3. Embed nodes into zones and auto-fit zones.
+  //
+  // Tier zones (Compute, Storage) contain their own nodes directly and are
+  // auto-fit around them. Boundary zones (VPC) wrap tier zones, so we pad
+  // them extra on top/bottom to leave visible room around the tier headers.
   for (const zone of view.zones ?? []) {
     const zoneEl = zoneElements.find(z => z.id === zone.id)
     if (!zoneEl) continue
@@ -66,14 +75,19 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
 
     // Auto-fit zone around children if no explicit position/size
     if (!zone.position || !zone.size) {
-      fitZoneToChildren(zoneEl, childEls)
+      const extraPadding = zone.type === 'boundary'
+        // Boundary wraps tier zones, so add extra room above/below so the
+        // tier headers don't collide with the boundary header.
+        ? { top: 56, right: 36, bottom: 36, left: 36 }
+        : { top: 40, right: 20, bottom: 20, left: 20 }
+      fitZoneToChildren(zoneEl, childEls, extraPadding)
     }
   }
 
   // 4. Connections
   for (const conn of view.connections ?? []) {
     const link = factory.createConnection(conn)
-    link.set('z', 2) // links above everything
+    link.set('z', 3) // links above everything
     link.set('dna', {
       id: conn.id,
       type: conn.type,
@@ -88,9 +102,11 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
 /**
  * Auto-fit a zone container to surround its child elements with padding.
  */
-function fitZoneToChildren(zone: dia.Element, children: dia.Element[]) {
-  const padding = { top: 40, right: 20, bottom: 20, left: 20 }
-
+function fitZoneToChildren(
+  zone: dia.Element,
+  children: dia.Element[],
+  padding: { top: number; right: number; bottom: number; left: number } = { top: 40, right: 20, bottom: 20, left: 20 },
+) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   for (const child of children) {
     const pos = child.position()
