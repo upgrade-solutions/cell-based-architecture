@@ -197,9 +197,15 @@ export class ShapesFactory {
   }
 
   createZone(zone: ArchZone): dia.Element {
-    const colors = ZONE_COLORS[zone.type] ?? ZONE_COLORS['tier']
+    const colors = pickZoneColors(zone)
     const pos = zone.position ?? { x: 0, y: 0 }
     const size = zone.size ?? { width: 400, height: 200 }
+
+    // Weight hierarchy: boundary zones (Docker / VPC) are the outermost
+    // frame and deserve a prominent stroke (2px); tier zones (Compute /
+    // Storage) recede as background grouping (1px). Both are solid —
+    // dashes are reserved exclusively for 'proposed' nodes.
+    const strokeWidth = zone.type === 'boundary' ? 2 : 1
 
     return new ZoneContainer({
       id: zone.id,
@@ -209,9 +215,15 @@ export class ShapesFactory {
         body: {
           fill: colors.fill,
           stroke: colors.stroke,
+          strokeWidth,
         },
         headerBg: {
-          fill: colors.fill.replace('0.08', '0.15'),
+          // Match whatever alpha the base fill uses so the header row is
+          // just a slightly punchier band (works for 0.05, 0.06, 0.08).
+          fill: colors.fill.replace(/[\d.]+\)$/, (m) => {
+            const alpha = parseFloat(m.slice(0, -1))
+            return `${Math.min(alpha * 2, 0.2).toFixed(2)})`
+          }),
         },
         label: {
           text: zone.name.toUpperCase(),
@@ -220,4 +232,15 @@ export class ShapesFactory {
       },
     })
   }
+}
+
+/**
+ * Pick a zone's color palette. Prefers id-specific entries (so Docker and
+ * AWS VPC both type='boundary' but render distinctly), falls back to the
+ * type entry, finally to the tier palette.
+ */
+function pickZoneColors(zone: ArchZone): { stroke: string; fill: string; textFill: string } {
+  if (zone.id === 'zone-docker') return ZONE_COLORS['delivery-docker']
+  if (zone.id === 'zone-vpc')    return ZONE_COLORS['delivery-aws']
+  return ZONE_COLORS[zone.type] ?? ZONE_COLORS['tier']
 }
