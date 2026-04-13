@@ -56,31 +56,65 @@ export function viewToGraphCells(view: ArchView): dia.Cell[] {
     cells.push(el)
   }
 
-  // 3. Embed nodes into zones and auto-fit zones.
+  // 3. Embed + auto-fit zones in two passes.
   //
-  // Tier zones (Compute, Storage) contain their own nodes directly and are
-  // auto-fit around them. Boundary zones (VPC) wrap tier zones, so we pad
-  // them extra on top/bottom to leave visible room around the tier headers.
-  for (const zone of view.zones ?? []) {
+  // JointJS only allows each cell to have one parent, so we can't embed a
+  // node into both its tier zone AND the boundary zone that wraps the
+  // whole graph. Instead:
+  //
+  //   Pass A — tier zones (Compute, Storage) embed their nodes and fit
+  //             around them directly.
+  //   Pass B — boundary zones (Docker / VPC) embed the tier zones whose
+  //             nodes overlap the boundary's node set, and fit around those
+  //             tier zones. This gives us proper visual nesting (boundary >
+  //             tier > node) and makes drag-move propagate correctly.
+  const tierZones = (view.zones ?? []).filter(z => z.type !== 'boundary')
+  const boundaryZones = (view.zones ?? []).filter(z => z.type === 'boundary')
+
+  // Pass A: tier zones
+  for (const zone of tierZones) {
     const zoneEl = zoneElements.find(z => z.id === zone.id)
     if (!zoneEl) continue
 
     const childEls = nodeElements.filter(n => zone.nodes.includes(n.id as string))
     if (childEls.length === 0) continue
 
-    // Embed children
     for (const child of childEls) {
       zoneEl.embed(child)
     }
 
-    // Auto-fit zone around children if no explicit position/size
     if (!zone.position || !zone.size) {
-      const extraPadding = zone.type === 'boundary'
-        // Boundary wraps tier zones, so add extra room above/below so the
-        // tier headers don't collide with the boundary header.
-        ? { top: 56, right: 36, bottom: 36, left: 36 }
-        : { top: 40, right: 20, bottom: 20, left: 20 }
-      fitZoneToChildren(zoneEl, childEls, extraPadding)
+      fitZoneToChildren(zoneEl, childEls)
+    }
+  }
+
+  // Pass B: boundary zones. Fit around their contained tier zones (not raw
+  // nodes), with extra top padding so the boundary header doesn't collide
+  // with the inner tier headers.
+  for (const zone of boundaryZones) {
+    const zoneEl = zoneElements.find(z => z.id === zone.id)
+    if (!zoneEl) continue
+
+    const zoneNodeIds = new Set(zone.nodes)
+    const containedTierEls: dia.Element[] = []
+    for (const tier of tierZones) {
+      // A tier belongs to this boundary if any of its nodes is in the
+      // boundary's node set. In practice boundaries claim all nodes, so
+      // every tier is contained.
+      if (tier.nodes.some(id => zoneNodeIds.has(id))) {
+        const el = zoneElements.find(z => z.id === tier.id)
+        if (el) containedTierEls.push(el)
+      }
+    }
+
+    if (containedTierEls.length === 0) continue
+
+    for (const tierEl of containedTierEls) {
+      zoneEl.embed(tierEl)
+    }
+
+    if (!zone.position || !zone.size) {
+      fitZoneToChildren(zoneEl, containedTierEls, { top: 56, right: 36, bottom: 36, left: 36 })
     }
   }
 
