@@ -62,6 +62,13 @@ const App = observer(function App() {
   // Operational layer state
   const [operationalDna, setOperationalDna] = useState<OperationalDNA | null>(null)
 
+  // Load error state per layer. Keeps the loading gate honest — without
+  // this, a 404 or parse failure silently leaves the corresponding layer
+  // at `null` and the UI shows "Loading…" forever. With it, we surface a
+  // readable message in the canvas area and the user can tell what broke.
+  const [technicalError, setTechnicalError] = useState<string | null>(null)
+  const [operationalError, setOperationalError] = useState<string | null>(null)
+
   const [domain] = useState(getDomain)
   const [env, setEnvState] = useState(getEnv)
   const [adapter, setAdapterState] = useState(() => getAdapter(getEnv()))
@@ -105,17 +112,28 @@ const App = observer(function App() {
   // Loaded regardless of current layer so switching to technical is
   // instant. Operational DNA is loaded similarly below.
   useEffect(() => {
+    setTechnicalError(null)
     fetch(`/api/load-views/${encodeURIComponent(domain)}?env=${encodeURIComponent(env)}`)
-      .then(r => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
+        return r.json()
+      })
       .then(json => setDna(parseArchitectureDNA(json)))
-      .catch(err => console.error('Failed to load technical DNA:', err))
+      .catch(err => {
+        console.error('Failed to load technical DNA:', err)
+        setTechnicalError(String(err.message ?? err))
+      })
   }, [domain, env])
 
   // ── Operational DNA loader ──
   useEffect(() => {
+    setOperationalError(null)
     loadOperationalDNA(domain)
       .then(setOperationalDna)
-      .catch(err => console.error('Failed to load operational DNA:', err))
+      .catch(err => {
+        console.error('Failed to load operational DNA:', err)
+        setOperationalError(String(err.message ?? err))
+      })
   }, [domain])
 
   // ── Live status polling (technical only) ──
@@ -207,10 +225,24 @@ const App = observer(function App() {
   }, [graphModel.dirty, handleSave])
 
   // Loading gate — wait for whichever layer we need before rendering.
+  // Errors for the active layer become a readable message in place of
+  // the spinner; the other layer's error is ignored here so a broken
+  // operational file doesn't block the technical canvas and vice versa.
   const technicalReady = dna && currentView
   const operationalReady = operationalDna
   const ready = layer === 'technical' ? technicalReady : operationalReady
+  const error = layer === 'technical' ? technicalError : operationalError
   if (!ready) {
+    if (error) {
+      return (
+        <div style={{ padding: 40, color: '#fca5a5', fontFamily: '-apple-system, sans-serif' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+            Failed to load {layer} DNA for "{domain}"
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>{error}</div>
+        </div>
+      )
+    }
     return <div style={{ padding: 40, color: '#f8fafc' }}>Loading…</div>
   }
 

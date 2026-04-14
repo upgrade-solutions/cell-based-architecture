@@ -284,11 +284,11 @@ Bring Operational DNA into `cba-viz` — authoring Nouns, Capabilities, Rules, O
 
 **Explicitly out of scope for 5c.2**: Product DNA (5c.3), cross-layer edges (5c.3), creating new Nouns/Capabilities from scratch (Phase 5c.4 UX work), lifecycle step editing (deferred), validation highlights on the canvas (errors appear in the inspector form only), multi-user editing, undo/redo, history.
 
-### Phase 5c.3: Product DNA editor + cross-layer links
+### Phase 5c.3: Product DNA editor + cross-layer links (Foundation in progress)
 
-Add Product DNA (core / api / ui) editing and the first visible cross-layer relationships in the canvas.
+Add Product DNA (core / api / ui) editing and the first visible cross-layer relationships in the canvas. Foundation landed alongside Phase 5c.2; the canvas and toolbar integration still to come.
 
-- [ ] **Product types + loaders** — `product-core-loader.ts`, `product-api-loader.ts`, `product-ui-loader.ts` mirroring `product/schemas/`
+- [x] **Product types + loaders** — single `packages/cba-viz/src/loaders/product-loader.ts` covers all three sub-layers because they share primitives (Resource, Field, Action, Operation). Re-exports shared Operational primitives (Noun, Capability, Rule, Outcome, etc.) so Product Core doesn't duplicate them. `parseProductCoreDNA`, `parseProductApiDNA`, `parseProductUiDNA`, and matching `loadProductXxxDNA` fetch helpers that hit `/api/dna/product-core|product-api|product-ui/:domain` (middleware already supports these layer tokens).
 - [ ] **Product shape system** — `ResourceShape`, `EndpointShape`, `PageShape`, `BlockShape`, `NamespaceZone`
 - [ ] **Product mapper** — emit resources, endpoints grouped by namespace, pages with block hierarchies
 - [ ] **Cross-layer edges** — Endpoint→Capability (via `capability` field), Resource→Noun (via the materializer's closure), Page→Capability (via bound operations). Rendered as dashed purple links with layer-crossing labels.
