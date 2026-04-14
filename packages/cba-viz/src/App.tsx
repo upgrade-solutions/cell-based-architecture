@@ -47,10 +47,12 @@ import {
   type Sub,
   type BuildSub,
   type RunSub,
+  type ProductVariant,
   BUILD_SUBS,
   RUN_SUBS,
   DEFAULT_BUILD_SUB,
   DEFAULT_RUN_SUB,
+  DEFAULT_PRODUCT_VARIANT,
 } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
@@ -112,12 +114,22 @@ function getPhase(): Phase {
 
 /**
  * Read the sub-tab from ?sub=. Falls back to the phase default when
- * missing or invalid. Also migrates legacy `?layer=X` values to the
- * equivalent sub so old links continue to work.
+ * missing or invalid. Also migrates legacy values:
+ *   - `?layer=X` from Phase 5c.2/5c.3
+ *   - `?sub=product-core|product-api|product-ui` from the flat-tab IA
+ *     that predated the consolidated Product dropdown
  */
 function getSub(phase: Phase): Sub {
   const params = new URLSearchParams(window.location.search)
   const fromUrl = params.get('sub')
+
+  // Consolidated-product migration: old URLs used ?sub=product-core
+  // etc. Collapse those to ?sub=product; the variant is read by
+  // getProductVariant() which looks at the same legacy values.
+  if (fromUrl === 'product-core' || fromUrl === 'product-api' || fromUrl === 'product-ui') {
+    return 'product'
+  }
+
   const valid = phase === 'build' ? BUILD_SUBS : RUN_SUBS
   if (fromUrl && (valid as readonly string[]).includes(fromUrl)) return fromUrl as Sub
 
@@ -126,11 +138,37 @@ function getSub(phase: Phase): Sub {
   if (legacy === 'technical' && phase === 'run') return 'deployment'
   if (legacy === 'technical' && phase === 'build') return 'technical'
   if (legacy === 'operational')  return 'operational'
-  if (legacy === 'product-core') return 'product-core'
-  if (legacy === 'product-api')  return 'product-api'
-  if (legacy === 'product-ui')   return 'product-ui'
+  if (legacy === 'product-core' || legacy === 'product-api' || legacy === 'product-ui') {
+    return 'product'
+  }
 
   return phase === 'build' ? DEFAULT_BUILD_SUB : DEFAULT_RUN_SUB
+}
+
+/**
+ * Read the product variant from ?product=. Defaults to `core`.
+ * Also migrates from the legacy ?sub=product-X and ?layer=product-X
+ * forms so pasted links from earlier releases land on the right
+ * variant inside the consolidated Product tab.
+ */
+function getProductVariant(): ProductVariant {
+  const params = new URLSearchParams(window.location.search)
+  const fromUrl = params.get('product')
+  if (fromUrl === 'core' || fromUrl === 'api' || fromUrl === 'ui') return fromUrl
+
+  // Legacy: ?sub=product-api → variant = api
+  const legacySub = params.get('sub')
+  if (legacySub === 'product-core') return 'core'
+  if (legacySub === 'product-api')  return 'api'
+  if (legacySub === 'product-ui')   return 'ui'
+
+  // Older legacy: ?layer=product-api → variant = api
+  const legacyLayer = params.get('layer')
+  if (legacyLayer === 'product-core') return 'core'
+  if (legacyLayer === 'product-api')  return 'api'
+  if (legacyLayer === 'product-ui')   return 'ui'
+
+  return DEFAULT_PRODUCT_VARIANT
 }
 
 /** Read selected capability (cross-layer view only) from ?cap=. */
@@ -184,6 +222,7 @@ const App = observer(function App() {
   const [adapter, setAdapterState] = useState(() => getAdapter(getEnv()))
   const [phase, setPhaseState] = useState<Phase>(getPhase)
   const [sub, setSubState] = useState<Sub>(() => getSub(getPhase()))
+  const [productVariant, setProductVariantState] = useState<ProductVariant>(getProductVariant)
   const [capabilityName, setCapabilityName] = useState<string | null>(getCap)
 
   // Env drives adapter via the coupling rule (prod↔terraform/aws,
@@ -214,6 +253,17 @@ const App = observer(function App() {
     setSubState(next)
   }, [graphModel])
 
+  /**
+   * Product variant change — clears selection/dirty like sub changes
+   * since the different variant canvases render different primitive
+   * types.
+   */
+  const handleProductVariantChange = useCallback((next: ProductVariant) => {
+    graphModel.setSelectedCellView(null)
+    graphModel.setDirty(false)
+    setProductVariantState(next)
+  }, [graphModel])
+
   // Reflect the full routing state in the URL so reloads preserve
   // everything and pasted links land on the exact same view.
   useEffect(() => {
@@ -223,6 +273,13 @@ const App = observer(function App() {
     params.set('adapter', adapter)
     params.set('phase', phase)
     params.set('sub', sub)
+    // Product variant is only meaningful when sub=product; when we're
+    // anywhere else, drop it from the URL so pasted links stay clean.
+    if (sub === 'product') {
+      params.set('product', productVariant)
+    } else {
+      params.delete('product')
+    }
     // Drop the legacy `?layer=X` param once we've migrated. New URLs
     // should use phase+sub going forward.
     params.delete('layer')
@@ -235,7 +292,7 @@ const App = observer(function App() {
     if (nextUrl !== window.location.pathname + window.location.search) {
       window.history.replaceState(null, '', nextUrl)
     }
-  }, [domain, env, adapter, phase, sub, capabilityName])
+  }, [domain, env, adapter, phase, sub, productVariant, capabilityName])
 
   // ── Technical DNA loader ──
   useEffect(() => {
@@ -358,7 +415,7 @@ const App = observer(function App() {
     if (!graphModel.graph) return
 
     // Read-only views — graceful refusal with explanation
-    if (sub === 'product-core') {
+    if (sub === 'product' && productVariant === 'core') {
       alert(
         'Product Core is derived from Operational DNA by the materializer. ' +
         'Edit operational.json (Build > Operational) instead — running `cba product core materialize <domain>` ' +
@@ -431,12 +488,12 @@ const App = observer(function App() {
         const updatedDna = graphToOperationalDNA(graphModel.graph, baseDna)
         await saveOperational(domain, updatedDna)
         setOperationalDna(updatedDna)
-      } else if (sub === 'product-api') {
+      } else if (sub === 'product' && productVariant === 'api') {
         if (!productApiDna) return
         const updatedDna = graphToProductApiDNA(graphModel.graph, productApiDna)
         await saveProductApi(domain, updatedDna)
         setProductApiDna(updatedDna)
-      } else if (sub === 'product-ui') {
+      } else if (sub === 'product' && productVariant === 'ui') {
         if (!productUiDna) return
         const updatedDna = graphToProductUiDNA(graphModel.graph, productUiDna)
         await saveProductUi(domain, updatedDna)
@@ -449,7 +506,7 @@ const App = observer(function App() {
     } finally {
       setSaving(false)
     }
-  }, [graphModel, phase, sub, currentView, currentViewName, dna, operationalDna, productApiDna, productUiDna, domain])
+  }, [graphModel, phase, sub, productVariant, currentView, currentViewName, dna, operationalDna, productApiDna, productUiDna, domain])
 
   // Ctrl/Cmd+S shortcut
   useEffect(() => {
@@ -582,6 +639,7 @@ const App = observer(function App() {
   const { ready, error } = computeReadiness({
     phase,
     sub,
+    productVariant,
     dna,
     currentView,
     operationalDna,
@@ -627,6 +685,8 @@ const App = observer(function App() {
           sub={sub}
           onPhaseChange={handlePhaseChange}
           onSubChange={handleSubChange}
+          productVariant={productVariant}
+          onProductVariantChange={handleProductVariantChange}
           onCreate={() => setCreateDialogOpen(true)}
         />
       }
@@ -653,6 +713,7 @@ const App = observer(function App() {
           {renderCanvas({
             phase,
             sub,
+            productVariant,
             graphModel,
             dna,
             currentView,
@@ -706,6 +767,7 @@ export default App
 type ReadinessInput = {
   phase: Phase
   sub: Sub
+  productVariant: ProductVariant
   dna: ArchitectureDNA | null
   currentView: { name: string } | undefined
   operationalDna: OperationalDNA | null
@@ -726,7 +788,7 @@ type ReadinessInput = {
  * one branch.
  */
 function computeReadiness(inp: ReadinessInput): { ready: boolean; error: string | null } {
-  const { phase, sub } = inp
+  const { phase, sub, productVariant } = inp
   if (phase === 'run') {
     if (sub === 'deployment') {
       return {
@@ -741,12 +803,15 @@ function computeReadiness(inp: ReadinessInput): { ready: boolean; error: string 
   switch (sub as BuildSub) {
     case 'operational':
       return { ready: !!inp.operationalDna, error: inp.operationalError }
-    case 'product-core':
-      return { ready: !!inp.productCoreDna, error: inp.productCoreError }
-    case 'product-api':
-      return { ready: !!inp.productApiDna, error: inp.productApiError }
-    case 'product-ui':
-      return { ready: !!inp.productUiDna, error: inp.productUiError }
+    case 'product':
+      // The consolidated Product tab dispatches on variant. Each
+      // variant has its own DNA and load state.
+      switch (productVariant) {
+        case 'core': return { ready: !!inp.productCoreDna, error: inp.productCoreError }
+        case 'api':  return { ready: !!inp.productApiDna,  error: inp.productApiError  }
+        case 'ui':   return { ready: !!inp.productUiDna,   error: inp.productUiError   }
+      }
+      return { ready: false, error: null }
     case 'technical':
       return {
         ready: !!(inp.dna && inp.currentView),
@@ -763,6 +828,7 @@ function computeReadiness(inp: ReadinessInput): { ready: boolean; error: string 
 type CanvasInput = {
   phase: Phase
   sub: Sub
+  productVariant: ProductVariant
   graphModel: GraphModel
   dna: ArchitectureDNA | null
   currentView: ArchitectureDNA['views'][number] | undefined
@@ -812,18 +878,26 @@ function renderCanvas(inp: CanvasInput): React.ReactNode {
       return inp.operationalDna ? (
         <OperationalCanvas key={`build:ops:${domain}`} model={graphModel} dna={inp.operationalDna} />
       ) : null
-    case 'product-core':
-      return inp.productCoreDna ? (
-        <ProductCoreCanvas key={`build:pcore:${domain}`} model={graphModel} dna={inp.productCoreDna} />
-      ) : null
-    case 'product-api':
-      return inp.productApiDna ? (
-        <ProductApiCanvas key={`build:papi:${domain}`} model={graphModel} dna={inp.productApiDna} />
-      ) : null
-    case 'product-ui':
-      return inp.productUiDna ? (
-        <ProductUiCanvas key={`build:pui:${domain}`} model={graphModel} dna={inp.productUiDna} />
-      ) : null
+    case 'product':
+      // Dispatch on variant. Each variant has its own canvas + DNA
+      // prop. The `key` includes the variant so switching variants
+      // remounts the underlying canvas cleanly (no stale JointJS
+      // selection or paper geometry from the previous variant).
+      switch (inp.productVariant) {
+        case 'core':
+          return inp.productCoreDna ? (
+            <ProductCoreCanvas key={`build:p:core:${domain}`} model={graphModel} dna={inp.productCoreDna} />
+          ) : null
+        case 'api':
+          return inp.productApiDna ? (
+            <ProductApiCanvas key={`build:p:api:${domain}`} model={graphModel} dna={inp.productApiDna} />
+          ) : null
+        case 'ui':
+          return inp.productUiDna ? (
+            <ProductUiCanvas key={`build:p:ui:${domain}`} model={graphModel} dna={inp.productUiDna} />
+          ) : null
+      }
+      return null
     case 'technical':
       return inp.currentView ? (
         <TechnicalCanvas key={`build:tech:${inp.currentViewName}`} model={graphModel} view={inp.currentView} />

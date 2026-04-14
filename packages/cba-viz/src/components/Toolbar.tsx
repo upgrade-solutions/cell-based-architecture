@@ -13,9 +13,7 @@ export type Phase = 'build' | 'run'
 
 export type BuildSub =
   | 'operational'
-  | 'product-core'
-  | 'product-api'
-  | 'product-ui'
+  | 'product'
   | 'technical'
   | 'cross-layer'
 
@@ -27,11 +25,29 @@ export type RunSub =
 
 export type Sub = BuildSub | RunSub
 
+/**
+ * Product sub-layers collapsed under a single `product` Build sub-tab.
+ * The variant surfaces as a dropdown next to the Product tab when it's
+ * the active sub — keeps the primary tab strip uncluttered while still
+ * exposing all three product surfaces on one click.
+ */
+export type ProductVariant = 'core' | 'api' | 'ui'
+
+export const PRODUCT_VARIANTS: ProductVariant[] = ['core', 'api', 'ui']
+
+export const DEFAULT_PRODUCT_VARIANT: ProductVariant = 'core'
+
+export function productVariantLabel(v: ProductVariant): string {
+  switch (v) {
+    case 'core': return 'Core'
+    case 'api':  return 'API'
+    case 'ui':   return 'UI'
+  }
+}
+
 export const BUILD_SUBS: BuildSub[] = [
   'operational',
-  'product-core',
-  'product-api',
-  'product-ui',
+  'product',
   'technical',
   'cross-layer',
 ]
@@ -51,9 +67,7 @@ export const DEFAULT_RUN_SUB: RunSub = 'deployment'
 export function subLabel(sub: Sub): string {
   switch (sub) {
     case 'operational':  return 'Operational'
-    case 'product-core': return 'Product Core'
-    case 'product-api':  return 'Product API'
-    case 'product-ui':   return 'Product UI'
+    case 'product':      return 'Product'
     case 'technical':    return 'Technical'
     case 'cross-layer':  return 'Cross-layer'
     case 'deployment':   return 'Deployment'
@@ -67,9 +81,7 @@ export function subLabel(sub: Sub): string {
 function subTitle(sub: Sub): string {
   switch (sub) {
     case 'operational':  return 'Operational DNA — business logic, Nouns, Capabilities, Rules, Outcomes, Signals'
-    case 'product-core': return 'Product Core — materialized operational subset that product surfaces consume'
-    case 'product-api':  return 'Product API — namespace, resources, endpoints'
-    case 'product-ui':   return 'Product UI — layout, pages, blocks'
+    case 'product':      return 'Product DNA — Core (materialized), API (resources + endpoints), UI (layout + pages + blocks). Pick a variant from the dropdown.'
     case 'technical':    return 'Technical DNA — cells, constructs, providers, environments'
     case 'cross-layer':  return 'Cross-layer — a single capability across operational, product API, and product UI'
     case 'deployment':   return 'Live deployment state — docker-compose or terraform/aws status polling'
@@ -98,6 +110,13 @@ interface ToolbarProps {
   sub: Sub
   onPhaseChange: (phase: Phase) => void
   onSubChange: (sub: Sub) => void
+  /**
+   * Product variant — `core` | `api` | `ui`. Meaningful only when
+   * `sub === 'product'`; the dropdown renders inline in row 2 next to
+   * the sub-tab strip. Other subs ignore it.
+   */
+  productVariant: ProductVariant
+  onProductVariantChange: (v: ProductVariant) => void
   /** Open the create-primitive dialog. Only wired on Build > Operational. */
   onCreate?: () => void
 }
@@ -129,6 +148,8 @@ export const Toolbar = observer(function Toolbar({
   sub,
   onPhaseChange,
   onSubChange,
+  productVariant,
+  onProductVariantChange,
   onCreate,
 }: ToolbarProps) {
   const scalePercent = Math.round(model.scale * 100)
@@ -277,7 +298,11 @@ export const Toolbar = observer(function Toolbar({
         </button>
       </div>
 
-      {/* Row 2 — sub-tab strip for the active phase */}
+      {/* Row 2 — sub-tab strip for the active phase. When the active
+          sub is `product`, a secondary variant dropdown (Core / API /
+          UI) appears inline after the tab strip so all three product
+          surfaces are one click away without cluttering the primary
+          tab row. */}
       <div
         style={{
           height: 36,
@@ -300,6 +325,23 @@ export const Toolbar = observer(function Toolbar({
             {isStubSub(s) ? <span style={stubMarkStyle}>·</span> : null}
           </button>
         ))}
+
+        {phase === 'build' && sub === 'product' ? (
+          <>
+            <div style={{ width: 1, height: 18, background: '#334155', marginLeft: 8, marginRight: 8 }} />
+            <label style={variantLabelStyle}>Variant</label>
+            <select
+              value={productVariant}
+              onChange={(e) => onProductVariantChange(e.target.value as ProductVariant)}
+              style={variantSelectStyle}
+              title="Product sub-layer"
+            >
+              {PRODUCT_VARIANTS.map((v) => (
+                <option key={v} value={v}>{productVariantLabel(v)}</option>
+              ))}
+            </select>
+          </>
+        ) : null}
       </div>
     </div>
   )
@@ -389,4 +431,25 @@ const stubMarkStyle: React.CSSProperties = {
   fontSize: 14,
   lineHeight: '8px',
   marginLeft: 2,
+}
+
+const variantLabelStyle: React.CSSProperties = {
+  color: '#64748b',
+  fontSize: 10,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  marginRight: 6,
+}
+
+const variantSelectStyle: React.CSSProperties = {
+  background: '#334155',
+  color: '#f8fafc',
+  border: '1px solid #475569',
+  borderRadius: 3,
+  padding: '2px 6px',
+  fontSize: 11,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontWeight: 600,
 }
