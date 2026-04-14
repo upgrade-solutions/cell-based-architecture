@@ -1,7 +1,32 @@
 import { observer } from 'mobx-react-lite'
 import type { GraphModel } from '../models/GraphModel.ts'
 
-export type Layer = 'technical' | 'operational'
+export type Layer = 'technical' | 'operational' | 'product-core'
+
+/**
+ * URL-friendly list of all layer values. Kept in sync with the Layer
+ * union so we have one place to add future product sub-layers
+ * (product-api, product-ui) as they ship.
+ */
+export const ALL_LAYERS: Layer[] = ['technical', 'operational', 'product-core']
+
+/** Human-readable label for the toolbar tab. */
+export function layerLabel(layer: Layer): string {
+  switch (layer) {
+    case 'technical':    return 'Technical'
+    case 'operational':  return 'Operational'
+    case 'product-core': return 'Product Core'
+  }
+}
+
+/** Tooltip shown on hover — explains what the layer contains. */
+function tabTitle(layer: Layer): string {
+  switch (layer) {
+    case 'technical':    return 'Technical DNA — deployment graph'
+    case 'operational':  return 'Operational DNA — business logic'
+    case 'product-core': return 'Product Core — materialized operational subset that product surfaces consume'
+  }
+}
 
 interface ToolbarProps {
   model: GraphModel
@@ -59,30 +84,29 @@ export const Toolbar = observer(function Toolbar({
 
       <div style={{ width: 1, height: 20, background: '#475569' }} />
 
-      {/* Layer tabs — Technical | Operational. Drives which canvas
-          component App.tsx renders and which save handler Ctrl+S invokes. */}
+      {/* Layer tabs. Drives which canvas component App.tsx renders and
+          which save handler Ctrl+S invokes. Order mirrors the logical
+          DNA pipeline: business logic (Operational) → product surface
+          (Product Core) → deployment (Technical). */}
       <div style={{ display: 'flex', gap: 2 }}>
-        <button
-          onClick={() => onLayerChange('technical')}
-          style={layer === 'technical' ? activeTabStyle : tabStyle}
-          title="Technical DNA — deployment graph"
-        >
-          Technical
-        </button>
-        <button
-          onClick={() => onLayerChange('operational')}
-          style={layer === 'operational' ? activeTabStyle : tabStyle}
-          title="Operational DNA — business logic"
-        >
-          Operational
-        </button>
+        {ALL_LAYERS.map((l) => (
+          <button
+            key={l}
+            onClick={() => onLayerChange(l)}
+            style={layer === l ? activeTabStyle : tabStyle}
+            title={tabTitle(l)}
+          >
+            {layerLabel(l)}
+          </button>
+        ))}
       </div>
 
       <div style={{ width: 1, height: 20, background: '#475569' }} />
 
       {/* Environment + View selectors only apply to the technical layer.
-          Operational DNA is environment-agnostic (it's the business logic),
-          and there's only one operational "view" per domain, so hiding the
+          Operational and Product Core are environment-agnostic (they're
+          business logic and product surface), and there's only one
+          canonical "view" per domain at those layers, so hiding the
           controls avoids confusing no-op selectors. */}
       {layer === 'technical' ? (
         <>
