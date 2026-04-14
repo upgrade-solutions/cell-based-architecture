@@ -157,11 +157,18 @@ body {
 
 export function rendererContext(): string {
   return `import { createContext, useContext } from 'react'
-import type { ProductUiDNA, ProductApiDNA } from './types'
+import type { ProductUiDNA, ProductApiDNA, OperationalDNA } from './types'
+
+export interface CurrentUser {
+  email: string | null
+  roles: string[]
+}
 
 export interface DnaContextValue {
   dna: ProductUiDNA
   api: ProductApiDNA | null
+  operational: OperationalDNA | null
+  user: CurrentUser
   apiBase: string
   token: string | null
   logout: () => void
@@ -313,11 +320,31 @@ export interface ProductApiDNA {
   resources: ApiResource[]
   endpoints: ApiEndpoint[]
 }
+
+// ── Operational DNA (subset: rules only — enough for render/click guards) ────
+
+export interface AllowEntry {
+  role?: string
+  ownership?: boolean
+  flags?: string[]
+}
+
+export interface Rule {
+  capability: string
+  type?: 'access' | 'condition'
+  description?: string
+  allow?: AllowEntry[]
+  conditions?: unknown[]
+}
+
+export interface OperationalDNA {
+  rules?: Rule[]
+}
 `
 }
 
 export function rendererDnaLoader(): string {
-  return `import type { ProductUiDNA, ProductApiDNA } from './types'
+  return `import type { ProductUiDNA, ProductApiDNA, OperationalDNA } from './types'
 
 // ── DnaLoader interface — the seam for future API/SSE loaders ────────────────
 
@@ -325,6 +352,7 @@ export interface DnaLoader {
   loadUi(): Promise<ProductUiDNA>
   loadApi(): Promise<ProductApiDNA | null>
   loadCore(): Promise<unknown | null>
+  loadOperational(): Promise<OperationalDNA | null>
 }
 
 // ── StaticFetchLoader — loads DNA from static URLs (current implementation) ──
@@ -334,6 +362,7 @@ export class StaticFetchLoader implements DnaLoader {
     private uiUrl: string,
     private apiUrl: string | null,
     private coreUrl: string | null,
+    private operationalUrl: string | null = null,
   ) {}
 
   async loadUi(): Promise<ProductUiDNA> {
@@ -354,6 +383,19 @@ export class StaticFetchLoader implements DnaLoader {
     const res = await fetch(this.coreUrl)
     if (!res.ok) throw new Error(\`Failed to load Product Core DNA: \${res.status}\`)
     return res.json()
+  }
+
+  // Operational DNA failures are non-fatal — a missing / broken file leaves
+  // rules unknown, which the render-time guards treat as fail-closed.
+  async loadOperational(): Promise<OperationalDNA | null> {
+    if (!this.operationalUrl) return null
+    try {
+      const res = await fetch(this.operationalUrl)
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
   }
 }
 `
@@ -475,10 +517,11 @@ export function useApiFetch(
 }
 
 export function rendererApp(): string {
-  return `import { useState, useEffect, useCallback } from 'react'
+  return `import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import type { ProductUiDNA, ProductApiDNA } from './types'
-import { DnaContext } from './context'
+import type { ProductUiDNA, ProductApiDNA, OperationalDNA } from './types'
+import { DnaContext, type CurrentUser } from './context'
+import { FlagProvider } from './flags-context'
 import { StaticFetchLoader } from './dna-loader'
 import Layout from './Layout'
 import Page from './Page'
@@ -487,7 +530,28 @@ interface Config {
   ui: string
   api?: string | null
   core?: string | null
+  operational?: string | null
   apiBase?: string
+}
+
+// Decode a JWT payload without verification — purely to extract the current
+// user's roles for render-time authz. The API side still enforces auth.
+function decodeJwt(token: string | null): CurrentUser {
+  const empty: CurrentUser = { email: null, roles: [] }
+  if (!token) return empty
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return empty
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+    const payload = JSON.parse(atob(padded))
+    return {
+      email: typeof payload.email === 'string' ? payload.email : null,
+      roles: Array.isArray(payload.roles) ? payload.roles : [],
+    }
+  } catch {
+    return empty
+  }
 }
 
 function collectStubs(core: unknown): Record<string, Record<string, unknown>[]> {
@@ -561,10 +625,13 @@ function LoginForm({ apiBase, onLogin }: { apiBase: string; onLogin: (token: str
 export default function App() {
   const [dna, setDna] = useState<ProductUiDNA | null>(null)
   const [api, setApi] = useState<ProductApiDNA | null>(null)
+  const [operational, setOperational] = useState<OperationalDNA | null>(null)
   const [apiBase, setApiBase] = useState('')
   const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'))
   const [stubs, setStubs] = useState<Record<string, Record<string, unknown>[]>>({})
   const [error, setError] = useState<string | null>(null)
+
+  const user = useMemo<CurrentUser>(() => decodeJwt(token), [token])
 
   const logout = useCallback(() => {
     localStorage.removeItem('auth_token')
@@ -593,14 +660,17 @@ export default function App() {
           config.ui,
           config.api ?? null,
           config.core ?? null,
+          config.operational ?? null,
         )
-        const [uiDna, apiDna, coreDna] = await Promise.all([
+        const [uiDna, apiDna, coreDna, operationalDna] = await Promise.all([
           loader.loadUi(),
           loader.loadApi(),
           loader.loadCore(),
+          loader.loadOperational(),
         ])
         setDna(uiDna)
         setApi(apiDna)
+        setOperational(operationalDna)
         setStubs(collectStubs(coreDna))
       })
       .catch(err => setError(String(err)))
@@ -628,25 +698,27 @@ export default function App() {
   }
 
   return (
-    <DnaContext.Provider value={{ dna, api, apiBase, token, logout, stubs }}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
-            <Route index element={<Navigate to={dna.routes[0]?.path ?? '/'} replace />} />
-            {dna.routes.map(route => {
-              const page = dna.pages.find(p => p.name === route.page)
-              if (!page) return null
-              return (
-                <Route
-                  key={route.path}
-                  path={route.path}
-                  element={<Page page={page} />}
-                />
-              )
-            })}
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <DnaContext.Provider value={{ dna, api, operational, user, apiBase, token, logout, stubs }}>
+      <FlagProvider apiBase={apiBase} token={token}>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Layout layout={dna.layout} routes={dna.routes} />}>
+              <Route index element={<Navigate to={dna.routes[0]?.path ?? '/'} replace />} />
+              {dna.routes.map(route => {
+                const page = dna.pages.find(p => p.name === route.page)
+                if (!page) return null
+                return (
+                  <Route
+                    key={route.path}
+                    path={route.path}
+                    element={<Page page={page} />}
+                  />
+                )
+              })}
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </FlagProvider>
     </DnaContext.Provider>
   )
 }
@@ -1698,6 +1770,8 @@ export function rendererActionsBlock(): string {
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDna, useThemeTokens } from '../context'
 import { useApi } from '../useApi'
+import { useFlags, readFlagSnapshotSync } from '../flags-context'
+import { evaluateRule, findAccessRule, missingFlagsForEntry } from '../rules'
 import type { Block, ApiResource } from '../types'
 
 interface Props {
@@ -1708,13 +1782,41 @@ interface Props {
 function ActionButton({ resource, actionName }: { resource: string; actionName: string }) {
   const operation = \`\${resource}.\${actionName}\`
   const { submit } = useApi(operation)
+  const { operational, user } = useDna()
+  const flags = useFlags()
   const t = useThemeTokens()
   const routeParams = useParams<Record<string, string>>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ── Render-time guard ────────────────────────────────────────────────────
+  // Pure function of (currentUser, flagSnapshot). An undefined rule (no rules
+  // loaded / capability has no access rule) leaves the button enabled —
+  // the API is the authoritative gate. A rule that exists but fails to match
+  // any allow entry disables the button.
+  const rule = findAccessRule(operational, operation)
+  const allowed = evaluateRule(rule, user.roles, flags)
+
+  // If the only thing blocking is a missing flag, prefer disable-with-tooltip
+  // over hiding so the user sees *why* the action is unavailable. Pure role
+  // failures (rule exists but no role match) hide the button — matches the
+  // existing access-control convention of hiding nav items the user cannot use.
+  const missingFlags = !allowed && rule
+    ? (rule.allow ?? []).flatMap(entry => missingFlagsForEntry(entry, user.roles, flags))
+    : []
+  const blockedByFlagOnly = !allowed && missingFlags.length > 0
+  if (!allowed && !blockedByFlagOnly) return null
+
   const handleClick = async () => {
+    // ── Click-time guard — fast-path re-read of the flag snapshot. The API
+    // will still reject with 403 if flags flipped off after mount; this is
+    // just a friendly client-side check.
+    const liveFlags = readFlagSnapshotSync()
+    if (!evaluateRule(rule, user.roles, liveFlags)) {
+      setError('This action is not currently available.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -1730,20 +1832,26 @@ function ActionButton({ resource, actionName }: { resource: string; actionName: 
 
   const isDanger = /reject|delete|cancel/i.test(actionName)
   const bg = isDanger ? t.danger : t.success
+  const disabled = loading || blockedByFlagOnly
+  const title = blockedByFlagOnly
+    ? \`Requires feature: \${missingFlags.join(', ')}\`
+    : undefined
 
   return (
     <div>
       <button
         type="button"
         onClick={handleClick}
-        disabled={loading}
+        disabled={disabled}
+        title={title}
         style={{
           padding: '0.5rem 1rem',
-          background: loading ? t.textMuted : bg,
+          background: disabled ? t.textMuted : bg,
           color: '#fff',
           border: 'none',
           borderRadius: '0.375rem',
-          cursor: loading ? 'not-allowed' : 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: blockedByFlagOnly ? 0.6 : 1,
         }}
       >
         {loading ? \`\${actionName}...\` : actionName}
@@ -2449,6 +2557,167 @@ export default function UniversalLayout({ routes }: { routes: Route[] }) {
   }
 
   return <DesktopLayout {...shared} sidebarCollapsed={sidebarCollapsed} showSidebar={showSidebar} />
+}
+`
+}
+
+// ── Flag context — fetches /api/flags at mount, provides to descendants ──────
+// Fail-closed: missing / unfetched / 404 → all flags off. A module-level
+// snapshot is exposed via readFlagSnapshotSync() for click-time guards that
+// fire outside React's render cycle (event handlers).
+
+export function rendererFlagsContext(): string {
+  return `import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+
+export type FlagSnapshot = Record<string, boolean>
+
+const EMPTY_SNAPSHOT: FlagSnapshot = Object.freeze({}) as FlagSnapshot
+
+// Module-level mirror of the latest provider snapshot. Click-time guards read
+// this so they see any updates the provider has made since last render.
+let liveSnapshot: FlagSnapshot = EMPTY_SNAPSHOT
+
+export function readFlagSnapshotSync(): FlagSnapshot {
+  return liveSnapshot
+}
+
+interface FlagContextValue {
+  flags: FlagSnapshot
+  loaded: boolean
+}
+
+const FlagContext = createContext<FlagContextValue>({ flags: EMPTY_SNAPSHOT, loaded: false })
+
+export function useFlags(): FlagSnapshot {
+  return useContext(FlagContext).flags
+}
+
+export function useFlag(name: string): boolean {
+  return useContext(FlagContext).flags[name] === true
+}
+
+export function useFlagsLoaded(): boolean {
+  return useContext(FlagContext).loaded
+}
+
+function normalize(raw: unknown): FlagSnapshot {
+  if (!raw || typeof raw !== 'object') return EMPTY_SNAPSHOT
+  const out: FlagSnapshot = {}
+  // Accept either { flags: { name: bool } } or a flat { name: bool }.
+  const src = (raw as { flags?: unknown }).flags ?? raw
+  if (src && typeof src === 'object') {
+    for (const [k, v] of Object.entries(src as Record<string, unknown>)) {
+      out[k] = v === true
+    }
+  }
+  return out
+}
+
+interface FlagProviderProps {
+  children: ReactNode
+  apiBase: string
+  token?: string | null
+  /** Override the fetch endpoint — defaults to \`\${apiBase}/api/flags\`. */
+  endpoint?: string
+  /** Injectable for tests — provide a fixed snapshot instead of fetching. */
+  initial?: FlagSnapshot
+}
+
+export function FlagProvider({ children, apiBase, token, endpoint, initial }: FlagProviderProps) {
+  const [flags, setFlags] = useState<FlagSnapshot>(initial ?? EMPTY_SNAPSHOT)
+  const [loaded, setLoaded] = useState<boolean>(initial !== undefined)
+
+  useEffect(() => {
+    liveSnapshot = flags
+  }, [flags])
+
+  useEffect(() => {
+    if (initial !== undefined) return
+    const url = endpoint ?? \`\${apiBase}/api/flags\`
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = \`Bearer \${token}\`
+    let cancelled = false
+    fetch(url, { headers })
+      .then(res => (res.ok ? res.json() : null))
+      .then(body => {
+        if (cancelled) return
+        setFlags(normalize(body))
+        setLoaded(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setFlags(EMPTY_SNAPSHOT)
+        setLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [apiBase, token, endpoint, initial])
+
+  return <FlagContext.Provider value={{ flags, loaded }}>{children}</FlagContext.Provider>
+}
+`
+}
+
+// ── Rules module — pure allow-entry evaluator used by render + click guards ──
+// Cross-entry semantics is OR; within-entry is AND. An allow entry matches
+// iff its role (if set) is in user.roles AND every flag in entry.flags[] is
+// true in the snapshot. Ownership is not enforced client-side — the API
+// authoritative check handles it. A missing rule (undefined) is treated as
+// "open" because the absence of rules typically means ui-cell was generated
+// without operational DNA; the API gate remains authoritative.
+
+export function rendererRules(): string {
+  return `import type { OperationalDNA, Rule, AllowEntry } from './types'
+import type { FlagSnapshot } from './flags-context'
+
+export function findAccessRule(
+  operational: OperationalDNA | null,
+  capability: string,
+): Rule | undefined {
+  if (!operational?.rules) return undefined
+  return operational.rules.find(r => r.capability === capability && r.type !== 'condition')
+}
+
+/** Returns the list of flags that *this* allow entry requires but are not
+ *  currently enabled in the snapshot, assuming the role matches. If the role
+ *  does not match, returns an empty list (no flag contribution from an entry
+ *  that could never match anyway). */
+export function missingFlagsForEntry(
+  entry: AllowEntry,
+  userRoles: string[],
+  flags: FlagSnapshot,
+): string[] {
+  if (entry.role && !userRoles.includes(entry.role)) return []
+  const required = entry.flags ?? []
+  return required.filter(name => flags[name] !== true)
+}
+
+function entryMatches(entry: AllowEntry, userRoles: string[], flags: FlagSnapshot): boolean {
+  if (entry.role && !userRoles.includes(entry.role)) return false
+  // Ownership is enforced server-side; we don't have instance identity here.
+  const required = entry.flags ?? []
+  for (const name of required) {
+    if (flags[name] !== true) return false
+  }
+  return true
+}
+
+/**
+ * Evaluate an access rule against the current user + flag snapshot.
+ * - Undefined rule  → allowed (no constraint loaded — API is authoritative).
+ * - Empty allow[]   → blocked (explicit kill-switch).
+ * - Non-empty allow → allowed iff any entry matches.
+ */
+export function evaluateRule(
+  rule: Rule | undefined,
+  userRoles: string[],
+  flags: FlagSnapshot,
+): boolean {
+  if (!rule) return true
+  const allow = rule.allow ?? []
+  if (allow.length === 0) return false
+  return allow.some(entry => entryMatches(entry, userRoles, flags))
 }
 `
 }

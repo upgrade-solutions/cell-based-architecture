@@ -29,6 +29,8 @@ import {
   rendererLayoutMachine,
   rendererUniversalLayout,
   rendererMarketingLayout,
+  rendererFlagsContext,
+  rendererRules,
 } from './generators/renderer'
 
 function write(outputDir: string, relPath: string, content: string): void {
@@ -54,6 +56,7 @@ export const generate: UiCellAdapter['generate'] = (
     ui: ctx?.uiFetchPath ?? '/dna.json',
     api: ctx?.apiFetchPath ?? null,
     core: ctx?.coreFetchPath ?? null,
+    operational: ctx?.operationalFetchPath ?? null,
     apiBase: ctx?.apiBase ?? '',
   }, null, 2) + '\n')
 
@@ -62,7 +65,7 @@ export const generate: UiCellAdapter['generate'] = (
   // but production builds (nginx in the container) have no such middleware —
   // DNA must be shipped as static assets under the same /dna/... URL paths.
   if (ctx) {
-    const fetchPaths = [ctx.uiFetchPath, ctx.apiFetchPath, ctx.coreFetchPath].filter(
+    const fetchPaths = [ctx.uiFetchPath, ctx.apiFetchPath, ctx.coreFetchPath, ctx.operationalFetchPath].filter(
       (p): p is string => typeof p === 'string' && p.startsWith('/dna/'),
     )
     for (const fetchPath of fetchPaths) {
@@ -105,6 +108,8 @@ export const generate: UiCellAdapter['generate'] = (
   write(outputDir, 'src/globals.css',                           rendererGlobalsCss(ui.layout))
   write(outputDir, 'src/renderer/types.ts',                     rendererTypes())
   write(outputDir, 'src/renderer/context.ts',                   rendererContext())
+  write(outputDir, 'src/renderer/flags-context.tsx',            rendererFlagsContext())
+  write(outputDir, 'src/renderer/rules.ts',                     rendererRules())
   write(outputDir, 'src/renderer/dna-loader.ts',                rendererDnaLoader())
   write(outputDir, 'src/renderer/useApi.ts',                    rendererApiHook())
   write(outputDir, 'src/renderer/App.tsx',                      rendererApp())

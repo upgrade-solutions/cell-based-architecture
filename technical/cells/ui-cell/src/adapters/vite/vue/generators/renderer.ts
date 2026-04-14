@@ -69,18 +69,45 @@ export interface ProductApiDNA {
   resources: ApiResource[]
   endpoints: ApiEndpoint[]
 }
+
+// ── Operational DNA (subset: rules only — enough for render/click guards) ────
+
+export interface AllowEntry {
+  role?: string
+  ownership?: boolean
+  flags?: string[]
+}
+
+export interface Rule {
+  capability: string
+  type?: 'access' | 'condition'
+  description?: string
+  allow?: AllowEntry[]
+  conditions?: unknown[]
+}
+
+export interface OperationalDNA {
+  rules?: Rule[]
+}
+
+export interface CurrentUser {
+  email: string | null
+  roles: string[]
+}
 `
 }
 
 export function rendererDnaContext(): string {
   return `import { inject, provide, computed, type Ref, type InjectionKey } from 'vue'
-import type { ProductUiDNA, ProductApiDNA } from './types'
+import type { ProductUiDNA, ProductApiDNA, OperationalDNA, CurrentUser } from './types'
 
 export type Theme = 'light' | 'dark'
 
 export interface DnaContextValue {
   dna: ProductUiDNA
   api: ProductApiDNA | null
+  operational: OperationalDNA | null
+  user: CurrentUser
   apiBase: string
   stubs: Record<string, Record<string, unknown>[]>
   theme: Ref<Theme>
@@ -148,7 +175,7 @@ export function useThemeTokens() {
 }
 
 export function rendererDnaLoader(): string {
-  return `import type { ProductUiDNA, ProductApiDNA } from './types'
+  return `import type { ProductUiDNA, ProductApiDNA, OperationalDNA } from './types'
 
 // ── DnaLoader interface — the seam for future API/SSE loaders ────────────────
 
@@ -156,6 +183,7 @@ export interface DnaLoader {
   loadUi(): Promise<ProductUiDNA>
   loadApi(): Promise<ProductApiDNA | null>
   loadCore(): Promise<unknown | null>
+  loadOperational(): Promise<OperationalDNA | null>
 }
 
 // ── StaticFetchLoader — loads DNA from static URLs (current implementation) ──
@@ -165,6 +193,7 @@ export class StaticFetchLoader implements DnaLoader {
     private uiUrl: string,
     private apiUrl: string | null,
     private coreUrl: string | null,
+    private operationalUrl: string | null = null,
   ) {}
 
   async loadUi(): Promise<ProductUiDNA> {
@@ -185,6 +214,19 @@ export class StaticFetchLoader implements DnaLoader {
     const res = await fetch(this.coreUrl)
     if (!res.ok) throw new Error(\`Failed to load Product Core DNA: \${res.status}\`)
     return res.json()
+  }
+
+  // Operational DNA failures are non-fatal — a missing / broken file leaves
+  // rules unknown, which the render-time guards treat as fail-closed.
+  async loadOperational(): Promise<OperationalDNA | null> {
+    if (!this.operationalUrl) return null
+    try {
+      const res = await fetch(this.operationalUrl)
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
   }
 }
 `
@@ -295,8 +337,9 @@ export function rendererApp(): string {
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import type { ProductUiDNA, ProductApiDNA } from './types'
+import type { ProductUiDNA, ProductApiDNA, OperationalDNA, CurrentUser } from './types'
 import { provideDna, type Theme } from './context'
+import { provideFlags, startFlagFetch } from './flags-context'
 import { StaticFetchLoader } from './dna-loader'
 import LayoutShell from './LayoutShell.vue'
 import PageView from './PageView.vue'
@@ -305,7 +348,28 @@ interface Config {
   ui: string
   api?: string | null
   core?: string | null
+  operational?: string | null
   apiBase?: string
+}
+
+// Decode a JWT payload without verification — used to surface the current
+// user's roles for render-time guards. The API is the authoritative gate.
+function decodeJwt(token: string | null): CurrentUser {
+  const empty: CurrentUser = { email: null, roles: [] }
+  if (!token) return empty
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return empty
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+    const payload = JSON.parse(atob(padded))
+    return {
+      email: typeof payload.email === 'string' ? payload.email : null,
+      roles: Array.isArray(payload.roles) ? payload.roles : [],
+    }
+  } catch {
+    return empty
+  }
 }
 
 function collectStubs(core: unknown): Record<string, Record<string, unknown>[]> {
@@ -326,10 +390,16 @@ function getInitialTheme(): Theme {
 const router = useRouter()
 const dna = ref<ProductUiDNA | null>(null)
 const api = ref<ProductApiDNA | null>(null)
+const operational = ref<OperationalDNA | null>(null)
 const apiBase = ref('')
 const stubs = ref<Record<string, Record<string, unknown>[]>>({})
 const error = ref<string | null>(null)
 const theme = ref<Theme>(getInitialTheme())
+const user = ref<CurrentUser>(decodeJwt(typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null))
+
+// Install the flag injection seam so descendant blocks can read flags.
+// The actual fetch kicks off inside onMounted once we know the apiBase.
+provideFlags()
 
 const bg = computed(() => theme.value === 'dark' ? '#111827' : '#ffffff')
 
@@ -342,6 +412,8 @@ function toggleTheme() {
 provideDna({
   get dna() { return dna.value! },
   get api() { return api.value },
+  get operational() { return operational.value },
+  get user() { return user.value },
   get apiBase() { return apiBase.value },
   get stubs() { return stubs.value },
   theme,
@@ -357,15 +429,22 @@ onMounted(async () => {
       config.ui,
       config.api ?? null,
       config.core ?? null,
+      config.operational ?? null,
     )
-    const [uiDna, apiDna, coreDna] = await Promise.all([
+    const [uiDna, apiDna, coreDna, operationalDna] = await Promise.all([
       loader.loadUi(),
       loader.loadApi(),
       loader.loadCore(),
+      loader.loadOperational(),
     ])
     dna.value = uiDna
     api.value = apiDna
+    operational.value = operationalDna
     stubs.value = collectStubs(coreDna)
+
+    // Kick off the flag fetch once we know apiBase. Fail-closed on any error.
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
+    startFlagFetch(apiBase.value, token)
 
     // Dynamically add routes from DNA
     router.addRoute({
@@ -977,18 +1056,20 @@ const actions = computed(() => {
 
 export function rendererActionButton(): string {
   return `<template>
-  <div>
+  <div v-if="visible">
     <button
       type="button"
       @click="handleClick"
-      :disabled="loading"
+      :disabled="disabled"
+      :title="buttonTitle"
       :style="{
         padding: '0.5rem 1rem',
-        background: loading ? t.textMuted : bg,
+        background: disabled ? t.textMuted : bg,
         color: '#fff',
         border: 'none',
         borderRadius: '0.375rem',
-        cursor: loading ? 'not-allowed' : 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: blockedByFlagOnly ? 0.6 : 1,
       }"
     >
       {{ loading ? actionName + '...' : actionName }}
@@ -1000,23 +1081,51 @@ export function rendererActionButton(): string {
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useThemeTokens } from '../context'
+import { useDna, useThemeTokens } from '../context'
 import { useApi } from '../useApi'
+import { useFlags, readFlagSnapshotSync } from '../flags-context'
+import { evaluateRule, findAccessRule, missingFlagsForEntry } from '../rules'
 
 const props = defineProps<{ resource: string; actionName: string }>()
 const t = useThemeTokens()
 const route = useRoute()
 const router = useRouter()
+const { operational, user } = useDna()
+const flags = useFlags()
 
 const operation = computed(() => \`\${props.resource}.\${props.actionName}\`)
 const { submit } = useApi(operation.value)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+// ── Render-time guard — pure function of (user, flags) ───────────────────
+// Undefined rule (no rules loaded / capability has no access rule) leaves
+// the button visible — the API is the authoritative gate. A rule that exists
+// but fails to match any allow entry hides the button, unless the *only*
+// reason it fails is a missing flag, in which case we disable-with-tooltip.
+const rule = computed(() => findAccessRule(operational, operation.value))
+const allowed = computed(() => evaluateRule(rule.value, user.roles, flags.value))
+const missingFlags = computed(() => {
+  if (allowed.value || !rule.value) return [] as string[]
+  return (rule.value.allow ?? []).flatMap(entry => missingFlagsForEntry(entry, user.roles, flags.value))
+})
+const blockedByFlagOnly = computed(() => !allowed.value && missingFlags.value.length > 0)
+const visible = computed(() => allowed.value || blockedByFlagOnly.value)
+
 const isDanger = computed(() => /reject|delete|cancel/i.test(props.actionName))
 const bg = computed(() => isDanger.value ? t.value.danger : t.value.success)
+const disabled = computed(() => loading.value || blockedByFlagOnly.value)
+const buttonTitle = computed(() => blockedByFlagOnly.value
+  ? \`Requires feature: \${missingFlags.value.join(', ')}\`
+  : undefined)
 
 async function handleClick() {
+  // Click-time guard — fast-path re-read of the flag snapshot before firing.
+  const liveFlags = readFlagSnapshotSync()
+  if (!evaluateRule(rule.value, user.roles, liveFlags)) {
+    error.value = 'This action is not currently available.'
+    return
+  }
   loading.value = true
   error.value = null
   try {
@@ -1052,3 +1161,139 @@ const t = useThemeTokens()
 </script>
 `
 }
+
+// ── Flag provide/inject — fetches /api/flags on app mount, provides Ref ──────
+// Fail-closed: missing / unfetched / 404 → all flags off. Also exposed via a
+// module-level snapshot for click-time guards that fire outside reactive
+// contexts.
+
+export function rendererFlagsContext(): string {
+  return `import { ref, inject, provide, type Ref, type InjectionKey } from 'vue'
+
+export type FlagSnapshot = Record<string, boolean>
+
+const EMPTY: FlagSnapshot = Object.freeze({}) as FlagSnapshot
+
+// Single shared ref + module-level mirror. The App sets up the provide once
+// and calls startFlagFetch(apiBase, token) once it knows those values.
+const flagsRef = ref<FlagSnapshot>(EMPTY)
+const loadedRef = ref<boolean>(false)
+let liveSnapshot: FlagSnapshot = EMPTY
+
+export function readFlagSnapshotSync(): FlagSnapshot {
+  return liveSnapshot
+}
+
+interface FlagContextValue {
+  flags: Ref<FlagSnapshot>
+  loaded: Ref<boolean>
+}
+
+export const FlagKey: InjectionKey<FlagContextValue> = Symbol('FlagContext')
+
+export function provideFlags(initial?: FlagSnapshot) {
+  if (initial) {
+    flagsRef.value = initial
+    loadedRef.value = true
+    liveSnapshot = initial
+  }
+  provide(FlagKey, { flags: flagsRef, loaded: loadedRef })
+}
+
+export function useFlags(): Ref<FlagSnapshot> {
+  const ctx = inject(FlagKey)
+  return ctx?.flags ?? ref(EMPTY)
+}
+
+export function useFlag(name: string): Ref<boolean> {
+  const flags = useFlags()
+  return ref(flags.value[name] === true)
+}
+
+function normalize(raw: unknown): FlagSnapshot {
+  if (!raw || typeof raw !== 'object') return EMPTY
+  const out: FlagSnapshot = {}
+  const src = (raw as { flags?: unknown }).flags ?? raw
+  if (src && typeof src === 'object') {
+    for (const [k, v] of Object.entries(src as Record<string, unknown>)) {
+      out[k] = v === true
+    }
+  }
+  return out
+}
+
+/** Kick off the fetch. Safe to call more than once — later calls replace the
+ *  snapshot. Any failure leaves the snapshot empty (fail-closed). */
+export function startFlagFetch(apiBase: string, token: string | null, endpoint?: string) {
+  const url = endpoint ?? \`\${apiBase}/api/flags\`
+  const headers: Record<string, string> = {}
+  if (token) headers.Authorization = \`Bearer \${token}\`
+  fetch(url, { headers })
+    .then(res => (res.ok ? res.json() : null))
+    .then(body => {
+      const snap = normalize(body)
+      flagsRef.value = snap
+      liveSnapshot = snap
+      loadedRef.value = true
+    })
+    .catch(() => {
+      flagsRef.value = EMPTY
+      liveSnapshot = EMPTY
+      loadedRef.value = true
+    })
+}
+`
+}
+
+// ── Rules module — pure allow-entry evaluator used by render + click guards ──
+
+export function rendererRules(): string {
+  return `import type { OperationalDNA, Rule, AllowEntry } from './types'
+import type { FlagSnapshot } from './flags-context'
+
+export function findAccessRule(
+  operational: OperationalDNA | null,
+  capability: string,
+): Rule | undefined {
+  if (!operational?.rules) return undefined
+  return operational.rules.find(r => r.capability === capability && r.type !== 'condition')
+}
+
+export function missingFlagsForEntry(
+  entry: AllowEntry,
+  userRoles: string[],
+  flags: FlagSnapshot,
+): string[] {
+  if (entry.role && !userRoles.includes(entry.role)) return []
+  const required = entry.flags ?? []
+  return required.filter(name => flags[name] !== true)
+}
+
+function entryMatches(entry: AllowEntry, userRoles: string[], flags: FlagSnapshot): boolean {
+  if (entry.role && !userRoles.includes(entry.role)) return false
+  const required = entry.flags ?? []
+  for (const name of required) {
+    if (flags[name] !== true) return false
+  }
+  return true
+}
+
+/**
+ * Evaluate an access rule against the current user + flag snapshot.
+ * - Undefined rule  → allowed (no constraint loaded — API is authoritative).
+ * - Empty allow[]   → blocked (explicit kill-switch).
+ * - Non-empty allow → allowed iff any entry matches.
+ */
+export function evaluateRule(
+  rule: Rule | undefined,
+  userRoles: string[],
+  flags: FlagSnapshot,
+): boolean {
+  if (!rule) return true
+  const allow = rule.allow ?? []
+  if (allow.length === 0) return false
+  return allow.some(entry => entryMatches(entry, userRoles, flags))
+}
+`
+}
+

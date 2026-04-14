@@ -100,6 +100,7 @@ export interface UiCellContext {
   uiFetchPath: string           // e.g. /dna/lending/product.ui.json
   apiFetchPath?: string         // e.g. /dna/lending/product.api.json
   coreFetchPath?: string        // e.g. /dna/lending/product.core.json
+  operationalFetchPath?: string // e.g. /dna/lending/operational.json — rules for flag-aware authz
   apiBase?: string              // e.g. http://localhost:3001
   dnaSourceDir: string          // absolute path to the dna/ directory
   vendorComponents?: boolean    // copy primitives into output instead of importing from package

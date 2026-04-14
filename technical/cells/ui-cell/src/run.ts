@@ -105,11 +105,27 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   const apiBase = (cell.adapter.config?.api_base as string) ?? ''
   const vendorComponents = (cell.adapter.config?.vendorComponents as boolean | undefined) ?? true
 
+  // ── Resolve Operational DNA reference (explicit or sibling convention) ──────
+  // Rules live in operational.json and drive the flag-aware render + click
+  // guards. Prefer an explicit `operational_dna` config key; otherwise fall
+  // back to the convention that each domain has a sibling `operational.json`
+  // next to its `product.ui.json` (e.g. `lending/operational`).
+  let operationalRef = cell.adapter.config?.operational_dna as string | undefined
+  if (!operationalRef) {
+    const domainPrefix = cell.dna.includes('/') ? cell.dna.split('/').slice(0, -1).join('/') : ''
+    const candidate = domainPrefix ? `${domainPrefix}/operational` : 'operational'
+    if (fs.existsSync(path.resolve(dnaBase, `${candidate}.json`))) {
+      operationalRef = candidate
+    }
+  }
+  const operationalFetchPath = operationalRef ? `/dna/${operationalRef}.json` : undefined
+
   // ── Build cell context ──────────────────────────────────────────────────────
   const ctx: UiCellContext = {
     uiFetchPath: `/dna/${cell.dna}.json`,
     apiFetchPath,
     coreFetchPath: coreRef ? `/dna/${coreRef}.json` : undefined,
+    operationalFetchPath,
     apiBase,
     dnaSourceDir: dnaBase,
     vendorComponents,

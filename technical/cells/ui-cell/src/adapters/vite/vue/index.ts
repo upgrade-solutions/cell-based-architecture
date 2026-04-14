@@ -29,6 +29,8 @@ import {
   rendererActionsBlock,
   rendererActionButton,
   rendererEmptyStateBlock,
+  rendererFlagsContext,
+  rendererRules,
 } from './generators/renderer'
 
 function write(outputDir: string, relPath: string, content: string): void {
@@ -50,12 +52,13 @@ export const generate: UiCellAdapter['generate'] = (
     ui: ctx?.uiFetchPath ?? '/dna.json',
     api: ctx?.apiFetchPath ?? null,
     core: ctx?.coreFetchPath ?? null,
+    operational: ctx?.operationalFetchPath ?? null,
     apiBase: ctx?.apiBase ?? '',
   }, null, 2) + '\n')
 
   // ── Copy DNA files into public/dna/ so they ship with the vite build ────────
   if (ctx) {
-    const fetchPaths = [ctx.uiFetchPath, ctx.apiFetchPath, ctx.coreFetchPath].filter(
+    const fetchPaths = [ctx.uiFetchPath, ctx.apiFetchPath, ctx.coreFetchPath, ctx.operationalFetchPath].filter(
       (p): p is string => typeof p === 'string' && p.startsWith('/dna/'),
     )
     for (const fetchPath of fetchPaths) {
@@ -85,6 +88,8 @@ export const generate: UiCellAdapter['generate'] = (
   // ── Renderer — Vue 3 SFC components, fetches DNA at runtime ────────────────
   write(outputDir, 'src/renderer/types.ts',                        rendererTypes())
   write(outputDir, 'src/renderer/context.ts',                      rendererDnaContext())
+  write(outputDir, 'src/renderer/flags-context.ts',                rendererFlagsContext())
+  write(outputDir, 'src/renderer/rules.ts',                        rendererRules())
   write(outputDir, 'src/renderer/dna-loader.ts',                   rendererDnaLoader())
   write(outputDir, 'src/renderer/useApi.ts',                       rendererUseApi())
   write(outputDir, 'src/renderer/App.vue',                         rendererApp())
