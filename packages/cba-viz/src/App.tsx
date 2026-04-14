@@ -6,8 +6,10 @@ import { loadOperationalDNA, type OperationalDNA } from './loaders/operational-l
 import {
   loadProductCoreDNA,
   loadProductApiDNA,
+  loadProductUiDNA,
   type ProductCoreDNA,
   type ProductApiDNA,
+  type ProductUiDNA,
 } from './loaders/product-loader.ts'
 import { graphToArchView, saveViews } from './features/persistence.ts'
 import { graphToOperationalDNA, saveOperational } from './features/operational-persistence.ts'
@@ -15,6 +17,7 @@ import { TechnicalCanvas } from './components/TechnicalCanvas.tsx'
 import { OperationalCanvas } from './components/OperationalCanvas.tsx'
 import { ProductCoreCanvas } from './components/ProductCoreCanvas.tsx'
 import { ProductApiCanvas } from './components/ProductApiCanvas.tsx'
+import { ProductUiCanvas } from './components/ProductUiCanvas.tsx'
 import { Toolbar, type Layer } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
@@ -43,7 +46,8 @@ function getLayer(): Layer {
   if (
     fromUrl === 'operational' ||
     fromUrl === 'product-core' ||
-    fromUrl === 'product-api'
+    fromUrl === 'product-api' ||
+    fromUrl === 'product-ui'
   ) return fromUrl
   return 'technical'
 }
@@ -81,6 +85,9 @@ const App = observer(function App() {
   // Product API layer state — hand-authored namespace, resources, endpoints
   const [productApiDna, setProductApiDna] = useState<ProductApiDNA | null>(null)
 
+  // Product UI layer state — hand-authored layout, pages, blocks, routes
+  const [productUiDna, setProductUiDna] = useState<ProductUiDNA | null>(null)
+
   // Load error state per layer. Keeps the loading gate honest — without
   // this, a 404 or parse failure silently leaves the corresponding layer
   // at `null` and the UI shows "Loading…" forever. With it, we surface a
@@ -89,6 +96,7 @@ const App = observer(function App() {
   const [operationalError, setOperationalError] = useState<string | null>(null)
   const [productCoreError, setProductCoreError] = useState<string | null>(null)
   const [productApiError, setProductApiError] = useState<string | null>(null)
+  const [productUiError, setProductUiError] = useState<string | null>(null)
 
   const [domain] = useState(getDomain)
   const [env, setEnvState] = useState(getEnv)
@@ -185,6 +193,18 @@ const App = observer(function App() {
       })
   }, [domain])
 
+  // ── Product UI DNA loader ──
+  // Hand-authored like product-api. Layout + pages + blocks.
+  useEffect(() => {
+    setProductUiError(null)
+    loadProductUiDNA(domain)
+      .then(setProductUiDna)
+      .catch(err => {
+        console.error('Failed to load product UI DNA:', err)
+        setProductUiError(String(err.message ?? err))
+      })
+  }, [domain])
+
   // ── Live status polling (technical only) ──
   //
   // Polling runs independently of the active layer so switching away
@@ -247,15 +267,16 @@ const App = observer(function App() {
       return
     }
 
-    // Product API editing is authoring territory — the file is
+    // Product API / UI editing is authoring territory — the files are
     // hand-maintained, not materialized — but the graph→DNA mutation
-    // helper + save endpoint are a follow-up. Block the save for now
-    // so position drags and form edits don't silently disappear on
-    // refresh, and point the user at the commit that'll unlock it.
-    if (layer === 'product-api') {
+    // helpers + save endpoints are follow-up work. Block the save for
+    // now so position drags and form edits don't silently disappear
+    // on refresh, and point the user at the missing piece.
+    if (layer === 'product-api' || layer === 'product-ui') {
+      const which = layer === 'product-api' ? 'API' : 'UI'
       alert(
-        'Product API save is not wired up yet. The canvas is rendering-only until the ' +
-        'graphToProductApiDNA helper + /api/dna/product-api POST persistence lands in a ' +
+        `Product ${which} save is not wired up yet. The canvas is rendering-only until the ` +
+        `graphToProductXxxDNA helper + /api/dna/${layer} POST persistence lands in a ` +
         'follow-up commit. Your edits are safe in the browser session — refresh loses them.',
       )
       graphModel.setDirty(false)
@@ -312,17 +333,20 @@ const App = observer(function App() {
   const operationalReady = operationalDna
   const productCoreReady = productCoreDna
   const productApiReady = productApiDna
+  const productUiReady = productUiDna
   const ready =
     layer === 'technical'    ? technicalReady :
     layer === 'operational'  ? operationalReady :
     layer === 'product-core' ? productCoreReady :
     layer === 'product-api'  ? productApiReady :
+    layer === 'product-ui'   ? productUiReady :
     false
   const error =
     layer === 'technical'    ? technicalError :
     layer === 'operational'  ? operationalError :
     layer === 'product-core' ? productCoreError :
     layer === 'product-api'  ? productApiError :
+    layer === 'product-ui'   ? productUiError :
     null
   if (!ready) {
     if (error) {
@@ -379,6 +403,12 @@ const App = observer(function App() {
             key={`papi:${domain}`}
             model={graphModel}
             dna={productApiDna}
+          />
+        ) : layer === 'product-ui' && productUiDna ? (
+          <ProductUiCanvas
+            key={`pui:${domain}`}
+            model={graphModel}
+            dna={productUiDna}
           />
         ) : null
       }

@@ -18,6 +18,11 @@ const ZONE_COLORS: Record<string, { stroke: string; fill: string; textFill: stri
   // emerald so a glance tells you whether you're looking at business
   // logic (operational) or product surface (product API).
   'namespace-api': { stroke: '#6366f1', fill: 'rgba(99, 102, 241, 0.06)', textFill: '#a5b4fc' },
+  // Product UI layout zone — violet. Same colorway as OutcomeShape
+  // coincidentally (no conflict — layouts are zones, outcomes are
+  // small primitives), and distinct from product-api's indigo so the
+  // UI surface reads as a sibling-but-separate product layer.
+  'layout-ui': { stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.06)', textFill: '#d8b4fe' },
 }
 
 /**

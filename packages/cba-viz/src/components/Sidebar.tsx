@@ -315,6 +315,18 @@ function lookupSchema(layer: string, kind: string): { family: string; name: stri
     }
   }
 
+  // Product UI primitives live under product/schemas/web/. The
+  // `layout` schema is open-ended (different layout variants carry
+  // different config shapes), but RJSF just renders whatever fields
+  // the schema declares.
+  if (layer === 'product-ui') {
+    switch (kind) {
+      case 'layout': return { family: 'product', name: 'web/layout' }
+      case 'page':   return { family: 'product', name: 'web/page' }
+      case 'block':  return { family: 'product', name: 'web/block' }
+    }
+  }
+
   return null
 }
 
