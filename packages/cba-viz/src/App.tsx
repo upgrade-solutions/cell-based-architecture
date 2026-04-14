@@ -57,17 +57,28 @@ import {
 } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
-// Phase 5c.4 Chunk 1 — operational CRUD dialogs + mutations
+// Phase 5c.4 — CRUD dialogs + mutations
+// Chunk 1: operational. Chunk 2: product-api + product-ui.
 import { CreatePrimitiveDialog } from './components/CreatePrimitiveDialog.tsx'
-import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.tsx'
+import { DeleteConfirmDialog, type RemovedItem } from './components/DeleteConfirmDialog.tsx'
 import {
   renameNoun,
   renameCapability,
   deleteOperationalPrimitive,
   previewCascade,
   type OperationalPrimitiveKind,
-  type RemovedPrimitive,
 } from './features/operational-mutations.ts'
+import {
+  renameResource,
+  renameResourceUi,
+  renamePage,
+  deleteProductApiPrimitive,
+  deleteProductUiPrimitive,
+  previewCascadeProductApi,
+  previewCascadeProductUi,
+  type ProductApiPrimitiveKind,
+  type ProductUiPrimitiveKind,
+} from './features/product-mutations.ts'
 
 // ── URL param getters ──────────────────────────────────────────────────
 
@@ -209,13 +220,20 @@ const App = observer(function App() {
   const [productApiError, setProductApiError] = useState<string | null>(null)
   const [productUiError, setProductUiError] = useState<string | null>(null)
 
-  // Phase 5c.4 Chunk 1 — operational CRUD dialog state
+  // Phase 5c.4 — CRUD dialog state (operational + product-api + product-ui)
+  //
+  // `layer` carries which mutation module owns the pending delete so
+  // `handleConfirmDelete` can dispatch to the right `delete*Primitive`
+  // helper. Kind is a union of every kind across all three layers —
+  // the ID + cascade preview stays narrow per layer so operational
+  // rules never end up dispatched to product and vice versa.
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{
-    kind: OperationalPrimitiveKind
+    layer: 'operational' | 'product-api' | 'product-ui'
+    kind: OperationalPrimitiveKind | ProductApiPrimitiveKind | ProductUiPrimitiveKind
     key: string
     label: string
-    removed: RemovedPrimitive[]
+    removed: RemovedItem[]
   } | null>(null)
 
   const [domain] = useState(getDomain)
@@ -491,12 +509,54 @@ const App = observer(function App() {
         setOperationalDna(updatedDna)
       } else if (sub === 'product' && productVariant === 'api') {
         if (!productApiDna) return
-        const updatedDna = graphToProductApiDNA(graphModel.graph, productApiDna)
+        // Detect pending renames before mutate-by-id, same shape as
+        // operational above. Resource renames also cascade into the
+        // companion ProductUiDNA (Page.resource + Block.operation
+        // prefix), so we apply both walks here and save both docs
+        // when the UI doc changed.
+        let baseApiDna = productApiDna
+        let baseUiDna = productUiDna
+        let uiChanged = false
+        for (const el of graphModel.graph.getElements()) {
+          const cellDna = el.get('dna') as { layer?: string; kind?: string; source?: Record<string, unknown> } | undefined
+          if (cellDna?.layer !== 'product-api') continue
+          if (cellDna.kind !== 'resource') continue
+          const id = el.id as string
+          const oldName = id.replace(/^resource:/, '')
+          const newName = cellDna.source?.name as string | undefined
+          if (newName && oldName !== newName) {
+            baseApiDna = renameResource(baseApiDna, oldName, newName)
+            if (baseUiDna) {
+              baseUiDna = renameResourceUi(baseUiDna, oldName, newName)
+              uiChanged = true
+            }
+          }
+        }
+        const updatedDna = graphToProductApiDNA(graphModel.graph, baseApiDna)
         await saveProductApi(domain, updatedDna)
         setProductApiDna(updatedDna)
+        if (uiChanged && baseUiDna) {
+          await saveProductUi(domain, baseUiDna)
+          setProductUiDna(baseUiDna)
+        }
       } else if (sub === 'product' && productVariant === 'ui') {
         if (!productUiDna) return
-        const updatedDna = graphToProductUiDNA(graphModel.graph, productUiDna)
+        // Detect pending Page renames before mutate-by-id. Pages are
+        // the only product-ui primitive whose name identifies cross-
+        // references (Route.page).
+        let baseUiDna = productUiDna
+        for (const el of graphModel.graph.getElements()) {
+          const cellDna = el.get('dna') as { layer?: string; kind?: string; source?: Record<string, unknown> } | undefined
+          if (cellDna?.layer !== 'product-ui') continue
+          if (cellDna.kind !== 'page') continue
+          const id = el.id as string
+          const oldName = id.replace(/^page:/, '')
+          const newName = cellDna.source?.name as string | undefined
+          if (newName && oldName !== newName) {
+            baseUiDna = renamePage(baseUiDna, oldName, newName)
+          }
+        }
+        const updatedDna = graphToProductUiDNA(graphModel.graph, baseUiDna)
         await saveProductUi(domain, updatedDna)
         setProductUiDna(updatedDna)
       }
@@ -546,8 +606,12 @@ const App = observer(function App() {
     [operationalDna, graphModel],
   )
 
-  /** Create dialog result — swap in the new DNA and close the dialog. */
-  const handleCreatePrimitive = useCallback(
+  /**
+   * Create dialog result — swap in the new DNA and close the dialog.
+   * One handler per editable layer so each can set its own state
+   * atom without juggling discriminators here.
+   */
+  const handleCreateOperational = useCallback(
     (nextDna: OperationalDNA) => {
       setOperationalDna(nextDna)
       graphModel.setDirty(true)
@@ -556,19 +620,57 @@ const App = observer(function App() {
     [graphModel],
   )
 
-  /** Delete confirmation result — commit the cached deletion. */
+  const handleCreateProductApi = useCallback(
+    (nextDna: ProductApiDNA) => {
+      setProductApiDna(nextDna)
+      graphModel.setDirty(true)
+      setCreateDialogOpen(false)
+    },
+    [graphModel],
+  )
+
+  const handleCreateProductUi = useCallback(
+    (nextDna: ProductUiDNA) => {
+      setProductUiDna(nextDna)
+      graphModel.setDirty(true)
+      setCreateDialogOpen(false)
+    },
+    [graphModel],
+  )
+
+  /**
+   * Delete confirmation result — commit the cached deletion. Dispatches
+   * on `layer` so each layer's mutation helper gets called with the
+   * right DNA + key format.
+   */
   const handleConfirmDelete = useCallback(() => {
-    if (!deleteConfirm || !operationalDna) return
-    const { dna: nextDna } = deleteOperationalPrimitive(
-      operationalDna,
-      deleteConfirm.kind,
-      deleteConfirm.key,
-    )
-    setOperationalDna(nextDna)
+    if (!deleteConfirm) return
+    if (deleteConfirm.layer === 'operational' && operationalDna) {
+      const { dna: nextDna } = deleteOperationalPrimitive(
+        operationalDna,
+        deleteConfirm.kind as OperationalPrimitiveKind,
+        deleteConfirm.key,
+      )
+      setOperationalDna(nextDna)
+    } else if (deleteConfirm.layer === 'product-api' && productApiDna) {
+      const { dna: nextDna } = deleteProductApiPrimitive(
+        productApiDna,
+        deleteConfirm.kind as ProductApiPrimitiveKind,
+        deleteConfirm.key,
+      )
+      setProductApiDna(nextDna)
+    } else if (deleteConfirm.layer === 'product-ui' && productUiDna) {
+      const { dna: nextDna } = deleteProductUiPrimitive(
+        productUiDna,
+        deleteConfirm.kind as ProductUiPrimitiveKind,
+        deleteConfirm.key,
+      )
+      setProductUiDna(nextDna)
+    }
     graphModel.setDirty(true)
     graphModel.setSelectedCellView(null)
     setDeleteConfirm(null)
-  }, [deleteConfirm, operationalDna, graphModel])
+  }, [deleteConfirm, operationalDna, productApiDna, productUiDna, graphModel])
 
   /**
    * Delete / Backspace keyboard shortcut — only active on Build >
@@ -582,8 +684,14 @@ const App = observer(function App() {
    * unique names. Same for outcomes.
    */
   useEffect(() => {
-    if (phase !== 'build' || sub !== 'operational') return
-    if (!operationalDna) return
+    // Active on Build > Operational and on Build > Product (API/UI
+    // variants — Core is read-only). We read the selected cell's
+    // `dna.layer` to decide which mutation module owns the delete.
+    if (phase !== 'build') return
+    const operationalActive = sub === 'operational'
+    const productApiActive = sub === 'product' && productVariant === 'api'
+    const productUiActive = sub === 'product' && productVariant === 'ui'
+    if (!operationalActive && !productApiActive && !productUiActive) return
 
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Delete' && e.key !== 'Backspace') return
@@ -601,33 +709,86 @@ const App = observer(function App() {
       const cell = cellView.model
       const cellDna = cell.get('dna') as Record<string, unknown> | undefined
       if (!cellDna) return
-      if (cellDna.layer !== 'operational') return
 
+      const layer = cellDna.layer as string | undefined
       const kind = cellDna.kind as string | undefined
-      if (kind !== 'noun' && kind !== 'capability' && kind !== 'rule' && kind !== 'outcome' && kind !== 'signal') return
+      if (!layer || !kind) return
 
-      // Key lookup by kind: nouns + capabilities + signals use their
-      // display name; rules + outcomes use the stable graph id since
-      // they have no unique name (they're indexed under a capability).
-      let key: string
-      let label: string
-      if (kind === 'rule' || kind === 'outcome') {
-        key = cell.id as string
-        label = (cellDna.name as string | undefined) ?? key
-      } else {
-        key = cellDna.name as string
-        label = key
+      // Operational ────────────────────────────────────────────────
+      if (layer === 'operational' && operationalActive && operationalDna) {
+        if (
+          kind !== 'noun' &&
+          kind !== 'capability' &&
+          kind !== 'rule' &&
+          kind !== 'outcome' &&
+          kind !== 'signal'
+        ) {
+          return
+        }
+        let key: string
+        let label: string
+        if (kind === 'rule' || kind === 'outcome') {
+          key = cell.id as string
+          label = (cellDna.name as string | undefined) ?? key
+        } else {
+          key = cellDna.name as string
+          label = key
+        }
+        if (!key) return
+        e.preventDefault()
+        const removed = previewCascade(operationalDna, kind, key)
+        setDeleteConfirm({ layer: 'operational', kind, key, label, removed })
+        return
       }
-      if (!key) return
 
-      e.preventDefault()
-      const removed = previewCascade(operationalDna, kind, key)
-      setDeleteConfirm({ kind, key, label, removed })
+      // Product API ────────────────────────────────────────────────
+      if (layer === 'product-api' && productApiActive && productApiDna) {
+        if (kind !== 'resource' && kind !== 'endpoint') return
+        // Resource uses its name as key; endpoint uses the stable
+        // graph id since (method, path) needs both components.
+        let key: string
+        let label: string
+        if (kind === 'resource') {
+          key = cellDna.name as string
+          label = key
+        } else {
+          key = cell.id as string
+          const source = cellDna.source as { method?: string; path?: string } | undefined
+          label = source?.method && source?.path ? `${source.method} ${source.path}` : key
+        }
+        if (!key) return
+        e.preventDefault()
+        const removed = previewCascadeProductApi(productApiDna, kind, key)
+        setDeleteConfirm({ layer: 'product-api', kind, key, label, removed })
+        return
+      }
+
+      // Product UI ─────────────────────────────────────────────────
+      if (layer === 'product-ui' && productUiActive && productUiDna) {
+        if (kind !== 'page' && kind !== 'block') return
+        // Pages use their name as key; blocks use the stable graph
+        // id (block:<pageName>:<index>) since they have no unique
+        // cross-page name.
+        let key: string
+        let label: string
+        if (kind === 'page') {
+          key = cellDna.name as string
+          label = key
+        } else {
+          key = cell.id as string
+          label = (cellDna.name as string | undefined) ?? key
+        }
+        if (!key) return
+        e.preventDefault()
+        const removed = previewCascadeProductUi(productUiDna, kind, key)
+        setDeleteConfirm({ layer: 'product-ui', kind, key, label, removed })
+        return
+      }
     }
 
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [phase, sub, operationalDna, graphModel])
+  }, [phase, sub, productVariant, operationalDna, productApiDna, productUiDna, graphModel])
 
   // ── Readiness + error for the active (phase, sub) ──
   //
@@ -743,11 +904,30 @@ const App = observer(function App() {
 
     {/* Dialog overlays — rendered outside Layout so they aren't
         constrained by the toolbar/canvas/sidebar flex rows. Both
-        components provide their own fixed-position backdrop. */}
-    {createDialogOpen && operationalDna ? (
+        components provide their own fixed-position backdrop.
+        The create dialog dispatches on (sub, productVariant) so it
+        only opens against the DNA that's currently on-screen. */}
+    {createDialogOpen && sub === 'operational' && operationalDna ? (
       <CreatePrimitiveDialog
+        context="operational"
         dna={operationalDna}
-        onCreate={handleCreatePrimitive}
+        onCreate={handleCreateOperational}
+        onClose={() => setCreateDialogOpen(false)}
+      />
+    ) : null}
+    {createDialogOpen && sub === 'product' && productVariant === 'api' && productApiDna ? (
+      <CreatePrimitiveDialog
+        context="product-api"
+        dna={productApiDna}
+        onCreate={handleCreateProductApi}
+        onClose={() => setCreateDialogOpen(false)}
+      />
+    ) : null}
+    {createDialogOpen && sub === 'product' && productVariant === 'ui' && productUiDna ? (
+      <CreatePrimitiveDialog
+        context="product-ui"
+        dna={productUiDna}
+        onCreate={handleCreateProductUi}
         onClose={() => setCreateDialogOpen(false)}
       />
     ) : null}

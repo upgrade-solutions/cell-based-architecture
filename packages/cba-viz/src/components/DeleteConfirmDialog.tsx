@@ -1,18 +1,26 @@
-import type { RemovedPrimitive } from '../features/operational-mutations.ts'
-
 /**
- * Phase 5c.4 Chunk 1 — confirmation dialog for operational deletes.
+ * Phase 5c.4 — confirmation dialog for DNA deletes.
  *
- * The caller has already computed the cascade via `previewCascade`;
- * this component just lists what will be removed and asks for a final
- * yes/no. Keeping the preview computation outside the dialog means
- * the actual delete uses exactly the same list the user saw (no
- * chance for drift between preview and commit).
+ * The caller has already computed the cascade via a `previewCascade`
+ * variant; this component just lists what will be removed and asks
+ * for a final yes/no. Keeping the preview computation outside the
+ * dialog means the actual delete uses exactly the same list the user
+ * saw (no chance for drift between preview and commit).
+ *
+ * `removed` is typed loosely here (`kind: string`) so both operational
+ * and product mutation modules can pass their own `RemovedPrimitive`
+ * shape without cross-module imports. The dialog only cares about
+ * `kind` + `name` for display.
  */
+
+export interface RemovedItem {
+  kind: string
+  name: string
+}
 
 interface DeleteConfirmDialogProps {
   primaryLabel: string
-  removed: RemovedPrimitive[]
+  removed: RemovedItem[]
   onConfirm: () => void
   onCancel: () => void
 }
@@ -154,6 +162,10 @@ function kindBadgeStyle(kind: string): React.CSSProperties {
     rule:       { bg: '#78350f', fg: '#fcd34d' },
     outcome:    { bg: '#4c1d95', fg: '#c4b5fd' },
     signal:     { bg: '#881337', fg: '#fda4af' },
+    resource:   { bg: '#1e3a5f', fg: '#93c5fd' },
+    endpoint:   { bg: '#134e4a', fg: '#5eead4' },
+    page:       { bg: '#3730a3', fg: '#a5b4fc' },
+    block:      { bg: '#4a044e', fg: '#f5d0fe' },
   }
   const color = palette[kind] ?? { bg: '#334155', fg: '#cbd5e1' }
   return {

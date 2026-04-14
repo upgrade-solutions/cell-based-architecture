@@ -136,11 +136,16 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter, onOperat
                 // Deferred instead to save-time: App.tsx's `handleSave`
                 // detects renames by diffing each element's current
                 // `dna.source.name` against its graph id (which still
-                // encodes the pre-edit name), applies `renameNoun` /
-                // `renameCapability` to the DNA, and then persists the
-                // rewritten document. The user types freely, the canvas
-                // label updates live via `cell.attr` above, and the
-                // reference walk runs once on commit.
+                // encodes the pre-edit name), applies the matching
+                // `rename*` helper from operational-mutations or
+                // product-mutations, and then persists the rewritten
+                // document. The user types freely, the canvas label
+                // updates live via `cell.attr` above, and the reference
+                // walk runs once on commit.
+                //
+                // This applies to Phase 5c.4 Chunk 2 product renames
+                // too — Resource/Endpoint/Page/Block form edits update
+                // `dna.source` and the handleSave walk picks them up.
                 //
                 // `onOperationalRename` stays wired as a capability for
                 // a future explicit "Rename…" menu action or stable-UUID

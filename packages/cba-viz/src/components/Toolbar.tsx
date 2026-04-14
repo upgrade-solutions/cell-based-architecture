@@ -172,10 +172,16 @@ export const Toolbar = observer(function Toolbar({
   // Sub-tab list for the active phase.
   const subs: Sub[] = phase === 'build' ? BUILD_SUBS : RUN_SUBS
 
-  // "+ New" only surfaces for the sub-tabs we support in Phase 5c.4
-  // Chunk 1 — currently just operational. Other build surfaces can
-  // enable this in later chunks.
-  const showCreate = phase === 'build' && sub === 'operational' && typeof onCreate === 'function'
+  // "+ New" surfaces for the sub-tabs we support in Phase 5c.4:
+  //   Chunk 1 — Build > Operational
+  //   Chunk 2 — Build > Product (API + UI variants only; Core is
+  //             read-only since it's materialized from operational)
+  // Other build surfaces can enable this in later chunks.
+  const showCreate =
+    phase === 'build' &&
+    typeof onCreate === 'function' &&
+    (sub === 'operational' ||
+      (sub === 'product' && (productVariant === 'api' || productVariant === 'ui')))
 
   return (
     <div
