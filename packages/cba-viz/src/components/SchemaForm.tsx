@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Form from '@rjsf/core'
 import validator from '@rjsf/validator-ajv8'
 import type { RJSFSchema, UiSchema } from '@rjsf/utils'
+import { FlagChipsWidget } from './widgets/FlagChipsWidget'
 
 interface SchemaFormProps {
   /** Schema family under `/api/schemas/`. For operational primitives this is `operational`. */
@@ -66,6 +67,34 @@ const BASE_UI_SCHEMA: UiSchema = {
   },
 }
 
+// ── Schema-specific uiSchema overrides ──────────────────────────────────
+//
+// For Phase 5c.4 we only override the Rule form — the `flags` array on
+// each `allow[]` entry renders as tag chips (FlagChipsWidget) instead of
+// the default vertical list of text inputs. Other arrays on the Rule
+// form (`conditions`, `allow` itself) keep their default rendering.
+//
+// Note the nesting: `allow.items.flags` — for an array field, RJSF
+// uiSchema walks into `items` to reach the per-item object's properties.
+// The `ui:widget` lives on the `flags` array field itself (not under its
+// own `items`) because RJSF hands array-of-primitive widgets the whole
+// array via `props.value` when overridden at the array level.
+const RULE_UI_SCHEMA: UiSchema = {
+  ...BASE_UI_SCHEMA,
+  allow: {
+    items: {
+      flags: {
+        'ui:widget': FlagChipsWidget,
+      },
+    },
+  },
+}
+
+function uiSchemaFor(schemaName: string): UiSchema {
+  if (schemaName === 'rule') return RULE_UI_SCHEMA
+  return BASE_UI_SCHEMA
+}
+
 /**
  * Schema-driven form component.
  *
@@ -91,7 +120,7 @@ export function SchemaForm({ family, schemaName, data, onChange }: SchemaFormPro
     return () => { active = false }
   }, [family, schemaName])
 
-  const uiSchema = useMemo(() => BASE_UI_SCHEMA, [])
+  const uiSchema = useMemo(() => uiSchemaFor(schemaName), [schemaName])
 
   if (error) {
     return (
