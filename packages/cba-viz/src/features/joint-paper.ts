@@ -198,6 +198,25 @@ export function mountJointPaper(
     // the child div we created. Remove it explicitly so re-runs don't
     // stack papers on top of each other.
     if (paperEl.parentNode) paperEl.parentNode.removeChild(paperEl)
-    opts.model.cleanup()
+    //
+    // Intentionally NOT calling `opts.model.cleanup()` here.
+    //
+    // This cleanup runs on every data-driven effect re-run (dna
+    // change, view switch, etc.), not just on full component unmount.
+    // `GraphModel.cleanup()` resets dirty/scale/selection — fine for
+    // unmount, wrong for a re-mount. The bug it caused: deleting a
+    // primitive marked the graph dirty, the DNA state update triggered
+    // a canvas re-mount, this cleanup wiped `dirty` back to false, and
+    // the user's delete never reached the save path. Leaving the model
+    // alone here keeps dirty/scale sticky across data changes; the new
+    // setup below overwrites `graph` + `paper` references cleanly and
+    // the old JointJS objects are already disposed via `graph.clear()`
+    // and `paper.remove()` above.
+    //
+    // We DO clear `selectedCellView` because the cell view it points at
+    // was just destroyed — reading from it would crash the sidebar or
+    // show stale data from a cell that no longer exists. Dirty + scale
+    // are the only things that need to survive a re-mount.
+    opts.model.setSelectedCellView(null)
   }
 }
