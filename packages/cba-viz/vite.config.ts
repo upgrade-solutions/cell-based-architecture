@@ -85,6 +85,116 @@ function saveViewsPlugin() {
           return
         }
 
+        // GET /api/dna/:layer/:domain — read a raw DNA layer file.
+        //
+        // Layer-agnostic load endpoint used by the operational (and future
+        // product) editors. Unlike /api/load-views — which shells out to
+        // `cba views` to get a derived technical graph — this reads the
+        // on-disk layer document verbatim so the viewer can round-trip
+        // edits directly. Layer is a URL-safe token (see LAYER_FILES).
+        const dnaLoadMatch = req.url?.match(/^\/api\/dna\/([^/]+)\/(.+)$/)
+        if (req.method === 'GET' && dnaLoadMatch) {
+          const layer = decodeURIComponent(dnaLoadMatch[1])
+          const domain = decodeURIComponent(dnaLoadMatch[2])
+          const filePath = resolveDnaFile(domain, layer)
+          if (!filePath) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: `Unknown layer "${layer}"` }))
+            return
+          }
+          if (!fs.existsSync(filePath)) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: `${layer}.json not found for domain "${domain}"` }))
+            return
+          }
+          try {
+            const raw = fs.readFileSync(filePath, 'utf-8')
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(raw)
+          } catch (err) {
+            res.statusCode = 500
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+          return
+        }
+
+        // POST /api/dna/:layer/:domain — atomic write of a raw DNA layer.
+        //
+        // Body is the full layer document (same shape the GET returned). We
+        // write to a sibling `.tmp` file then rename so a crash mid-write
+        // can't leave a half-written JSON on disk. The operational editor
+        // uses this to round-trip edits from the RJSF form.
+        const dnaSaveMatch = req.url?.match(/^\/api\/dna\/([^/]+)\/(.+)$/)
+        if (req.method === 'POST' && dnaSaveMatch) {
+          const layer = decodeURIComponent(dnaSaveMatch[1])
+          const domain = decodeURIComponent(dnaSaveMatch[2])
+          const filePath = resolveDnaFile(domain, layer)
+          if (!filePath) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: `Unknown layer "${layer}"` }))
+            return
+          }
+          let body = ''
+          req.on('data', (chunk: string) => { body += chunk })
+          req.on('end', () => {
+            try {
+              // Validate JSON before touching disk
+              const parsed = JSON.parse(body)
+              const formatted = JSON.stringify(parsed, null, 2) + '\n'
+              const tmpPath = `${filePath}.tmp`
+              fs.writeFileSync(tmpPath, formatted, 'utf-8')
+              fs.renameSync(tmpPath, filePath)
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ ok: true }))
+            } catch (err) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // GET /api/schemas/:family/:name — serve a JSON schema from the
+        // repo's layer schema directories (operational/schemas, product/schemas,
+        // technical/schemas). The RJSF-driven inspector forms fetch these at
+        // runtime so there's one source of truth for schemas across CLI,
+        // validator, and viewer.
+        const schemaMatch = req.url?.match(/^\/api\/schemas\/([^/]+)\/([^/?]+)/)
+        if (req.method === 'GET' && schemaMatch) {
+          const family = decodeURIComponent(schemaMatch[1])
+          const name = decodeURIComponent(schemaMatch[2]).replace(/\.json$/, '')
+          const filePath = resolveSchemaFile(family, name)
+          if (!filePath || !fs.existsSync(filePath)) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: `Schema "${family}/${name}" not found` }))
+            return
+          }
+          try {
+            const raw = fs.readFileSync(filePath, 'utf-8')
+            const parsed = JSON.parse(raw)
+            // Dereference external $refs (e.g. noun.json → attribute.json) so
+            // RJSF's ajv validator can resolve them — it only handles refs
+            // inside the current document, not across URIs. See inlineRefs().
+            const dereferenced = inlineRefs(parsed)
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify(dereferenced))
+          } catch (err) {
+            res.statusCode = 500
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+          return
+        }
+
         // POST /api/save-views/:domain — merge views back into technical.json
         const match = req.url?.match(/^\/api\/save-views\/(.+)$/)
         if (req.method === 'POST' && match) {
@@ -349,6 +459,126 @@ function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<
     }
     Promise.all(checks).then(() => resolve(result)).catch(() => resolve(result))
   })
+}
+
+// ── DNA layer + schema resolution ────────────────────────────────────────
+//
+// URL-safe layer tokens map to on-disk filenames. Dots in `product.core` /
+// `product.api` / `product.ui` are awkward in URL path segments and would
+// collide with file extension sniffing, so we use dashes in the URL and
+// translate at the boundary. Mirrors packages/cba/src/context.ts:LAYERS but
+// inlined here to avoid a cross-package import (cba has a build step).
+const LAYER_FILES: Record<string, string> = {
+  'operational': 'operational.json',
+  'product-core': 'product.core.json',
+  'product-api': 'product.api.json',
+  'product-ui': 'product.ui.json',
+  'technical': 'technical.json',
+}
+
+function resolveDnaFile(domain: string, layer: string): string | null {
+  const file = LAYER_FILES[layer]
+  if (!file) return null
+  return path.resolve(__dirname, '../../dna', domain, file)
+}
+
+/**
+ * Schema families map to top-level schema directories at the repo root.
+ * Phase 1 only needs `operational`; product/technical are wired up so the
+ * Phase 2 editor can reuse the same endpoint without another config pass.
+ */
+const SCHEMA_DIRS: Record<string, string> = {
+  'operational': 'operational/schemas',
+  'product': 'product/schemas',
+  'technical': 'technical/schemas',
+}
+
+function resolveSchemaFile(family: string, name: string): string | null {
+  const dir = SCHEMA_DIRS[family]
+  if (!dir) return null
+  return path.resolve(__dirname, '../..', dir, `${name}.json`)
+}
+
+/**
+ * Dereference cross-schema `$ref`s into a self-contained document.
+ *
+ * JSON Schemas in this repo use absolute URIs like
+ * `https://dna.local/operational/attribute` as refs across files. RJSF's
+ * bundled ajv validator only resolves internal references (`#/...`), so
+ * without preprocessing a form for a Noun explodes with "Could not find
+ * a definition for https://dna.local/operational/attribute".
+ *
+ * We fix that server-side by walking the loaded schema, loading each
+ * referenced external schema file, and stashing it under a root `$defs`
+ * section with a local pointer. Repeated refs reuse the same entry, and
+ * cycles are broken by pre-marking the def key before recursing.
+ *
+ * Inlined schemas have their `$id` / `$schema` stripped because those
+ * create nested scopes inside ajv that would re-introduce the absolute
+ * URI lookup we're trying to avoid.
+ */
+function inlineRefs(rootSchema: unknown): unknown {
+  if (!rootSchema || typeof rootSchema !== 'object') return rootSchema
+  const defs: Record<string, unknown> = {}
+
+  function defKey(family: string, name: string): string {
+    return `${family}_${name}`
+  }
+
+  function loadExternal(family: string, name: string): unknown | null {
+    const file = resolveSchemaFile(family, name)
+    if (!file || !fs.existsSync(file)) return null
+    try {
+      const raw = JSON.parse(fs.readFileSync(file, 'utf-8'))
+      // Strip $id / $schema — ajv treats $id as a new base URI for
+      // nested resolution and would re-fetch the absolute URI we just
+      // worked around. A pure structural schema without $id is safer.
+      if (raw && typeof raw === 'object') {
+        delete raw.$id
+        delete raw.$schema
+      }
+      return raw
+    } catch {
+      return null
+    }
+  }
+
+  function walk(node: unknown): unknown {
+    if (!node || typeof node !== 'object') return node
+    if (Array.isArray(node)) return node.map(walk)
+    const src = node as Record<string, unknown>
+    const out: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(src)) {
+      if (key === '$ref' && typeof value === 'string' && value.startsWith('https://dna.local/')) {
+        // Strip fragment — we don't currently use subschema pointers,
+        // so `https://dna.local/operational/attribute#/foo` is unsupported.
+        const cleaned = value.split('#')[0]
+        const m = cleaned.match(/^https:\/\/dna\.local\/([^/]+)\/([^/]+)$/)
+        if (m) {
+          const [, family, name] = m
+          const key = defKey(family, name)
+          if (!(key in defs)) {
+            // Mark before recursing so cyclic refs (A → B → A) don't
+            // infinite-loop. We'll overwrite with the real schema next.
+            defs[key] = true
+            const loaded = loadExternal(family, name)
+            defs[key] = loaded ? walk(loaded) : {}
+          }
+          out['$ref'] = `#/$defs/${key}`
+          continue
+        }
+      }
+      out[key] = walk(value)
+    }
+    return out
+  }
+
+  const walked = walk(rootSchema) as Record<string, unknown>
+  if (Object.keys(defs).length > 0) {
+    const existingDefs = (walked.$defs ?? {}) as Record<string, unknown>
+    walked.$defs = { ...existingDefs, ...defs }
+  }
+  return walked
 }
 
 // ── Technical DNA helpers ────────────────────────────────────────────────

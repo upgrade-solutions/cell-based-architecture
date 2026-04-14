@@ -2,9 +2,12 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
 import { GraphModel } from './models/GraphModel.ts'
 import { parseArchitectureDNA, type ArchitectureDNA, type NodeStatus } from './loaders/dna-loader.ts'
+import { loadOperationalDNA, type OperationalDNA } from './loaders/operational-loader.ts'
 import { graphToArchView, saveViews } from './features/persistence.ts'
-import { Canvas } from './components/Canvas.tsx'
-import { Toolbar } from './components/Toolbar.tsx'
+import { graphToOperationalDNA, saveOperational } from './features/operational-persistence.ts'
+import { TechnicalCanvas } from './components/TechnicalCanvas.tsx'
+import { OperationalCanvas } from './components/OperationalCanvas.tsx'
+import { Toolbar, type Layer } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
 
@@ -18,6 +21,18 @@ function getDomain(): string {
 function getEnv(): string {
   const params = new URLSearchParams(window.location.search)
   return params.get('env') ?? 'dev'
+}
+
+/**
+ * Read layer from ?layer= URL param. Default is 'technical' to preserve
+ * the existing viewer behavior for users who don't yet know the editor
+ * exists. Pasted links like `?layer=operational` land straight on the
+ * operational canvas.
+ */
+function getLayer(): Layer {
+  const params = new URLSearchParams(window.location.search)
+  const fromUrl = params.get('layer')
+  return fromUrl === 'operational' ? 'operational' : 'technical'
 }
 
 /**
@@ -38,12 +53,19 @@ const STATUS_POLL_MS = 5000
 const App = observer(function App() {
   const graphModel = useMemo(() => new GraphModel(), [])
   const [saving, setSaving] = useState(false)
+
+  // Technical layer state
   const [dna, setDna] = useState<ArchitectureDNA | null>(null)
   const [currentViewName, setCurrentViewName] = useState('deployment')
   const liveStatus = useRef<Record<string, string>>({})
+
+  // Operational layer state
+  const [operationalDna, setOperationalDna] = useState<OperationalDNA | null>(null)
+
   const [domain] = useState(getDomain)
   const [env, setEnvState] = useState(getEnv)
   const [adapter, setAdapterState] = useState(() => getAdapter(getEnv()))
+  const [layer, setLayer] = useState<Layer>(getLayer)
 
   // Env drives adapter via the coupling rule: technical.json carries
   // env-scoped construct variants (dev → local postgres/RabbitMQ, prod →
@@ -56,37 +78,51 @@ const App = observer(function App() {
     setAdapterState(next === 'prod' ? 'terraform/aws' : 'docker-compose')
   }, [])
 
-  // Reflect the current env + adapter in the URL so reloads preserve state
-  // and copy-pasted URLs land on the same view. `replaceState` keeps this
-  // out of browser history (otherwise every selector click adds an entry).
+  // Switching layers resets the selected graph element so the sidebar
+  // doesn't display stale data from the other layer's shape.
+  const handleLayerChange = useCallback((next: Layer) => {
+    graphModel.setSelectedCellView(null)
+    graphModel.setDirty(false)
+    setLayer(next)
+  }, [graphModel])
+
+  // Reflect the current env + adapter + layer in the URL so reloads
+  // preserve state and copy-pasted URLs land on the same view.
+  // `replaceState` keeps this out of browser history.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     params.set('domain', domain)
     params.set('env', env)
     params.set('adapter', adapter)
+    params.set('layer', layer)
     const nextUrl = `${window.location.pathname}?${params.toString()}`
     if (nextUrl !== window.location.pathname + window.location.search) {
       window.history.replaceState(null, '', nextUrl)
     }
-  }, [domain, env, adapter])
+  }, [domain, env, adapter, layer])
 
-  // Load DNA from the dev server API at runtime (derived from technical.json)
+  // ── Technical DNA loader ──
+  // Loaded regardless of current layer so switching to technical is
+  // instant. Operational DNA is loaded similarly below.
   useEffect(() => {
     fetch(`/api/load-views/${encodeURIComponent(domain)}?env=${encodeURIComponent(env)}`)
       .then(r => r.json())
       .then(json => setDna(parseArchitectureDNA(json)))
-      .catch(err => console.error('Failed to load DNA:', err))
+      .catch(err => console.error('Failed to load technical DNA:', err))
   }, [domain, env])
 
-  // Poll live status from the selected adapter and merge into DNA.
-  // The change-detection check happens INSIDE the setDna updater so that:
-  //   (a) we only skip when the DNA is loaded AND statuses actually match
-  //   (b) a status response that arrives before load-views resolves doesn't
-  //       poison the `liveStatus` cache, causing subsequent polls to no-op
+  // ── Operational DNA loader ──
+  useEffect(() => {
+    loadOperationalDNA(domain)
+      .then(setOperationalDna)
+      .catch(err => console.error('Failed to load operational DNA:', err))
+  }, [domain])
+
+  // ── Live status polling (technical only) ──
   //
-  // `env` is passed alongside `adapter` because technical.json has env-scoped
-  // construct variants (dev: local postgres/RabbitMQ, prod: RDS/EventBridge).
-  // The probe applies the env overlay before matching tfstate/docker.
+  // Polling runs independently of the active layer so switching away
+  // and back doesn't lose state, but only technical status is consumed.
+  // Operational DNA has no "live status" concept.
   useEffect(() => {
     let active = true
     const poll = () => {
@@ -127,19 +163,26 @@ const App = observer(function App() {
   const currentView = dna?.views.find(v => v.name === currentViewName) ?? dna?.views[0]
 
   const handleSave = useCallback(async () => {
-    if (!graphModel.graph || !currentView) return
+    if (!graphModel.graph) return
     setSaving(true)
     try {
-      // Extract current graph state back to DNA format
-      const updatedView = graphToArchView(graphModel.graph, currentViewName, currentView!)
-
-      // Update the view in-place
-      const updatedDna = {
-        ...dna!,
-        views: dna!.views.map(v => v.name === currentViewName ? updatedView : v),
+      if (layer === 'technical') {
+        if (!currentView || !dna) return
+        const updatedView = graphToArchView(graphModel.graph, currentViewName, currentView)
+        const updatedDna = {
+          ...dna,
+          views: dna.views.map(v => v.name === currentViewName ? updatedView : v),
+        }
+        await saveViews(domain, updatedDna)
+      } else {
+        if (!operationalDna) return
+        const updatedDna = graphToOperationalDNA(graphModel.graph, operationalDna)
+        await saveOperational(domain, updatedDna)
+        // Refresh local state so the next save diffs against the latest
+        // persisted form (otherwise RJSF edits would re-layer on top of
+        // the previous save's layout).
+        setOperationalDna(updatedDna)
       }
-
-      await saveViews(domain, updatedDna)
       graphModel.setDirty(false)
     } catch (err) {
       console.error('Save failed:', err)
@@ -147,10 +190,12 @@ const App = observer(function App() {
     } finally {
       setSaving(false)
     }
-  }, [graphModel, currentView, currentViewName, dna])
+  }, [graphModel, layer, currentView, currentViewName, dna, operationalDna, domain])
 
-  // Keyboard shortcut: Ctrl/Cmd+S to save
-  useMemo(() => {
+  // Keyboard shortcut: Ctrl/Cmd+S to save. useEffect, not useMemo — the
+  // original version used useMemo which doesn't wire up cleanup correctly
+  // and could leave dangling listeners on re-render.
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault()
@@ -161,7 +206,11 @@ const App = observer(function App() {
     return () => document.removeEventListener('keydown', handler)
   }, [graphModel.dirty, handleSave])
 
-  if (!dna || !currentView) {
+  // Loading gate — wait for whichever layer we need before rendering.
+  const technicalReady = dna && currentView
+  const operationalReady = operationalDna
+  const ready = layer === 'technical' ? technicalReady : operationalReady
+  if (!ready) {
     return <div style={{ padding: 40, color: '#f8fafc' }}>Loading…</div>
   }
 
@@ -178,14 +227,24 @@ const App = observer(function App() {
           domain={domain}
           env={env}
           onEnvChange={setEnv}
+          layer={layer}
+          onLayerChange={handleLayerChange}
         />
       }
       canvas={
-        <Canvas
-          key={currentViewName}
-          model={graphModel}
-          view={currentView}
-        />
+        layer === 'technical' && currentView ? (
+          <TechnicalCanvas
+            key={`tech:${currentViewName}`}
+            model={graphModel}
+            view={currentView}
+          />
+        ) : layer === 'operational' && operationalDna ? (
+          <OperationalCanvas
+            key={`ops:${domain}`}
+            model={graphModel}
+            dna={operationalDna}
+          />
+        ) : null
       }
       sidebar={
         <Sidebar model={graphModel} env={env} adapter={adapter} />

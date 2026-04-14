@@ -11,6 +11,9 @@ const ZONE_COLORS: Record<string, { stroke: string; fill: string; textFill: stri
   // a glance tells you whether you're looking at dev or prod.
   'delivery-docker': { stroke: '#3b82f6', fill: 'rgba(59, 130, 246, 0.06)', textFill: '#93c5fd' },
   'delivery-aws':    { stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.06)', textFill: '#fbbf24' },
+  // Operational layer domain zone — emerald to match CapabilityShape so a
+  // domain and its capabilities read as one visual family.
+  'domain-operational': { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.06)', textFill: '#6ee7b7' },
 }
 
 /**

@@ -12,12 +12,19 @@ import '../shapes/ConstructShape.ts'
 import '../shapes/ProviderShape.ts'
 import '../shapes/ZoneContainer.ts'
 
-interface CanvasProps {
+interface TechnicalCanvasProps {
   model: GraphModel
   view: ArchView
 }
 
-export const Canvas = observer(function Canvas({ model, view }: CanvasProps) {
+/**
+ * Canvas for the Technical DNA layer — renders the derived deployment
+ * graph (cells, constructs, providers) with zone containers. This is the
+ * original status-polling, URL-ribbon-enabled canvas. Operational DNA
+ * gets its own sibling canvas (`OperationalCanvas`) so the two layers
+ * can evolve independently without cross-layer if-branches.
+ */
+export const TechnicalCanvas = observer(function TechnicalCanvas({ model, view }: TechnicalCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

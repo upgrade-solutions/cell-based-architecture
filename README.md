@@ -167,22 +167,25 @@ http://localhost:5175/?domain=torts/marshall&env=prod&adapter=terraform/aws
 | Param | Default | Description |
 |-------|---------|-------------|
 | `domain` | `lending` | DNA domain path (supports nested paths like `torts/marshall`) |
-| `env` | `dev` | Environment for overlay resolution (e.g. dev uses rabbitmq, prod uses eventbridge) |
-| `adapter` | `docker-compose` | Status probe adapter: `docker-compose` or `terraform/aws` |
+| `layer` | `technical` | DNA layer to render/edit: `technical` or `operational` |
+| `env` | `dev` | Environment for technical overlay (dev uses rabbitmq, prod uses eventbridge) |
+| `adapter` | `docker-compose` | Technical status probe adapter: `docker-compose` or `terraform/aws` |
 
-All three are also selectable in the toolbar at runtime.
+Layer + env are selectable in the toolbar at runtime. `env` and `adapter` only apply to the Technical layer — Operational DNA is environment-agnostic.
 
 **Data flow:** cba-viz calls `GET /api/load-views/:domain?env=<env>`, which the vite middleware proxies by shelling out to `cba views <domain> --env <env> --json`. The graph is always the derived view — adding a cell/construct/provider to `technical.json` makes it appear automatically.
 
 **Features:**
-- **View switching** — dropdown to switch between views in the architecture DNA
+- **Multi-layer editing** — toolbar tabs switch between the **Technical** (deployment graph) and **Operational** (Nouns, Capabilities, Rules, Outcomes, Signals) DNA layers. Each layer has its own canvas, shape palette, and save pipeline.
+- **Schema-driven inspector** — operational nodes surface a live RJSF form generated from `operational/schemas/*.json`, so editing a Capability or Rule round-trips cleanly through the same JSON Schema the CLI and validator use. Edits stream through `onChange` and mark the graph dirty for Ctrl+S.
+- **View switching** — dropdown to switch between views in the architecture DNA (technical layer)
 - **Editable** — drag nodes to reposition, inspector panel to edit properties
 - **Collapsible inspector** — the right-hand inspector panel can collapse to a thin strip to reclaim canvas space; click the caret to expand/collapse
-- **Smooth re-renders** — the canvas fades in on every graph rebuild (view switch or status transition) so status flips don't flash
-- **Custom shapes** — distinct visual styles for cells (rounded rect, blue), constructs (dashed rect, purple), providers (pill, amber), zones (dashed container)
-- **Write-back** — save positions and edits back to `technical.json` (Ctrl+S or Save button)
+- **Smooth re-renders** — the canvas fades in on every graph rebuild (view switch, layer switch, or status transition) so transitions don't flash
+- **Custom shapes** — distinct visual styles per layer: technical uses cells (rounded rect, blue), constructs (rect, blue), providers (pill, amber); operational uses Nouns (slate rect), Capabilities (emerald pill), Rules (amber/cyan hex), Outcomes (violet square), Signals (rose diamond)
+- **Write-back** — save positions and edits back to `technical.json` or `operational.json` (Ctrl+S or Save button). Operational layouts persist to a `layouts[]` field on the document.
 - **Dark theme** — dark canvas with dot grid, matching the cell-based architecture aesthetic
-- **Live status** — polls the selected adapter every 5 seconds and updates node status in real time
+- **Live status** — polls the selected adapter every 5 seconds and updates technical node status in real time
 - **Adapter selector** — toolbar dropdown to switch between Docker Compose and Terraform/AWS status probes
 - **Terraform/AWS probe** — reads `terraform.tfstate` + queries AWS APIs (ECS, RDS, EventBridge, SQS) to map live infrastructure status back to DNA node IDs
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { dia } from '@joint/plus'
 import { observer } from 'mobx-react-lite'
 import type { GraphModel } from '../models/GraphModel.ts'
+import { SchemaForm } from './SchemaForm.tsx'
 
 interface SidebarProps {
   model: GraphModel
@@ -48,23 +49,71 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter }: Sideba
   const pos = element ? { x: element.position().x, y: element.position().y } : null
   const size = element ? { width: element.size().width, height: element.size().height } : null
 
+  // Operational nodes route through RJSF. The mapper stamps every
+  // operational element with `dna.layer === 'operational'` and a
+  // `dna.kind` that maps 1:1 onto a schema filename (capability →
+  // `operational/schemas/capability.json`, etc.).
+  const isOperational = dna.layer === 'operational'
+  const kind = dna.kind as string | undefined
+
+  // Kind → schema filename lookup. The JointJS discriminator for
+  // annotation edges is `edge`; those don't have a primitive schema
+  // and fall through to the read-only inspector below.
+  const OPERATIONAL_SCHEMAS: Record<string, string> = {
+    domain: 'domain',
+    noun: 'noun',
+    capability: 'capability',
+    rule: 'rule',
+    outcome: 'outcome',
+    signal: 'signal',
+  }
+  const schemaName = isOperational && kind ? OPERATIONAL_SCHEMAS[kind] : undefined
+
   return (
     <div style={containerStyle}>
       <SidebarHeader onCollapse={() => setCollapsed(true)} />
       <AdapterSection env={env} adapter={adapter} />
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Identity */}
+        {/* Identity — shown for every node as a quick-glance summary */}
         <Section title="Identity">
           <Field label="ID" value={dna.id as string} />
-          <Field label="Name" value={dna.name as string} editable onChange={(val) => {
+          <Field label="Name" value={(dna.name as string) ?? ''} editable={!isOperational} onChange={(val) => {
             cell?.set('dna', { ...dna, name: val })
             cell?.attr({ label: { text: val } })
             model.setDirty(true)
           }} />
-          <Field label="Type" value={dna.type as string} />
+          {!isOperational && dna.type ? <Field label="Type" value={dna.type as string} /> : null}
+          {kind ? <Field label="Kind" value={kind} /> : null}
           {dna.status ? <Field label="Status" value={dna.status as string} /> : null}
-          {dna.source ? <Field label="Source" value={dna.source as string} /> : null}
+          {!isOperational && typeof dna.source === 'string' ? <Field label="Source" value={dna.source as string} /> : null}
         </Section>
+
+        {/* Operational primitives: schema-driven RJSF form. Edits stream
+            onto `dna.source` (the primitive payload) and mark the graph
+            dirty so Ctrl+S saves the whole operational document. */}
+        {schemaName ? (
+          <Section title={`${kind} editor`}>
+            <SchemaForm
+              family="operational"
+              schemaName={schemaName}
+              data={dna.source}
+              onChange={(next) => {
+                // Merge the edited primitive back onto the cell's dna attr.
+                // We keep `layer`, `kind`, and `id` so later re-selection
+                // still routes through the same branch.
+                cell?.set('dna', { ...dna, source: next })
+                // Mirror a name change onto the canvas label when possible
+                const nextObj = next as { name?: string; noun?: string; verb?: string }
+                if (kind === 'capability' && nextObj.noun && nextObj.verb) {
+                  cell?.attr({ label: { text: nextObj.name ?? `${nextObj.noun}.${nextObj.verb}` } })
+                } else if (nextObj.name) {
+                  cell?.attr({ label: { text: nextObj.name } })
+                }
+                model.setDirty(true)
+              }}
+            />
+          </Section>
+        ) : null}
 
         {/* Position */}
         {pos && size ? (

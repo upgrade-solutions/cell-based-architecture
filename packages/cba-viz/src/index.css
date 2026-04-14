@@ -31,3 +31,110 @@ body {
   background: transparent !important;
 }
 
+/* ── RJSF dark-theme overrides ───────────────────────────────────────── */
+/*
+ * RJSF 6 ships unstyled — fields inherit browser defaults which read as
+ * white rectangles against our dark sidebar. These overrides scope to
+ * the `.cba-viz-schema-form` wrapper (see SchemaForm.tsx) so they can't
+ * leak into the technical inspector's hand-rolled field UI. Minimal on
+ * purpose — this is Phase 1, not a polished product. Phase 5c.4 can
+ * replace this with proper custom widgets if the defaults feel cramped.
+ */
+.cba-viz-schema-form fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 12px 0;
+}
+
+.cba-viz-schema-form legend {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.cba-viz-schema-form label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+
+.cba-viz-schema-form input[type="text"],
+.cba-viz-schema-form input[type="number"],
+.cba-viz-schema-form input[type="search"],
+.cba-viz-schema-form input[type="email"],
+.cba-viz-schema-form input[type="url"],
+.cba-viz-schema-form input[type="date"],
+.cba-viz-schema-form input[type="datetime-local"],
+.cba-viz-schema-form textarea,
+.cba-viz-schema-form select {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.cba-viz-schema-form input:focus,
+.cba-viz-schema-form textarea:focus,
+.cba-viz-schema-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cba-viz-schema-form input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.cba-viz-schema-form textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.cba-viz-schema-form .field {
+  margin-bottom: 8px;
+}
+
+.cba-viz-schema-form .field-description,
+.cba-viz-schema-form small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.cba-viz-schema-form .array-item {
+  padding: 6px;
+  margin-bottom: 6px;
+  background: rgba(71, 85, 105, 0.15);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.cba-viz-schema-form button {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cba-viz-schema-form button:hover {
+  border-color: var(--accent);
+}
+
+.cba-viz-schema-form .error-detail,
+.cba-viz-schema-form .errors {
+  color: #fca5a5;
+  font-size: 10px;
+}
+

@@ -114,7 +114,7 @@ Make the system easy to adopt, extend, and operate.
   - [x] `terraform/aws` — AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront, ECR, Secrets Manager) from Constructs + Providers
   - [ ] `aws-sam` — serverless-first AWS deployment for function-category Constructs
   - [ ] Future: `cdk`, `pulumi`, `terraform/gcp`
-- [ ] **DNA editor / visual designer** — browser-based tool for authoring DNA without writing JSON by hand
+- [~] **DNA editor / visual designer** — browser-based tool for authoring DNA without writing JSON by hand. Technical viewer shipped; operational editor in progress. See **Phase 5c** below for the phased plan.
 - [ ] **Layout system** — DNA-driven layout primitives that adapters generate into full shell components. See details below.
 
 ---
@@ -243,6 +243,89 @@ Today, technical DNA and cells read operational DNA directly via cross-layer val
 - Phase 5 `terraform/aws` delivery adapter hardened enough to provision the full construct set
 - Phase 5a universal layout complete for the admin surface
 - A `marketing` layout (listed under "Future Layouts") moved up — needed for the public surface
+
+---
+
+## Phase 5c: `cba-viz` — Multi-Layer DNA Editor
+
+Evolve `cba-viz` from a read-only viewer of the derived Technical deployment graph into a full browser-based editor for all three DNA layers (Operational, Product, Technical). The end-state is a single tool where a domain author can inspect and modify Nouns, Capabilities, Rules, Resources, Endpoints, Pages, cells, constructs, and providers — all with schema-validated forms, cross-layer link visualization, and live save-back to disk (and eventually to a graph database).
+
+**Guiding decisions:**
+- **Files remain canonical through Phase 5c.2.** The editor reads and writes per-domain JSON (`operational.json`, `product.*.json`, `technical.json`) through the Vite dev middleware. This preserves CLI compatibility (`cba views`, `cba deliver`, `dna-validator`) automatically and avoids a new backend service while the editor UX is still shaking out.
+- **Graph DB + GraphQL is Phase 5c.3, not day one.** Introducing Neo4j + `@neo4j/graphql` is deferred until we've seen real access patterns — multi-user editing, cross-domain queries, history. The JSON Schemas that drive form generation in earlier phases carry forward unchanged.
+- **Schemas are the single source of truth** for form generation. `operational/schemas/*.json`, `product/schemas/*.json`, and `technical/schemas/*.json` already describe every primitive; RJSF (`@rjsf/core`) renders them into the inspector panel without hand-written editor code.
+
+### Phase 5c.1: Technical viewer (Shipped)
+
+- [x] JointJS canvas with custom shapes for cells, constructs, providers
+- [x] Auto-derived deployment graph from `technical.json` via `cba views <domain> --env <env>`
+- [x] Zone containers for delivery boundary (Docker / VPC) and tier (Compute / Storage)
+- [x] Environment overlay support (`?env=dev|prod`), URL param sync
+- [x] Live status polling for `docker-compose` and `terraform/aws` adapters (5s interval, TTL cache, in-flight dedup)
+- [x] Status-driven styling: deployed (full color) → planned (grey) → proposed (dashed, dim) for both nodes and edges
+- [x] Collapsible inspector sidebar, fade-in on graph re-renders
+- [x] Layout write-back (drag positions → `technical.json` `views[]` overlay)
+- [x] Deployed-URL ribbons on cells click through to live CloudFront / ALB
+
+### Phase 5c.2: Operational DNA editor (Shipped — needs browser smoke test)
+
+Bring Operational DNA into `cba-viz` — authoring Nouns, Capabilities, Rules, Outcomes, Signals, Lifecycles via a canvas + schema-driven inspector.
+
+- [x] **Layer-agnostic load/save middleware** — `GET /api/dna/:layer/:domain` and `POST /api/dna/:layer/:domain` endpoints in `packages/cba-viz/vite.config.ts`. Atomic write (`.tmp` + rename). `GET /api/schemas/:family/:name` serves JSON schemas from the repo's layer schema directories.
+- [x] **Operational types + loader** — `packages/cba-viz/src/loaders/operational-loader.ts` mirrors `operational/schemas/*.json` in TypeScript interfaces. `parseOperationalDNA`, `loadOperationalDNA` functions.
+- [x] **Operational shape system** — `packages/cba-viz/src/shapes/operational/` with `NounShape` (slate rounded rect, attribute count badge), `CapabilityShape` (emerald pill, R/O badges), `RuleShape` (hexagon, amber=access / cyan=condition), `OutcomeShape` (violet rounded square), `SignalShape` (rose diamond). `ZoneContainer` gains a `domain-operational` color entry.
+- [x] **Operational mapper** — `packages/cba-viz/src/mappers/operational-to-graph.ts` emits domain zones, nouns, capabilities, rule/outcome satellites, signals, and edges for `Outcome.initiates`, `Outcome.emits`, `Cause` with `source: "signal"`. Manual column-per-noun layout with saved-layout overlay support.
+- [x] **`OperationalCanvas` component** — mirrors the technical canvas (paper setup, zoom, pan, fade-in). `Canvas.tsx` renamed to `TechnicalCanvas.tsx` so naming stays parallel.
+- [x] **Schema-driven inspector** — `@rjsf/core@^6.4`, `@rjsf/utils`, `@rjsf/validator-ajv8` added to `packages/cba-viz/package.json`. New `SchemaForm.tsx` component loads the schema via the middleware endpoint and renders an RJSF form bound to the selected element's DNA. Dark theme via `.cba-viz-schema-form` scoped CSS overrides in `index.css`.
+- [x] **Sidebar integration** — `Sidebar.tsx` branches on `dna.layer === 'operational'`: operational nodes render `<SchemaForm>`, technical nodes keep the existing hand-rolled `Field`/`Section` UI. `onChange` updates the cell attribute and triggers `model.setDirty(true)`.
+- [x] **Operational persistence** — `packages/cba-viz/src/features/operational-persistence.ts` walks graph elements, mutates the original DNA by id (preserves fields we don't render), writes layout to a `layouts[]` field on the document, POSTs to `/api/dna/operational/:domain`.
+- [x] **Layer switching** — toolbar tabs (`Technical` / `Operational`), URL param `?layer=`, `Ctrl+S` dispatches to `saveViews` (technical) or `saveOperational` (operational). `App.tsx` renders `TechnicalCanvas` or `OperationalCanvas` based on `layer` state.
+- [ ] **Browser smoke test** — start the dev server, open `?domain=lending&layer=operational` in a browser, confirm the layout matches expectations (1 domain zone, 3 Nouns, 14 Capabilities, 16 Rules, 7 Outcomes, 2 Signals), click a capability, edit a description through the RJSF form, Ctrl+S, verify `dna/lending/operational.json` is updated on disk. Regression: `?layer=technical` still works. **Blocked on sandbox** — the sandbox used during implementation can't bind ports, so this step happens the first time the user runs `npm run dev` locally.
+
+**Explicitly out of scope for 5c.2**: Product DNA (5c.3), cross-layer edges (5c.3), creating new Nouns/Capabilities from scratch (Phase 5c.4 UX work), lifecycle step editing (deferred), validation highlights on the canvas (errors appear in the inspector form only), multi-user editing, undo/redo, history.
+
+### Phase 5c.3: Product DNA editor + cross-layer links
+
+Add Product DNA (core / api / ui) editing and the first visible cross-layer relationships in the canvas.
+
+- [ ] **Product types + loaders** — `product-core-loader.ts`, `product-api-loader.ts`, `product-ui-loader.ts` mirroring `product/schemas/`
+- [ ] **Product shape system** — `ResourceShape`, `EndpointShape`, `PageShape`, `BlockShape`, `NamespaceZone`
+- [ ] **Product mapper** — emit resources, endpoints grouped by namespace, pages with block hierarchies
+- [ ] **Cross-layer edges** — Endpoint→Capability (via `capability` field), Resource→Noun (via the materializer's closure), Page→Capability (via bound operations). Rendered as dashed purple links with layer-crossing labels.
+- [ ] **Multi-layer view modes** — add `?layer=product-core|product-api|product-ui` to the layer tab strip; add a dedicated **Cross-layer** view that shows one Capability with its Resources, Endpoints, and Pages linked
+- [ ] **Lens / filter panel** — user selects a domain + capability set; mapper emits only the matching nodes across all layers. Lets you answer "show me everything that touches `Loan.Approve`" in one canvas.
+- [ ] **Schema-driven inspector forms** reuse the Phase 5c.2 RJSF component for all product primitives
+- [ ] **Write-back** to `product.core.json`, `product.api.json`, `product.ui.json` via the existing `/api/dna/:layer/:domain` endpoint
+
+### Phase 5c.4: Authoring (create + rename + delete)
+
+Everything through Phase 5c.3 is *edit existing*. This phase adds the full CRUD surface.
+
+- [ ] **Element palette** — drag-to-add Nouns, Capabilities, Rules, etc. onto the canvas. Shape determines primitive type.
+- [ ] **Stable identity strategy** — every primitive gets an opaque `_id` (UUID) on creation. Name fields become display labels that can be renamed freely without breaking references. Phase 5c.2 saves use slug IDs; this phase migrates.
+- [ ] **Referential integrity on rename** — when a Noun is renamed, every Capability, Rule, Outcome, Signal, Lifecycle, Relationship, and Cause that references it is rewritten in the same save.
+- [ ] **Cascade / orphan-warn on delete** — deleting a Noun warns about downstream references and offers to cascade or orphan-soft-delete.
+- [ ] **Validation surfacing on canvas** — hook the existing `dna-validator` package into the middleware; errors surface as red outlines on the offending nodes with full error messages in the inspector.
+- [ ] **Undo / redo** — command stack with inverse operations. Local to the session initially; later synced through the backend.
+
+### Phase 5c.5: Graph DB + GraphQL backend
+
+Transition the canonical store from JSON files to Neo4j behind a GraphQL layer. Files become a derived export for CLI compatibility.
+
+- [ ] **Schema design** — unified GraphQL schema covering all three layers with cross-layer edges as first-class relationships. Stable identity strategy from 5c.4 carries over.
+- [ ] **Neo4j + `@neo4j/graphql`** service in a new `packages/cba-server/` workspace. Auto-generated mutations from the schema.
+- [ ] **File importers** — one-shot CLI to load existing JSON DNA into Neo4j. Idempotent. Preserves all primitives and edges.
+- [ ] **File exporters** — periodic or on-demand export from Neo4j back to JSON files so `cba views`, `cba deliver`, `cba validate`, and `dna-validator` keep working unchanged.
+- [ ] **cba-viz GraphQL client** — swap the current `fetch('/api/dna/...')` calls for Apollo (or urql) queries and mutations. Loaders, mappers, shapes, and SchemaForm all reuse cleanly — only the network layer changes.
+- [ ] **Subscription plumbing** — live-update the canvas when another user (or the CLI) modifies DNA. First step toward multi-user collaboration.
+
+### Phase 5c.6: Collaboration, history, and permissions
+
+- [ ] **Revision history** — full audit log of every DNA change, replayable in the viewer
+- [ ] **Multi-user editing** — presence indicators, conflict resolution, optimistic UI via subscriptions
+- [ ] **Per-domain permissions** — who can edit which layers/domains, backed by the graph DB
+- [ ] **Diff view** — compare two revisions side-by-side on the canvas
+- [ ] **PR-style review flow** — propose a DNA change → reviewer approves → merges to canonical graph
 
 ---
 

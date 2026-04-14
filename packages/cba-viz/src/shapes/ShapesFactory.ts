@@ -43,7 +43,6 @@ function statusBodyAttrs(status: NodeStatus | undefined, _baseStroke: string, _n
         opacity: 0.6,
       }
     case 'deployed':
-    case 'running':
     default:
       return {}
   }

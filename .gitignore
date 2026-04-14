@@ -3,3 +3,4 @@ dist
 output
 .cba
 .claude/worktrees
+.npm-cache
