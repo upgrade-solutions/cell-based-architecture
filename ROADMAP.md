@@ -314,12 +314,33 @@ Collapse the flat layer-tab navigation into a lifecycle-centric **Build | Run** 
 
 Everything through Phase 5c.3 is *edit existing*. This phase adds the full CRUD surface.
 
-- [ ] **Element palette** — drag-to-add Nouns, Capabilities, Rules, etc. onto the canvas. Shape determines primitive type.
-- [ ] **Stable identity strategy** — every primitive gets an opaque `_id` (UUID) on creation. Name fields become display labels that can be renamed freely without breaking references. Phase 5c.2 saves use slug IDs; this phase migrates.
-- [ ] **Referential integrity on rename** — when a Noun is renamed, every Capability, Rule, Outcome, Signal, Lifecycle, Relationship, and Cause that references it is rewritten in the same save.
-- [ ] **Cascade / orphan-warn on delete** — deleting a Noun warns about downstream references and offers to cascade or orphan-soft-delete.
+#### Chunk 1 — Operational CRUD (Shipped)
+
+Minimum-viable create/rename/delete for Operational DNA primitives. Proves the pattern on one layer before expanding.
+
+- [x] **Create button** — `+ New` toolbar action visible on Build > Operational opens a `CreatePrimitiveDialog` with a type picker (Noun | Capability | Rule | Outcome) and a minimal form for the required fields. Existing nouns/capabilities populate dropdowns for the fields that reference them.
+- [x] **Rename with referential integrity** — editing a Noun's `name` or a Capability's `noun`/`verb` in the RJSF form walks the operational DNA and rewrites every reference (`Capability.noun`, `Capability.name`, `Rule/Outcome/Cause.capability`, `Cause.after`, `Outcome.initiates[]`, `Signal.capability`, `Lifecycle.noun`, `Lifecycle.steps[]`, `Relationship.from`/`.to`). `operational-mutations.ts` exports `renameNoun` + `renameCapability` as pure helpers. Name-based refs are the source of truth for this chunk; stable UUIDs are a later chunk.
+- [x] **Delete with cascade confirmation** — Delete/Backspace on a selected operational node opens `DeleteConfirmDialog` listing the cascade (preview via `previewCascade`), then `deleteOperationalPrimitive` removes the primary plus downstream references. Delete-a-Noun cascades its Capabilities, which cascade their Rules/Outcomes/Causes.
+- [x] **Scope**: Noun, Capability, Rule, Outcome. Signal / Cause / Lifecycle / Relationship / Equation / Attribute CRUD deferred to chunk 2.
+
+#### Chunk 2+ — Deferred
+
+- [ ] **Stable identity strategy** — every primitive gets an opaque `_id` (UUID) on creation. Name fields become display labels that can be renamed freely without the rewrite walk. Migrate persistence to match.
+- [ ] **Product-layer CRUD** — `product-api-mutations.ts` + `product-ui-mutations.ts` mirroring the operational pattern for Resources, Endpoints, Pages, Blocks.
+- [ ] **Technical-layer CRUD** — authoring cells/constructs/providers from the canvas (currently edit-only via `graphToArchView`).
+- [ ] **Element palette** — drag-to-add from a sidebar palette as an alternative to the `+ New` dialog. Shape determines primitive type.
+- [ ] **Remaining operational primitives** — Signal, Cause, Lifecycle, Relationship, Equation, Attribute CRUD.
 - [ ] **Validation surfacing on canvas** — hook the existing `dna-validator` package into the middleware; errors surface as red outlines on the offending nodes with full error messages in the inspector.
 - [ ] **Undo / redo** — command stack with inverse operations. Local to the session initially; later synced through the backend.
+
+### Phase 5c.4a: Bundle splitting (Shipped)
+
+Initial-page weight dropped from 486 KB gzipped (monolith) to ~93 KB gzipped by combining two tactics:
+
+- [x] **vite `manualChunks`** — `@joint/plus` → `joint` chunk (286 KB gz, ~1 MB), `@rjsf/*` + ajv → `rjsf` chunk (99 KB gz, 299 KB), react/react-dom/mobx/mobx-react-lite → `vendor` chunk (78 KB gz, 255 KB). Everything else stays in main.
+- [x] **`React.lazy` canvas imports** — all six canvas components (`TechnicalCanvas`, `OperationalCanvas`, `ProductCoreCanvas`, `ProductApiCanvas`, `ProductUiCanvas`, `CrossLayerCanvas`) are code-split via `React.lazy(() => import(...))`. The canvas render site is wrapped in a `<Suspense>` with a "Loading canvas…" fallback. `joint` and `rjsf` fall into the deferred set because canvases are their only importers — opening any canvas fetches both, cached thereafter.
+
+Per-canvas chunks are 0.43–10.64 KB each (e.g. `CrossLayerCanvas` 10.64 KB, `TechnicalCanvas` 7.62 KB, `OperationalCanvas` 0.43 KB since most of its weight is in the shared `joint-paper.ts` + operational mapper). Initial load now ships just the App shell + vendor — 93 KB gzipped.
 
 ### Phase 5c.5: Graph DB + GraphQL backend
 
