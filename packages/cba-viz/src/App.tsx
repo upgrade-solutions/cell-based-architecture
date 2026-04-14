@@ -24,51 +24,93 @@ import { OperationalCanvas } from './components/OperationalCanvas.tsx'
 import { ProductCoreCanvas } from './components/ProductCoreCanvas.tsx'
 import { ProductApiCanvas } from './components/ProductApiCanvas.tsx'
 import { ProductUiCanvas } from './components/ProductUiCanvas.tsx'
-import { Toolbar, type Layer } from './components/Toolbar.tsx'
+import { CrossLayerCanvas } from './components/CrossLayerCanvas.tsx'
+import { RunPhaseStub } from './components/RunPhaseStub.tsx'
+import {
+  Toolbar,
+  type Phase,
+  type Sub,
+  type BuildSub,
+  type RunSub,
+  BUILD_SUBS,
+  RUN_SUBS,
+  DEFAULT_BUILD_SUB,
+  DEFAULT_RUN_SUB,
+} from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
 
-/** Read domain from ?domain= URL param, default to 'lending' */
+// ── URL param getters ──────────────────────────────────────────────────
+
 function getDomain(): string {
   const params = new URLSearchParams(window.location.search)
   return params.get('domain') ?? 'lending'
 }
 
-/** Read environment from ?env= URL param, default to 'dev' */
 function getEnv(): string {
   const params = new URLSearchParams(window.location.search)
   return params.get('env') ?? 'dev'
 }
 
 /**
- * Read layer from ?layer= URL param. Default is 'technical' to preserve
- * the existing viewer behavior for users who don't yet know the editor
- * exists. Pasted links like `?layer=operational` land straight on the
- * operational canvas.
- */
-function getLayer(): Layer {
-  const params = new URLSearchParams(window.location.search)
-  const fromUrl = params.get('layer')
-  if (
-    fromUrl === 'operational' ||
-    fromUrl === 'product-core' ||
-    fromUrl === 'product-api' ||
-    fromUrl === 'product-ui'
-  ) return fromUrl
-  return 'technical'
-}
-
-/**
- * Read adapter from ?adapter= URL param. If missing, derive from env via the
- * coupling rule (prod↔terraform/aws, dev↔docker-compose). Explicit ?adapter=
- * wins when present so a user can paste `?env=prod&adapter=docker-compose`
- * for debugging without us rewriting it.
+ * Adapter derives from env via the coupling rule (prod↔terraform/aws,
+ * dev↔docker-compose) unless ?adapter= is explicit. Lets debug URLs
+ * force a mismatch like `?env=prod&adapter=docker-compose`.
  */
 function getAdapter(envValue: string): string {
   const params = new URLSearchParams(window.location.search)
   const fromUrl = params.get('adapter')
   if (fromUrl) return fromUrl
   return envValue === 'prod' ? 'terraform/aws' : 'docker-compose'
+}
+
+/**
+ * Read the lifecycle phase from ?phase=. Defaults to 'build' so a
+ * first-time visitor lands on authoring surfaces — more meaningful
+ * than dropping into the deployment view.
+ */
+function getPhase(): Phase {
+  const params = new URLSearchParams(window.location.search)
+  const fromUrl = params.get('phase')
+  if (fromUrl === 'build' || fromUrl === 'run') return fromUrl
+
+  // Legacy URL migration — pasted `?layer=X` links from Phase 5c.2/5c.3
+  // get interpreted as build + matching sub. Technical as `run` so old
+  // status-watching links still work.
+  const legacy = params.get('layer')
+  if (legacy === 'technical') return 'run'
+  if (legacy) return 'build'
+
+  return 'build'
+}
+
+/**
+ * Read the sub-tab from ?sub=. Falls back to the phase default when
+ * missing or invalid. Also migrates legacy `?layer=X` values to the
+ * equivalent sub so old links continue to work.
+ */
+function getSub(phase: Phase): Sub {
+  const params = new URLSearchParams(window.location.search)
+  const fromUrl = params.get('sub')
+  const valid = phase === 'build' ? BUILD_SUBS : RUN_SUBS
+  if (fromUrl && (valid as readonly string[]).includes(fromUrl)) return fromUrl as Sub
+
+  // Legacy migration from ?layer=X
+  const legacy = params.get('layer')
+  if (legacy === 'technical' && phase === 'run') return 'deployment'
+  if (legacy === 'technical' && phase === 'build') return 'technical'
+  if (legacy === 'operational')  return 'operational'
+  if (legacy === 'product-core') return 'product-core'
+  if (legacy === 'product-api')  return 'product-api'
+  if (legacy === 'product-ui')   return 'product-ui'
+
+  return phase === 'build' ? DEFAULT_BUILD_SUB : DEFAULT_RUN_SUB
+}
+
+/** Read selected capability (cross-layer view only) from ?cap=. */
+function getCap(): string | null {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('cap')
 }
 
 const STATUS_POLL_MS = 5000
@@ -85,19 +127,17 @@ const App = observer(function App() {
   // Operational layer state
   const [operationalDna, setOperationalDna] = useState<OperationalDNA | null>(null)
 
-  // Product Core layer state — materialized subset of operational
+  // Product Core — materialized operational subset
   const [productCoreDna, setProductCoreDna] = useState<ProductCoreDNA | null>(null)
 
-  // Product API layer state — hand-authored namespace, resources, endpoints
+  // Product API — hand-authored
   const [productApiDna, setProductApiDna] = useState<ProductApiDNA | null>(null)
 
-  // Product UI layer state — hand-authored layout, pages, blocks, routes
+  // Product UI — hand-authored
   const [productUiDna, setProductUiDna] = useState<ProductUiDNA | null>(null)
 
-  // Load error state per layer. Keeps the loading gate honest — without
-  // this, a 404 or parse failure silently leaves the corresponding layer
-  // at `null` and the UI shows "Loading…" forever. With it, we surface a
-  // readable message in the canvas area and the user can tell what broke.
+  // Load error state per layer — surfaced in the canvas area rather
+  // than silently hanging on "Loading…" forever.
   const [technicalError, setTechnicalError] = useState<string | null>(null)
   const [operationalError, setOperationalError] = useState<string | null>(null)
   const [productCoreError, setProductCoreError] = useState<string | null>(null)
@@ -107,45 +147,62 @@ const App = observer(function App() {
   const [domain] = useState(getDomain)
   const [env, setEnvState] = useState(getEnv)
   const [adapter, setAdapterState] = useState(() => getAdapter(getEnv()))
-  const [layer, setLayer] = useState<Layer>(getLayer)
+  const [phase, setPhaseState] = useState<Phase>(getPhase)
+  const [sub, setSubState] = useState<Sub>(() => getSub(getPhase()))
+  const [capabilityName, setCapabilityName] = useState<string | null>(getCap)
 
-  // Env drives adapter via the coupling rule: technical.json carries
-  // env-scoped construct variants (dev → local postgres/RabbitMQ, prod →
-  // RDS/EventBridge) that only make sense against the matching delivery
-  // adapter. Selecting `prod` routes status polling to `terraform/aws`,
-  // `dev` to `docker-compose`. The derived adapter is read-only from the
-  // sidebar's ADAPTER section — no direct selector in the toolbar.
+  // Env drives adapter via the coupling rule (prod↔terraform/aws,
+  // dev↔docker-compose). technical.json has env-scoped construct
+  // variants that only make sense against the matching delivery
+  // adapter, so we rewrite both together.
   const setEnv = useCallback((next: string) => {
     setEnvState(next)
     setAdapterState(next === 'prod' ? 'terraform/aws' : 'docker-compose')
   }, [])
 
-  // Switching layers resets the selected graph element so the sidebar
-  // doesn't display stale data from the other layer's shape.
-  const handleLayerChange = useCallback((next: Layer) => {
+  /**
+   * Switching phase resets the sub-tab to the phase's default and
+   * clears selection/dirty so the sidebar doesn't show stale data
+   * from the previous context. Preserves the selected capability
+   * across phase changes (cross-layer view might persist state).
+   */
+  const handlePhaseChange = useCallback((next: Phase) => {
     graphModel.setSelectedCellView(null)
     graphModel.setDirty(false)
-    setLayer(next)
+    setPhaseState(next)
+    setSubState(next === 'build' ? DEFAULT_BUILD_SUB : DEFAULT_RUN_SUB)
   }, [graphModel])
 
-  // Reflect the current env + adapter + layer in the URL so reloads
-  // preserve state and copy-pasted URLs land on the same view.
-  // `replaceState` keeps this out of browser history.
+  const handleSubChange = useCallback((next: Sub) => {
+    graphModel.setSelectedCellView(null)
+    graphModel.setDirty(false)
+    setSubState(next)
+  }, [graphModel])
+
+  // Reflect the full routing state in the URL so reloads preserve
+  // everything and pasted links land on the exact same view.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     params.set('domain', domain)
     params.set('env', env)
     params.set('adapter', adapter)
-    params.set('layer', layer)
+    params.set('phase', phase)
+    params.set('sub', sub)
+    // Drop the legacy `?layer=X` param once we've migrated. New URLs
+    // should use phase+sub going forward.
+    params.delete('layer')
+    if (capabilityName) {
+      params.set('cap', capabilityName)
+    } else {
+      params.delete('cap')
+    }
     const nextUrl = `${window.location.pathname}?${params.toString()}`
     if (nextUrl !== window.location.pathname + window.location.search) {
       window.history.replaceState(null, '', nextUrl)
     }
-  }, [domain, env, adapter, layer])
+  }, [domain, env, adapter, phase, sub, capabilityName])
 
   // ── Technical DNA loader ──
-  // Loaded regardless of current layer so switching to technical is
-  // instant. Operational DNA is loaded similarly below.
   useEffect(() => {
     setTechnicalError(null)
     fetch(`/api/load-views/${encodeURIComponent(domain)}?env=${encodeURIComponent(env)}`)
@@ -172,10 +229,6 @@ const App = observer(function App() {
   }, [domain])
 
   // ── Product Core DNA loader ──
-  // Loaded alongside operational so switching between the two tabs is
-  // instant. product.core.json is regenerated by the materializer, so
-  // a missing file usually means `cba product core materialize <domain>`
-  // hasn't been run — the error-state UI surfaces that readably.
   useEffect(() => {
     setProductCoreError(null)
     loadProductCoreDNA(domain)
@@ -187,8 +240,6 @@ const App = observer(function App() {
   }, [domain])
 
   // ── Product API DNA loader ──
-  // Hand-authored, not materialized — so unlike product-core, edits
-  // here are meant to round-trip back to product.api.json.
   useEffect(() => {
     setProductApiError(null)
     loadProductApiDNA(domain)
@@ -200,7 +251,6 @@ const App = observer(function App() {
   }, [domain])
 
   // ── Product UI DNA loader ──
-  // Hand-authored like product-api. Layout + pages + blocks.
   useEffect(() => {
     setProductUiError(null)
     loadProductUiDNA(domain)
@@ -211,12 +261,19 @@ const App = observer(function App() {
       })
   }, [domain])
 
-  // ── Live status polling (technical only) ──
+  // ── Live status polling ──
   //
-  // Polling runs independently of the active layer so switching away
-  // and back doesn't lose state, but only technical status is consumed.
-  // Operational DNA has no "live status" concept.
+  // Gated on (phase, sub) — only runs when the user is actively on
+  // Run > Deployment. Build > Technical shows the same canvas but
+  // without polling, so topology editing isn't distracted by 5s status
+  // flips. Deps include phase + sub so leaving Deployment cleanly
+  // tears down the interval.
   useEffect(() => {
+    if (!(phase === 'run' && sub === 'deployment')) {
+      // Reset cache when leaving so the next visit re-applies fresh
+      liveStatus.current = {}
+      return
+    }
     let active = true
     const poll = () => {
       fetch(`/api/status/${encodeURIComponent(domain)}?adapter=${encodeURIComponent(adapter)}&env=${encodeURIComponent(env)}`)
@@ -245,37 +302,53 @@ const App = observer(function App() {
         })
         .catch(() => { /* adapter not available — keep static statuses */ })
     }
-    // Reset the cache when the adapter/domain/env changes so we re-apply fresh
     liveStatus.current = {}
     poll()
     const interval = setInterval(poll, STATUS_POLL_MS)
     return () => { active = false; clearInterval(interval) }
-  }, [domain, adapter, env])
+  }, [domain, adapter, env, phase, sub])
 
   const viewNames = dna?.views.map(v => v.name) ?? []
   const currentView = dna?.views.find(v => v.name === currentViewName) ?? dna?.views[0]
 
+  /**
+   * Save routing dispatches on the sub-tab. Cross-layer and product-core
+   * are read-only (different reasons: cross-layer mixes three layers in
+   * one canvas, product-core is materialized from operational). Run
+   * sub-tabs have nothing to save — Deployment only observes, and the
+   * stub tabs have no graph. Build sub-tabs route to their layer's
+   * persistence helper.
+   */
   const handleSave = useCallback(async () => {
     if (!graphModel.graph) return
 
-    // Product Core is derived from Operational via the materializer.
-    // Saving edits directly to product.core.json would be clobbered on
-    // the next `cba product core materialize` run, so we refuse the
-    // save and tell the user where to actually edit. Also clears dirty
-    // so a bulk "can't save" error doesn't keep re-prompting.
-    if (layer === 'product-core') {
+    // Read-only views — graceful refusal with explanation
+    if (sub === 'product-core') {
       alert(
         'Product Core is derived from Operational DNA by the materializer. ' +
-        'Edit operational.json (Operational tab) instead — running `cba product core materialize <domain>` ' +
-        'or `cba develop <domain>` will regenerate product.core.json from your changes.',
+        'Edit operational.json (Build > Operational) instead — running `cba product core materialize <domain>` ' +
+        'or `cba develop <domain>` regenerates product.core.json from your changes.',
       )
+      graphModel.setDirty(false)
+      return
+    }
+    if (sub === 'cross-layer') {
+      alert(
+        'Cross-layer is a read-only exploration view. To edit the selected capability or its product surfaces, ' +
+        'switch to the specific sub-tab (Operational, Product API, or Product UI) and save there.',
+      )
+      graphModel.setDirty(false)
+      return
+    }
+    if (phase === 'run') {
+      // Deployment polls status but doesn't mutate DNA; stubs have nothing to save.
       graphModel.setDirty(false)
       return
     }
 
     setSaving(true)
     try {
-      if (layer === 'technical') {
+      if (sub === 'technical') {
         if (!currentView || !dna) return
         const updatedView = graphToArchView(graphModel.graph, currentViewName, currentView)
         const updatedDna = {
@@ -283,20 +356,17 @@ const App = observer(function App() {
           views: dna.views.map(v => v.name === currentViewName ? updatedView : v),
         }
         await saveViews(domain, updatedDna)
-      } else if (layer === 'operational') {
+      } else if (sub === 'operational') {
         if (!operationalDna) return
         const updatedDna = graphToOperationalDNA(graphModel.graph, operationalDna)
         await saveOperational(domain, updatedDna)
-        // Refresh local state so the next save diffs against the latest
-        // persisted form (otherwise RJSF edits would re-layer on top of
-        // the previous save's layout).
         setOperationalDna(updatedDna)
-      } else if (layer === 'product-api') {
+      } else if (sub === 'product-api') {
         if (!productApiDna) return
         const updatedDna = graphToProductApiDNA(graphModel.graph, productApiDna)
         await saveProductApi(domain, updatedDna)
         setProductApiDna(updatedDna)
-      } else if (layer === 'product-ui') {
+      } else if (sub === 'product-ui') {
         if (!productUiDna) return
         const updatedDna = graphToProductUiDNA(graphModel.graph, productUiDna)
         await saveProductUi(domain, updatedDna)
@@ -309,11 +379,9 @@ const App = observer(function App() {
     } finally {
       setSaving(false)
     }
-  }, [graphModel, layer, currentView, currentViewName, dna, operationalDna, productApiDna, productUiDna, domain])
+  }, [graphModel, phase, sub, currentView, currentViewName, dna, operationalDna, productApiDna, productUiDna, domain])
 
-  // Keyboard shortcut: Ctrl/Cmd+S to save. useEffect, not useMemo — the
-  // original version used useMemo which doesn't wire up cleanup correctly
-  // and could leave dangling listeners on re-render.
+  // Ctrl/Cmd+S shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -325,35 +393,36 @@ const App = observer(function App() {
     return () => document.removeEventListener('keydown', handler)
   }, [graphModel.dirty, handleSave])
 
-  // Loading gate — wait for whichever layer we need before rendering.
-  // Errors for the active layer become a readable message in place of
-  // the spinner; the other layers' errors are ignored here so a broken
-  // operational file doesn't block the technical canvas and vice versa.
-  const technicalReady = dna && currentView
-  const operationalReady = operationalDna
-  const productCoreReady = productCoreDna
-  const productApiReady = productApiDna
-  const productUiReady = productUiDna
-  const ready =
-    layer === 'technical'    ? technicalReady :
-    layer === 'operational'  ? operationalReady :
-    layer === 'product-core' ? productCoreReady :
-    layer === 'product-api'  ? productApiReady :
-    layer === 'product-ui'   ? productUiReady :
-    false
-  const error =
-    layer === 'technical'    ? technicalError :
-    layer === 'operational'  ? operationalError :
-    layer === 'product-core' ? productCoreError :
-    layer === 'product-api'  ? productApiError :
-    layer === 'product-ui'   ? productUiError :
-    null
+  // ── Readiness + error for the active (phase, sub) ──
+  //
+  // Only the DNA needed by the active sub-tab matters for the loading
+  // gate. A broken operational file shouldn't block the Deployment view
+  // and vice versa. The cross-layer view needs operational plus either
+  // (or both) of product-api / product-ui — we show it as long as
+  // operational is loaded; missing product layers render as empty bands.
+
+  const { ready, error } = computeReadiness({
+    phase,
+    sub,
+    dna,
+    currentView,
+    operationalDna,
+    productCoreDna,
+    productApiDna,
+    productUiDna,
+    technicalError,
+    operationalError,
+    productCoreError,
+    productApiError,
+    productUiError,
+  })
+
   if (!ready) {
     if (error) {
       return (
         <div style={{ padding: 40, color: '#fca5a5', fontFamily: '-apple-system, sans-serif' }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-            Failed to load {layer} DNA for "{domain}"
+            Failed to load DNA for "{domain}"
           </div>
           <div style={{ fontSize: 12, color: '#94a3b8' }}>{error}</div>
         </div>
@@ -375,43 +444,27 @@ const App = observer(function App() {
           domain={domain}
           env={env}
           onEnvChange={setEnv}
-          layer={layer}
-          onLayerChange={handleLayerChange}
+          phase={phase}
+          sub={sub}
+          onPhaseChange={handlePhaseChange}
+          onSubChange={handleSubChange}
         />
       }
-      canvas={
-        layer === 'technical' && currentView ? (
-          <TechnicalCanvas
-            key={`tech:${currentViewName}`}
-            model={graphModel}
-            view={currentView}
-          />
-        ) : layer === 'operational' && operationalDna ? (
-          <OperationalCanvas
-            key={`ops:${domain}`}
-            model={graphModel}
-            dna={operationalDna}
-          />
-        ) : layer === 'product-core' && productCoreDna ? (
-          <ProductCoreCanvas
-            key={`pcore:${domain}`}
-            model={graphModel}
-            dna={productCoreDna}
-          />
-        ) : layer === 'product-api' && productApiDna ? (
-          <ProductApiCanvas
-            key={`papi:${domain}`}
-            model={graphModel}
-            dna={productApiDna}
-          />
-        ) : layer === 'product-ui' && productUiDna ? (
-          <ProductUiCanvas
-            key={`pui:${domain}`}
-            model={graphModel}
-            dna={productUiDna}
-          />
-        ) : null
-      }
+      canvas={renderCanvas({
+        phase,
+        sub,
+        graphModel,
+        dna,
+        currentView,
+        currentViewName,
+        operationalDna,
+        productCoreDna,
+        productApiDna,
+        productUiDna,
+        domain,
+        capabilityName,
+        onCapabilityChange: setCapabilityName,
+      })}
       sidebar={
         <Sidebar model={graphModel} env={env} adapter={adapter} />
       }
@@ -420,3 +473,145 @@ const App = observer(function App() {
 })
 
 export default App
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+type ReadinessInput = {
+  phase: Phase
+  sub: Sub
+  dna: ArchitectureDNA | null
+  currentView: { name: string } | undefined
+  operationalDna: OperationalDNA | null
+  productCoreDna: ProductCoreDNA | null
+  productApiDna: ProductApiDNA | null
+  productUiDna: ProductUiDNA | null
+  technicalError: string | null
+  operationalError: string | null
+  productCoreError: string | null
+  productApiError: string | null
+  productUiError: string | null
+}
+
+/**
+ * Compute whether the active (phase, sub) has enough data loaded to
+ * render, and what error to surface if not. Split out of App so each
+ * sub-tab's requirement stays in one place — adding a new sub-tab is
+ * one branch.
+ */
+function computeReadiness(inp: ReadinessInput): { ready: boolean; error: string | null } {
+  const { phase, sub } = inp
+  if (phase === 'run') {
+    if (sub === 'deployment') {
+      return {
+        ready: !!(inp.dna && inp.currentView),
+        error: inp.technicalError,
+      }
+    }
+    // Logs / Metrics / Access — stub components render immediately
+    return { ready: true, error: null }
+  }
+  // Build phase
+  switch (sub as BuildSub) {
+    case 'operational':
+      return { ready: !!inp.operationalDna, error: inp.operationalError }
+    case 'product-core':
+      return { ready: !!inp.productCoreDna, error: inp.productCoreError }
+    case 'product-api':
+      return { ready: !!inp.productApiDna, error: inp.productApiError }
+    case 'product-ui':
+      return { ready: !!inp.productUiDna, error: inp.productUiError }
+    case 'technical':
+      return {
+        ready: !!(inp.dna && inp.currentView),
+        error: inp.technicalError,
+      }
+    case 'cross-layer':
+      // Operational is the minimum — picker populates from its
+      // capabilities array. Product layers are optional; missing bands
+      // render as placeholders inside the cross-layer canvas.
+      return { ready: !!inp.operationalDna, error: inp.operationalError }
+  }
+}
+
+type CanvasInput = {
+  phase: Phase
+  sub: Sub
+  graphModel: GraphModel
+  dna: ArchitectureDNA | null
+  currentView: ArchitectureDNA['views'][number] | undefined
+  currentViewName: string
+  operationalDna: OperationalDNA | null
+  productCoreDna: ProductCoreDNA | null
+  productApiDna: ProductApiDNA | null
+  productUiDna: ProductUiDNA | null
+  domain: string
+  capabilityName: string | null
+  onCapabilityChange: (name: string | null) => void
+}
+
+/**
+ * Pure routing — given (phase, sub) and the loaded DNAs, return the
+ * right canvas component. Split out of App so adding a sub-tab is one
+ * case in this switch rather than another arm of a nested ternary.
+ */
+function renderCanvas(inp: CanvasInput): React.ReactNode {
+  const { phase, sub, graphModel, domain } = inp
+
+  if (phase === 'run') {
+    if (sub === 'deployment' && inp.currentView) {
+      return (
+        <TechnicalCanvas
+          key={`run:deploy:${inp.currentViewName}`}
+          model={graphModel}
+          view={inp.currentView}
+        />
+      )
+    }
+    if (sub === 'logs') {
+      return <RunPhaseStub title="Logs" description="Aggregated logs across cells and constructs. Filter by cell, construct, time range. Phase 5c.6." phase="Phase 5c.6" />
+    }
+    if (sub === 'metrics') {
+      return <RunPhaseStub title="Metrics" description="Per-cell and per-construct metrics dashboards — request rates, latency, error budgets, resource utilization. Phase 5c.7." phase="Phase 5c.7" />
+    }
+    if (sub === 'access') {
+      return <RunPhaseStub title="Access" description="Runtime access controls — who can invoke which capabilities, which roles are active, and where credentials live. Phase 5c.8." phase="Phase 5c.8" />
+    }
+    return null
+  }
+
+  // Build phase
+  switch (sub as BuildSub) {
+    case 'operational':
+      return inp.operationalDna ? (
+        <OperationalCanvas key={`build:ops:${domain}`} model={graphModel} dna={inp.operationalDna} />
+      ) : null
+    case 'product-core':
+      return inp.productCoreDna ? (
+        <ProductCoreCanvas key={`build:pcore:${domain}`} model={graphModel} dna={inp.productCoreDna} />
+      ) : null
+    case 'product-api':
+      return inp.productApiDna ? (
+        <ProductApiCanvas key={`build:papi:${domain}`} model={graphModel} dna={inp.productApiDna} />
+      ) : null
+    case 'product-ui':
+      return inp.productUiDna ? (
+        <ProductUiCanvas key={`build:pui:${domain}`} model={graphModel} dna={inp.productUiDna} />
+      ) : null
+    case 'technical':
+      return inp.currentView ? (
+        <TechnicalCanvas key={`build:tech:${inp.currentViewName}`} model={graphModel} view={inp.currentView} />
+      ) : null
+    case 'cross-layer':
+      return inp.operationalDna ? (
+        <CrossLayerCanvas
+          key={`build:xl:${domain}:${inp.capabilityName ?? 'none'}`}
+          model={graphModel}
+          operationalDna={inp.operationalDna}
+          productApiDna={inp.productApiDna}
+          productUiDna={inp.productUiDna}
+          capabilityName={inp.capabilityName}
+          onCapabilityChange={inp.onCapabilityChange}
+        />
+      ) : null
+  }
+}
