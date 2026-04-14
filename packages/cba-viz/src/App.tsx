@@ -41,6 +41,7 @@ const CrossLayerCanvas = lazy(() =>
   import('./components/CrossLayerCanvas.tsx').then((m) => ({ default: m.CrossLayerCanvas })),
 )
 import { RunPhaseStub } from './components/RunPhaseStub.tsx'
+import { LogsPanel } from './components/LogsPanel.tsx'
 import {
   Toolbar,
   type Phase,
@@ -723,6 +724,8 @@ const App = observer(function App() {
             productApiDna,
             productUiDna,
             domain,
+            adapter,
+            env,
             capabilityName,
             onCapabilityChange: setCapabilityName,
           })}
@@ -838,6 +841,8 @@ type CanvasInput = {
   productApiDna: ProductApiDNA | null
   productUiDna: ProductUiDNA | null
   domain: string
+  adapter: string
+  env: string
   capabilityName: string | null
   onCapabilityChange: (name: string | null) => void
 }
@@ -861,7 +866,14 @@ function renderCanvas(inp: CanvasInput): React.ReactNode {
       )
     }
     if (sub === 'logs') {
-      return <RunPhaseStub title="Logs" description="Aggregated logs across cells and constructs. Filter by cell, construct, time range. Phase 5c.6." phase="Phase 5c.6" />
+      return (
+        <LogsPanel
+          domain={domain}
+          adapter={inp.adapter}
+          env={inp.env}
+          technicalDna={inp.dna}
+        />
+      )
     }
     if (sub === 'metrics') {
       return <RunPhaseStub title="Metrics" description="Per-cell and per-construct metrics dashboards — request rates, latency, error budgets, resource utilization. Phase 5c.7." phase="Phase 5c.7" />

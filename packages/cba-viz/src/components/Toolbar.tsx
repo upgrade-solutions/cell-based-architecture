@@ -85,7 +85,7 @@ function subTitle(sub: Sub): string {
     case 'technical':    return 'Technical DNA — cells, constructs, providers, environments'
     case 'cross-layer':  return 'Cross-layer — a single capability across operational, product API, and product UI'
     case 'deployment':   return 'Live deployment state — docker-compose or terraform/aws status polling'
-    case 'logs':         return 'Log aggregation (coming soon)'
+    case 'logs':         return 'Live log stream — docker-compose via docker logs, terraform/aws coming soon'
     case 'metrics':      return 'Metrics dashboards (coming soon)'
     case 'access':       return 'Access controls (coming soon)'
   }
@@ -93,7 +93,7 @@ function subTitle(sub: Sub): string {
 
 /** Is this sub-tab a stub (not yet implemented)? */
 export function isStubSub(sub: Sub): boolean {
-  return sub === 'logs' || sub === 'metrics' || sub === 'access'
+  return sub === 'metrics' || sub === 'access'
 }
 
 interface ToolbarProps {

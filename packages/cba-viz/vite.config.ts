@@ -257,6 +257,45 @@ function saveViewsPlugin() {
           return
         }
 
+        // GET /api/logs/:domain?adapter=docker-compose|terraform/aws&env=dev|prod&since=<sec>&cell=<name>
+        //
+        // Returns `{ lines: [{ ts, cell, text }], warning? }`. docker-compose
+        // adapter shells out to `docker logs` per matching container and
+        // merges them; terraform/aws is stubbed with a "coming soon" warning
+        // because CloudWatch log streaming needs more plumbing than the
+        // healthcheck-based status probe. Empty-container cases return `[]`
+        // with a 200, never a 500, so the panel's error state is reserved
+        // for actual failures.
+        const logsMatch = req.url?.match(/^\/api\/logs\/([^?]+)/)
+        if (req.method === 'GET' && logsMatch) {
+          const domain = decodeURIComponent(logsMatch[1])
+          const urlObj = new URL(req.url!, `http://${req.headers.host}`)
+          const adapter = urlObj.searchParams.get('adapter') ?? 'docker-compose'
+          const env = urlObj.searchParams.get('env') ?? (adapter === 'terraform/aws' ? 'prod' : 'dev')
+          const sinceRaw = urlObj.searchParams.get('since')
+          const since = sinceRaw && /^\d+$/.test(sinceRaw) ? parseInt(sinceRaw, 10) : 60
+          const cellFilter = urlObj.searchParams.get('cell') ?? undefined
+
+          const respondLogs = (payload: { lines: Array<{ ts: string; cell: string; text: string }>; warning?: string }) => {
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify(payload))
+          }
+
+          if (adapter === 'terraform/aws') {
+            respondLogs({
+              lines: [],
+              warning: 'CloudWatch log streaming not yet implemented for terraform/aws — Phase 5c.6 follow-up.',
+            })
+            return
+          }
+
+          fetchDockerLogs(domain, env, since, cellFilter)
+            .then(respondLogs)
+            .catch((err) => respondLogs({ lines: [], warning: `Log fetch failed: ${String(err?.message ?? err)}` }))
+          return
+        }
+
         next()
       })
     },
@@ -342,6 +381,174 @@ function probeDockerStatusAsync(domain: string, env: string): Promise<Record<str
       },
     )
   })
+}
+
+// ── Docker log streaming ─────────────────────────────────────────────────
+//
+// Phase 5c.6 first cut: shell out to `docker logs --since <n>s --tail 500`
+// for every container whose compose project working_dir matches the
+// domain's deploy dir. Container → cell mapping mirrors
+// probeDockerStatusAsync: the compose service label maps direct or with
+// a `-cell` suffix onto a DNA cell name.
+//
+// Budget: the whole fan-out must complete under 5 seconds or we abort
+// and return what we have. The client polls every 2s and shouldn't ever
+// see a hanging response.
+//
+// Empty/missing-docker case: if `docker ps` fails or returns nothing,
+// resolve with `{ lines: [] }` (and a warning for hard failures) — the
+// UI shows its empty state rather than crashing.
+const LOGS_TOTAL_BUDGET_MS = 5000
+const LOGS_DOCKER_LOGS_TIMEOUT_MS = 4000
+
+interface ParsedLogLine {
+  ts: string
+  cell: string
+  text: string
+}
+
+function fetchDockerLogs(
+  domain: string,
+  env: string,
+  sinceSeconds: number,
+  cellFilter: string | undefined,
+): Promise<{ lines: ParsedLogLine[]; warning?: string }> {
+  return new Promise((resolve) => {
+    const overallTimer = setTimeout(() => {
+      // Hard cap: whatever we have so far gets returned. Rest is dropped.
+      finish({ lines: [], warning: 'Log fetch aborted (exceeded 5s budget).' })
+    }, LOGS_TOTAL_BUDGET_MS)
+
+    let finished = false
+    const finish = (payload: { lines: ParsedLogLine[]; warning?: string }) => {
+      if (finished) return
+      finished = true
+      clearTimeout(overallTimer)
+      resolve(payload)
+    }
+
+    exec(
+      'docker ps -a --format "{{.Names}}\\t{{.State}}\\t{{.Labels}}"',
+      { encoding: 'utf-8', timeout: 3000 },
+      (err, stdout) => {
+        if (finished) return
+        if (err) {
+          // Docker not running, not installed, or timed out. Return empty
+          // with a warning so the panel shows a readable reason.
+          finish({ lines: [], warning: `docker ps failed: ${err.message}` })
+          return
+        }
+
+        const containers = (stdout ?? '').trim().split('\n').filter(Boolean).map((line) => {
+          const [name, state, labels] = line.split('\t')
+          return {
+            name: name ?? '',
+            state: state ?? '',
+            labels: parseLabels(labels ?? ''),
+          }
+        })
+
+        const technical = loadTechnical(domain)
+        if (!technical) { finish({ lines: [] }); return }
+
+        const cells: Array<{ name: string }> = technical.cells ?? []
+        const constructs = overlayByName<{ name: string }>(technical.constructs ?? [], env)
+        const constructIds = new Set<string>(constructs.map((c) => c.name))
+        const cellIds = new Set<string>(cells.map((c) => c.name))
+
+        const expectedDeployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
+
+        // Build (containerName, cellId) pairs for containers belonging to
+        // this domain's compose project, matched by the same rules as
+        // probeDockerStatusAsync.
+        const targets: Array<{ containerName: string; cellId: string }> = []
+        for (const c of containers) {
+          const workingDir = c.labels['com.docker.compose.project.working_dir']
+          if (!workingDir) continue
+          if (path.resolve(workingDir) !== expectedDeployDir) continue
+          if (c.state !== 'running') continue
+
+          const service = c.labels['com.docker.compose.service']
+          if (!service) continue
+
+          let cellId: string | null = null
+          if (constructIds.has(service)) cellId = service
+          else if (cellIds.has(`${service}-cell`)) cellId = `${service}-cell`
+          else if (cellIds.has(service)) cellId = service
+          if (!cellId) continue
+
+          if (cellFilter && cellId !== cellFilter) continue
+          targets.push({ containerName: c.name, cellId })
+        }
+
+        if (targets.length === 0) {
+          finish({ lines: [] })
+          return
+        }
+
+        // Fan out `docker logs` for each container concurrently. Each
+        // invocation has its own timeout; the overall budget is enforced
+        // by overallTimer above.
+        const perContainer = targets.map((t) =>
+          new Promise<ParsedLogLine[]>((resolveOne) => {
+            execFile(
+              'docker',
+              [
+                'logs',
+                '--since', `${sinceSeconds}s`,
+                '--tail', '500',
+                '--timestamps',
+                t.containerName,
+              ],
+              { timeout: LOGS_DOCKER_LOGS_TIMEOUT_MS, maxBuffer: 2 * 1024 * 1024 },
+              (logErr, logStdout, logStderr) => {
+                if (logErr && !logStdout && !logStderr) {
+                  resolveOne([])
+                  return
+                }
+                // docker logs writes stdout of the container to stdout and
+                // stderr to stderr — merge them so we don't lose either.
+                const merged = `${logStdout ?? ''}${logStderr ?? ''}`
+                const lines = merged
+                  .split('\n')
+                  .filter((l) => l.length > 0)
+                  .map((raw) => parseDockerTimestampedLine(raw, t.cellId))
+                resolveOne(lines)
+              },
+            )
+          }),
+        )
+
+        Promise.all(perContainer).then((results) => {
+          const merged = results.flat()
+          // Sort by timestamp so interleaved cell streams read chronologically.
+          // Non-parseable timestamps fall back to string compare on the ts field.
+          merged.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))
+          finish({ lines: merged })
+        }).catch((e) => finish({ lines: [], warning: `docker logs failed: ${String(e)}` }))
+      },
+    )
+  })
+}
+
+/**
+ * Parse a `docker logs --timestamps` line into a structured entry.
+ *
+ * Format is `<RFC3339> <message>`. If the line doesn't match (e.g. a
+ * multi-line stack trace continuation), we return it with an empty ts
+ * so it still shows up, and the ordering falls back to sequence.
+ */
+function parseDockerTimestampedLine(raw: string, cell: string): ParsedLogLine {
+  const spaceIdx = raw.indexOf(' ')
+  if (spaceIdx === -1) return { ts: '', cell, text: raw }
+  const ts = raw.slice(0, spaceIdx)
+  const text = raw.slice(spaceIdx + 1)
+  // Quick sanity check on the timestamp — if it doesn't look like an
+  // ISO date, treat the whole line as the message.
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(ts)) {
+    return { ts: '', cell, text: raw }
+  }
+  return { ts, cell, text }
 }
 
 /** Parse docker labels from comma-separated key=value list */
