@@ -696,7 +696,11 @@ export default defineConfig({
     saveViewsPlugin(),
   ],
   server: {
-    port: 5174,
+    // Single source of truth for the dev port. `npm run dev` used to
+    // pass `--port 5175` via the package.json script, which overrode
+    // the stale 5174 that lived here and caused confusion about which
+    // URL to load. The CLI flag is gone now — this value is authoritative.
+    port: 5175,
     fs: {
       allow: [
         // Allow serving files from the repo root (for dna/ imports)

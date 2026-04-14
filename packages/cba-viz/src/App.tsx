@@ -575,6 +575,7 @@ const App = observer(function App() {
   }
 
   return (
+    <>
     <Layout
       toolbar={
         <Toolbar
@@ -591,6 +592,7 @@ const App = observer(function App() {
           sub={sub}
           onPhaseChange={handlePhaseChange}
           onSubChange={handleSubChange}
+          onCreate={() => setCreateDialogOpen(true)}
         />
       }
       canvas={
@@ -631,9 +633,34 @@ const App = observer(function App() {
         </Suspense>
       }
       sidebar={
-        <Sidebar model={graphModel} env={env} adapter={adapter} />
+        <Sidebar
+          model={graphModel}
+          env={env}
+          adapter={adapter}
+          onOperationalRename={handleOperationalRename}
+        />
       }
     />
+
+    {/* Dialog overlays — rendered outside Layout so they aren't
+        constrained by the toolbar/canvas/sidebar flex rows. Both
+        components provide their own fixed-position backdrop. */}
+    {createDialogOpen && operationalDna ? (
+      <CreatePrimitiveDialog
+        dna={operationalDna}
+        onCreate={handleCreatePrimitive}
+        onClose={() => setCreateDialogOpen(false)}
+      />
+    ) : null}
+    {deleteConfirm ? (
+      <DeleteConfirmDialog
+        primaryLabel={deleteConfirm.label}
+        removed={deleteConfirm.removed}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
+    ) : null}
+    </>
   )
 })
 
