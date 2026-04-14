@@ -42,16 +42,22 @@ export const ID = {
 //   │           │
 //   └───────────┘
 //       │
-//   ┌─ Capability ───────┐ ◆ R ◆ R  ■ O ■ O
+//   ┌─ Capability ───────┐ ◆ R ◆ R   ■ O ■ O
 //   └────────────────────┘
 //       │
-//   ┌─ Capability ───────┐ ◆ R       ■ O ■ O
+//   ┌─ Capability ───────┐ ◆ R        ■ O
 //   └────────────────────┘
 //       ⋮
 //
 // Rules and Outcomes are satellites to the right of each Capability,
-// laid out in two rows (Rules above, Outcomes below) so a Capability's
-// "R/O" profile is readable at a glance.
+// laid out on a SINGLE horizontal row vertically centered against the
+// capability pill — rules first (amber/cyan), then a small gap, then
+// outcomes (violet). Row-gap math:
+//
+//   capability height 40, satellite height 32 → satellite y = capY+4
+//   (capY+36 = satellite bottom)
+//   next capability y = capY + CAPABILITY_ROW_GAP (52)
+//   next satellite y = capY+56 → 20px clear breathing room between rows
 //
 // Signals occupy their own far-right column — they're cross-domain events
 // belonging to the whole graph, not any single Noun.
@@ -64,11 +70,12 @@ const NOUN_SIZE = { width: 180, height: 56 }
 const CAPABILITY_X = 24
 const CAPABILITY_FIRST_Y = LANE_TOP_PAD + NOUN_SIZE.height + 32
 const CAPABILITY_SIZE = { width: 200, height: 40 }
-const CAPABILITY_ROW_GAP = 56    // vertical gap between stacked capabilities
+const CAPABILITY_ROW_GAP = 52    // 40 cap + 12 gap — satellites stay in their row
 const SATELLITE_START_X = CAPABILITY_X + CAPABILITY_SIZE.width + 20
 const RULE_SIZE = { width: 36, height: 32 }
 const RULE_GAP = 6
 const OUTCOME_SIZE = { width: 32, height: 32 }
+const SATELLITE_GROUP_GAP = 14   // horizontal gap between rules group and outcomes group
 const SIGNAL_COLUMN_OFFSET = 40  // added to rightmost lane's right edge
 const SIGNAL_SIZE = { width: 56, height: 56 }
 const SIGNAL_ROW_GAP = 24
@@ -139,20 +146,27 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
       const laneBottom = capY + CAPABILITY_SIZE.height
       if (laneBottom + 40 > totalHeight) totalHeight = laneBottom + 40
 
-      // Rules satellite row (above the capability's center line)
+      // Rules + outcomes share one satellite row, vertically centered
+      // against the capability pill. Rules come first, then a small
+      // horizontal gap, then outcomes. This keeps each capability's
+      // "R/O profile" on a single visual line and prevents satellites
+      // from bleeding into adjacent rows.
+      const satY = capY + (CAPABILITY_SIZE.height - RULE_SIZE.height) / 2
+
       rules.forEach((rule, i) => {
         const rx = laneX + SATELLITE_START_X + i * (RULE_SIZE.width + RULE_GAP)
-        const ry = capY + CAPABILITY_SIZE.height / 2 - RULE_SIZE.height - 2
         const ruleId = ID.rule(capName, i)
-        cells.push(createRule(ruleId, rule, rx, ry))
+        cells.push(createRule(ruleId, rule, rx, satY))
       })
 
-      // Outcomes satellite row (below the capability's center line)
+      const outcomesBaseX = laneX + SATELLITE_START_X
+        + rules.length * (RULE_SIZE.width + RULE_GAP)
+        + (rules.length > 0 ? SATELLITE_GROUP_GAP : 0)
+
       outcomes.forEach((outcome, i) => {
-        const ox = laneX + SATELLITE_START_X + i * (OUTCOME_SIZE.width + RULE_GAP)
-        const oy = capY + CAPABILITY_SIZE.height / 2 + 2
+        const ox = outcomesBaseX + i * (OUTCOME_SIZE.width + RULE_GAP)
         const outcomeId = ID.outcome(capName, i)
-        cells.push(createOutcome(outcomeId, outcome, ox, oy))
+        cells.push(createOutcome(outcomeId, outcome, ox, satY))
       })
     })
   })
@@ -221,15 +235,30 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
     }
   }
 
-  // signal-triggered causes: Cause.source === 'signal' → capability
+  // Causes: two patterns draw edges.
+  //
+  //   source === 'signal'      → Signal -> Capability   (triggers, dashed rose)
+  //   source === 'capability'  → Capability -> Capability (after, solid emerald)
+  //
+  // Other sources (user, schedule, webhook) don't produce canvas edges
+  // — they're properties of a capability rather than inter-node relations,
+  // and the inspector form surfaces them on the target capability itself.
   for (const cause of dna.causes ?? []) {
-    if (cause.source !== 'signal' || !cause.signal) continue
-    if (!hasElement(result, ID.signal(cause.signal))) continue
-    if (!hasElement(result, ID.capability(cause.capability))) continue
-    result.push(createEdge(ID.signal(cause.signal), ID.capability(cause.capability), {
-      type: 'trigger',
-      label: 'triggers',
-    }))
+    if (cause.source === 'signal' && cause.signal) {
+      if (!hasElement(result, ID.signal(cause.signal))) continue
+      if (!hasElement(result, ID.capability(cause.capability))) continue
+      result.push(createEdge(ID.signal(cause.signal), ID.capability(cause.capability), {
+        type: 'trigger',
+        label: 'triggers',
+      }))
+    } else if (cause.source === 'capability' && cause.after) {
+      if (!hasElement(result, ID.capability(cause.after))) continue
+      if (!hasElement(result, ID.capability(cause.capability))) continue
+      result.push(createEdge(ID.capability(cause.after), ID.capability(cause.capability), {
+        type: 'initiate',
+        label: 'after',
+      }))
+    }
   }
 
   return result
@@ -260,9 +289,20 @@ function createDomainZone(domain: Domain, width: number, height: number): dia.El
   el.set('dna', {
     kind: 'domain',
     id: ID.domain(domain.path ?? domain.name),
+    layer: 'operational',
     name: domain.name,
     path: domain.path,
     description: domain.description,
+    // Pass the whole domain so clicking the zone opens the domain
+    // schema form in the sidebar, same as every other operational
+    // primitive. Sub-nouns / sub-domains are stripped because they
+    // render as their own cells — the form edits only the top-level
+    // fields (name, description, path).
+    source: {
+      name: domain.name,
+      description: domain.description,
+      path: domain.path,
+    },
   })
   return el
 }
