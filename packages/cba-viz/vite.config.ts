@@ -162,11 +162,16 @@ function saveViewsPlugin() {
         }
 
         // GET /api/schemas/:family/:name — serve a JSON schema from the
-        // repo's layer schema directories (operational/schemas, product/schemas,
-        // technical/schemas). The RJSF-driven inspector forms fetch these at
-        // runtime so there's one source of truth for schemas across CLI,
-        // validator, and viewer.
-        const schemaMatch = req.url?.match(/^\/api\/schemas\/([^/]+)\/([^/?]+)/)
+        // repo's layer schema directories (operational/schemas,
+        // product/schemas, technical/schemas). The RJSF-driven inspector
+        // forms fetch these at runtime so there's one source of truth for
+        // schemas across CLI, validator, and viewer.
+        //
+        // `name` can be multi-segment (e.g. `api/endpoint` resolving to
+        // `product/schemas/api/endpoint.json`) since product schemas live
+        // in typed subdirectories. The greedy `(.+?)` with a query/frag
+        // terminator captures everything after the family segment.
+        const schemaMatch = req.url?.match(/^\/api\/schemas\/([^/]+)\/([^?]+?)\/?$/)
         if (req.method === 'GET' && schemaMatch) {
           const family = decodeURIComponent(schemaMatch[1])
           const name = decodeURIComponent(schemaMatch[2]).replace(/\.json$/, '')
@@ -521,8 +526,13 @@ function inlineRefs(rootSchema: unknown): unknown {
   if (!rootSchema || typeof rootSchema !== 'object') return rootSchema
   const defs: Record<string, unknown> = {}
 
+  /**
+   * Flatten a family + possibly-nested name into a safe $defs key.
+   * `operational, attribute` → `operational_attribute`
+   * `product, core/resource`  → `product_core_resource`
+   */
   function defKey(family: string, name: string): string {
-    return `${family}_${name}`
+    return `${family}_${name.replace(/\//g, '_')}`
   }
 
   function loadExternal(family: string, name: string): unknown | null {
@@ -553,19 +563,29 @@ function inlineRefs(rootSchema: unknown): unknown {
         // Strip fragment — we don't currently use subschema pointers,
         // so `https://dna.local/operational/attribute#/foo` is unsupported.
         const cleaned = value.split('#')[0]
-        const m = cleaned.match(/^https:\/\/dna\.local\/([^/]+)\/([^/]+)$/)
+        // Path after `dna.local/` can be multi-segment:
+        //   operational/attribute          → family=operational, name=attribute
+        //   product/core/resource          → family=product,     name=core/resource
+        //   product/api/endpoint           → family=product,     name=api/endpoint
+        // The first segment is always the family; everything else is the
+        // schema name (possibly nested into a family subdirectory).
+        const m = cleaned.match(/^https:\/\/dna\.local\/(.+)$/)
         if (m) {
-          const [, family, name] = m
-          const key = defKey(family, name)
-          if (!(key in defs)) {
-            // Mark before recursing so cyclic refs (A → B → A) don't
-            // infinite-loop. We'll overwrite with the real schema next.
-            defs[key] = true
-            const loaded = loadExternal(family, name)
-            defs[key] = loaded ? walk(loaded) : {}
+          const parts = m[1].split('/')
+          if (parts.length >= 2) {
+            const family = parts[0]
+            const name = parts.slice(1).join('/')
+            const key = defKey(family, name)
+            if (!(key in defs)) {
+              // Mark before recursing so cyclic refs (A → B → A) don't
+              // infinite-loop. We'll overwrite with the real schema next.
+              defs[key] = true
+              const loaded = loadExternal(family, name)
+              defs[key] = loaded ? walk(loaded) : {}
+            }
+            out['$ref'] = `#/$defs/${key}`
+            continue
           }
-          out['$ref'] = `#/$defs/${key}`
-          continue
         }
       }
       out[key] = walk(value)

@@ -1,14 +1,16 @@
 import { observer } from 'mobx-react-lite'
 import type { GraphModel } from '../models/GraphModel.ts'
 
-export type Layer = 'technical' | 'operational' | 'product-core'
+export type Layer = 'technical' | 'operational' | 'product-core' | 'product-api'
 
 /**
  * URL-friendly list of all layer values. Kept in sync with the Layer
  * union so we have one place to add future product sub-layers
- * (product-api, product-ui) as they ship.
+ * (product-ui) as they ship. Tab order follows the DNA pipeline:
+ * business logic (Operational) → product surface (Product Core, API,
+ * UI) → deployment (Technical).
  */
-export const ALL_LAYERS: Layer[] = ['technical', 'operational', 'product-core']
+export const ALL_LAYERS: Layer[] = ['operational', 'product-core', 'product-api', 'technical']
 
 /** Human-readable label for the toolbar tab. */
 export function layerLabel(layer: Layer): string {
@@ -16,6 +18,7 @@ export function layerLabel(layer: Layer): string {
     case 'technical':    return 'Technical'
     case 'operational':  return 'Operational'
     case 'product-core': return 'Product Core'
+    case 'product-api':  return 'Product API'
   }
 }
 
@@ -25,6 +28,7 @@ function tabTitle(layer: Layer): string {
     case 'technical':    return 'Technical DNA — deployment graph'
     case 'operational':  return 'Operational DNA — business logic'
     case 'product-core': return 'Product Core — materialized operational subset that product surfaces consume'
+    case 'product-api':  return 'Product API — namespace, resources, endpoints'
   }
 }
 

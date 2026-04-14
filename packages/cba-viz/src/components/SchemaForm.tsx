@@ -29,7 +29,11 @@ function fetchSchema(family: string, name: string): Promise<RJSFSchema> {
   if (cached) return Promise.resolve(cached)
   const inflight = schemaInflight.get(key)
   if (inflight) return inflight
-  const p = fetch(`/api/schemas/${encodeURIComponent(family)}/${encodeURIComponent(name)}`)
+  // `name` can be nested (e.g. `api/endpoint`). Encode each path segment
+  // individually so the slashes stay intact for the middleware's
+  // multi-segment regex while any other special chars still get escaped.
+  const encodedName = name.split('/').map(encodeURIComponent).join('/')
+  const p = fetch(`/api/schemas/${encodeURIComponent(family)}/${encodedName}`)
     .then(async (res) => {
       if (!res.ok) {
         throw new Error(`Failed to fetch schema ${family}/${name}: ${res.status}`)

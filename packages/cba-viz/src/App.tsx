@@ -3,12 +3,18 @@ import { observer } from 'mobx-react-lite'
 import { GraphModel } from './models/GraphModel.ts'
 import { parseArchitectureDNA, type ArchitectureDNA, type NodeStatus } from './loaders/dna-loader.ts'
 import { loadOperationalDNA, type OperationalDNA } from './loaders/operational-loader.ts'
-import { loadProductCoreDNA, type ProductCoreDNA } from './loaders/product-loader.ts'
+import {
+  loadProductCoreDNA,
+  loadProductApiDNA,
+  type ProductCoreDNA,
+  type ProductApiDNA,
+} from './loaders/product-loader.ts'
 import { graphToArchView, saveViews } from './features/persistence.ts'
 import { graphToOperationalDNA, saveOperational } from './features/operational-persistence.ts'
 import { TechnicalCanvas } from './components/TechnicalCanvas.tsx'
 import { OperationalCanvas } from './components/OperationalCanvas.tsx'
 import { ProductCoreCanvas } from './components/ProductCoreCanvas.tsx'
+import { ProductApiCanvas } from './components/ProductApiCanvas.tsx'
 import { Toolbar, type Layer } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
@@ -34,7 +40,11 @@ function getEnv(): string {
 function getLayer(): Layer {
   const params = new URLSearchParams(window.location.search)
   const fromUrl = params.get('layer')
-  if (fromUrl === 'operational' || fromUrl === 'product-core') return fromUrl
+  if (
+    fromUrl === 'operational' ||
+    fromUrl === 'product-core' ||
+    fromUrl === 'product-api'
+  ) return fromUrl
   return 'technical'
 }
 
@@ -68,6 +78,9 @@ const App = observer(function App() {
   // Product Core layer state — materialized subset of operational
   const [productCoreDna, setProductCoreDna] = useState<ProductCoreDNA | null>(null)
 
+  // Product API layer state — hand-authored namespace, resources, endpoints
+  const [productApiDna, setProductApiDna] = useState<ProductApiDNA | null>(null)
+
   // Load error state per layer. Keeps the loading gate honest — without
   // this, a 404 or parse failure silently leaves the corresponding layer
   // at `null` and the UI shows "Loading…" forever. With it, we surface a
@@ -75,6 +88,7 @@ const App = observer(function App() {
   const [technicalError, setTechnicalError] = useState<string | null>(null)
   const [operationalError, setOperationalError] = useState<string | null>(null)
   const [productCoreError, setProductCoreError] = useState<string | null>(null)
+  const [productApiError, setProductApiError] = useState<string | null>(null)
 
   const [domain] = useState(getDomain)
   const [env, setEnvState] = useState(getEnv)
@@ -158,6 +172,19 @@ const App = observer(function App() {
       })
   }, [domain])
 
+  // ── Product API DNA loader ──
+  // Hand-authored, not materialized — so unlike product-core, edits
+  // here are meant to round-trip back to product.api.json.
+  useEffect(() => {
+    setProductApiError(null)
+    loadProductApiDNA(domain)
+      .then(setProductApiDna)
+      .catch(err => {
+        console.error('Failed to load product API DNA:', err)
+        setProductApiError(String(err.message ?? err))
+      })
+  }, [domain])
+
   // ── Live status polling (technical only) ──
   //
   // Polling runs independently of the active layer so switching away
@@ -220,6 +247,21 @@ const App = observer(function App() {
       return
     }
 
+    // Product API editing is authoring territory — the file is
+    // hand-maintained, not materialized — but the graph→DNA mutation
+    // helper + save endpoint are a follow-up. Block the save for now
+    // so position drags and form edits don't silently disappear on
+    // refresh, and point the user at the commit that'll unlock it.
+    if (layer === 'product-api') {
+      alert(
+        'Product API save is not wired up yet. The canvas is rendering-only until the ' +
+        'graphToProductApiDNA helper + /api/dna/product-api POST persistence lands in a ' +
+        'follow-up commit. Your edits are safe in the browser session — refresh loses them.',
+      )
+      graphModel.setDirty(false)
+      return
+    }
+
     setSaving(true)
     try {
       if (layer === 'technical') {
@@ -269,15 +311,18 @@ const App = observer(function App() {
   const technicalReady = dna && currentView
   const operationalReady = operationalDna
   const productCoreReady = productCoreDna
+  const productApiReady = productApiDna
   const ready =
     layer === 'technical'    ? technicalReady :
     layer === 'operational'  ? operationalReady :
     layer === 'product-core' ? productCoreReady :
+    layer === 'product-api'  ? productApiReady :
     false
   const error =
     layer === 'technical'    ? technicalError :
     layer === 'operational'  ? operationalError :
     layer === 'product-core' ? productCoreError :
+    layer === 'product-api'  ? productApiError :
     null
   if (!ready) {
     if (error) {
@@ -328,6 +373,12 @@ const App = observer(function App() {
             key={`pcore:${domain}`}
             model={graphModel}
             dna={productCoreDna}
+          />
+        ) : layer === 'product-api' && productApiDna ? (
+          <ProductApiCanvas
+            key={`papi:${domain}`}
+            model={graphModel}
+            dna={productApiDna}
           />
         ) : null
       }

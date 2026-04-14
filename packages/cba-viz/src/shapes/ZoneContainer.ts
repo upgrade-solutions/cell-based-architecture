@@ -14,6 +14,10 @@ const ZONE_COLORS: Record<string, { stroke: string; fill: string; textFill: stri
   // Operational layer domain zone — emerald to match CapabilityShape so a
   // domain and its capabilities read as one visual family.
   'domain-operational': { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.06)', textFill: '#6ee7b7' },
+  // Product API namespace zone — indigo. Distinct from operational's
+  // emerald so a glance tells you whether you're looking at business
+  // logic (operational) or product surface (product API).
+  'namespace-api': { stroke: '#6366f1', fill: 'rgba(99, 102, 241, 0.06)', textFill: '#a5b4fc' },
 }
 
 /**

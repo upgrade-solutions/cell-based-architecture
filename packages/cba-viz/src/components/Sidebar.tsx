@@ -49,25 +49,20 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter }: Sideba
   const pos = element ? { x: element.position().x, y: element.position().y } : null
   const size = element ? { width: element.size().width, height: element.size().height } : null
 
-  // Operational nodes route through RJSF. The mapper stamps every
-  // operational element with `dna.layer === 'operational'` and a
-  // `dna.kind` that maps 1:1 onto a schema filename (capability →
-  // `operational/schemas/capability.json`, etc.).
-  const isOperational = dna.layer === 'operational'
+  // DNA-driven nodes route through RJSF. The mapper stamps every
+  // DNA element with `dna.layer` (operational | product-api | ...)
+  // and a `dna.kind` discriminator. We map `(layer, kind)` to the
+  // `(family, name)` of a JSON Schema file and render an RJSF form
+  // bound to `dna.source`.
+  //
+  // The JointJS discriminator for annotation edges is `edge`; those
+  // don't have a primitive schema and fall through to the read-only
+  // inspector below.
+  const layerName = dna.layer as string | undefined
   const kind = dna.kind as string | undefined
+  const isSchemaBacked = layerName !== undefined && layerName !== 'technical'
 
-  // Kind → schema filename lookup. The JointJS discriminator for
-  // annotation edges is `edge`; those don't have a primitive schema
-  // and fall through to the read-only inspector below.
-  const OPERATIONAL_SCHEMAS: Record<string, string> = {
-    domain: 'domain',
-    noun: 'noun',
-    capability: 'capability',
-    rule: 'rule',
-    outcome: 'outcome',
-    signal: 'signal',
-  }
-  const schemaName = isOperational && kind ? OPERATIONAL_SCHEMAS[kind] : undefined
+  const schemaInfo = isSchemaBacked && kind ? lookupSchema(layerName, kind) : null
 
   return (
     <div style={containerStyle}>
@@ -77,35 +72,45 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter }: Sideba
         {/* Identity — shown for every node as a quick-glance summary */}
         <Section title="Identity">
           <Field label="ID" value={dna.id as string} />
-          <Field label="Name" value={(dna.name as string) ?? ''} editable={!isOperational} onChange={(val) => {
+          <Field label="Name" value={(dna.name as string) ?? ''} editable={!isSchemaBacked} onChange={(val) => {
             cell?.set('dna', { ...dna, name: val })
             cell?.attr({ label: { text: val } })
             model.setDirty(true)
           }} />
-          {!isOperational && dna.type ? <Field label="Type" value={dna.type as string} /> : null}
+          {!isSchemaBacked && dna.type ? <Field label="Type" value={dna.type as string} /> : null}
           {kind ? <Field label="Kind" value={kind} /> : null}
+          {layerName ? <Field label="Layer" value={layerName} /> : null}
           {dna.status ? <Field label="Status" value={dna.status as string} /> : null}
-          {!isOperational && typeof dna.source === 'string' ? <Field label="Source" value={dna.source as string} /> : null}
+          {!isSchemaBacked && typeof dna.source === 'string' ? <Field label="Source" value={dna.source as string} /> : null}
         </Section>
 
-        {/* Operational primitives: schema-driven RJSF form. Edits stream
-            onto `dna.source` (the primitive payload) and mark the graph
-            dirty so Ctrl+S saves the whole operational document. */}
-        {schemaName ? (
+        {/* DNA primitives: schema-driven RJSF form. Edits stream onto
+            `dna.source` (the primitive payload) and mark the graph dirty
+            so Ctrl+S saves the whole document. */}
+        {schemaInfo ? (
           <Section title={`${kind} editor`}>
             <SchemaForm
-              family="operational"
-              schemaName={schemaName}
+              family={schemaInfo.family}
+              schemaName={schemaInfo.name}
               data={dna.source}
               onChange={(next) => {
                 // Merge the edited primitive back onto the cell's dna attr.
                 // We keep `layer`, `kind`, and `id` so later re-selection
                 // still routes through the same branch.
                 cell?.set('dna', { ...dna, source: next })
-                // Mirror a name change onto the canvas label when possible
-                const nextObj = next as { name?: string; noun?: string; verb?: string }
+                // Mirror a name change onto the canvas label when possible.
+                // Kind-specific label rules keep the canvas in sync with
+                // whatever the user typed in the form — capabilities go
+                // by Noun.Verb, endpoints by METHOD path, everything else
+                // by its `name` field.
+                const nextObj = next as { name?: string; noun?: string; verb?: string; method?: string; path?: string }
                 if (kind === 'capability' && nextObj.noun && nextObj.verb) {
                   cell?.attr({ label: { text: nextObj.name ?? `${nextObj.noun}.${nextObj.verb}` } })
+                } else if (kind === 'endpoint' && nextObj.method && nextObj.path) {
+                  cell?.attr({
+                    methodLabel: { text: nextObj.method },
+                    pathLabel: { text: nextObj.path },
+                  })
                 } else if (nextObj.name) {
                   cell?.attr({ label: { text: nextObj.name } })
                 }
@@ -273,6 +278,44 @@ function StatusLegend() {
       ))}
     </div>
   )
+}
+
+/**
+ * Map `(layer, kind)` to the schema `(family, name)` the RJSF form
+ * should fetch. Schema files live under `operational/schemas/`,
+ * `product/schemas/{core,api,web}/`, and `technical/schemas/`. The
+ * `name` can be nested (e.g. `api/endpoint`) — SchemaForm preserves
+ * slashes in the fetch URL so the middleware can resolve the right
+ * file.
+ *
+ * Returns `null` for unknown combinations. Edges and shapes we don't
+ * have a schema for fall through to the read-only Identity panel.
+ */
+function lookupSchema(layer: string, kind: string): { family: string; name: string } | null {
+  // Operational primitives live at the root of operational/schemas/
+  if (layer === 'operational') {
+    switch (kind) {
+      case 'domain':     return { family: 'operational', name: 'domain' }
+      case 'noun':       return { family: 'operational', name: 'noun' }
+      case 'capability': return { family: 'operational', name: 'capability' }
+      case 'rule':       return { family: 'operational', name: 'rule' }
+      case 'outcome':    return { family: 'operational', name: 'outcome' }
+      case 'signal':     return { family: 'operational', name: 'signal' }
+    }
+  }
+
+  // Product API primitives live under product/schemas/api/ and
+  // product/schemas/core/. Namespace + Endpoint are API-only; Resource
+  // is shared across core/api/ui so it lives under core/.
+  if (layer === 'product-api') {
+    switch (kind) {
+      case 'namespace': return { family: 'product', name: 'api/namespace' }
+      case 'resource':  return { family: 'product', name: 'core/resource' }
+      case 'endpoint':  return { family: 'product', name: 'api/endpoint' }
+    }
+  }
+
+  return null
 }
 
 /**
