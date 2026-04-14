@@ -704,4 +704,28 @@ export default defineConfig({
       ],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy vendor deps into separate chunks so the initial page
+        // load doesn't ship JointJS (~1 MB) and the RJSF/ajv stack when
+        // neither is needed before the user picks a canvas. Everything
+        // unmatched stays in the main chunk.
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('@joint/plus') || id.includes('@joint\\plus')) return 'joint'
+          if (id.includes('@rjsf/') || id.includes('@rjsf\\') || /[\\/]node_modules[\\/]ajv(-|[\\/])/.test(id)) return 'rjsf'
+          if (
+            /[\\/]node_modules[\\/]react[\\/]/.test(id) ||
+            /[\\/]node_modules[\\/]react-dom[\\/]/.test(id) ||
+            /[\\/]node_modules[\\/]mobx[\\/]/.test(id) ||
+            /[\\/]node_modules[\\/]mobx-react-lite[\\/]/.test(id)
+          ) {
+            return 'vendor'
+          }
+          return undefined
+        },
+      },
+    },
+  },
 })

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 import { observer } from 'mobx-react-lite'
 import { GraphModel } from './models/GraphModel.ts'
 import { parseArchitectureDNA, type ArchitectureDNA, type NodeStatus } from './loaders/dna-loader.ts'
@@ -19,12 +19,27 @@ import {
   saveProductApi,
   saveProductUi,
 } from './features/product-persistence.ts'
-import { TechnicalCanvas } from './components/TechnicalCanvas.tsx'
-import { OperationalCanvas } from './components/OperationalCanvas.tsx'
-import { ProductCoreCanvas } from './components/ProductCoreCanvas.tsx'
-import { ProductApiCanvas } from './components/ProductApiCanvas.tsx'
-import { ProductUiCanvas } from './components/ProductUiCanvas.tsx'
-import { CrossLayerCanvas } from './components/CrossLayerCanvas.tsx'
+// Canvas components are lazy-loaded so the heavy JointJS dep only ships
+// when the user actually opens a graph surface — the initial bundle stays
+// lean and each canvas comes in on demand.
+const TechnicalCanvas = lazy(() =>
+  import('./components/TechnicalCanvas.tsx').then((m) => ({ default: m.TechnicalCanvas })),
+)
+const OperationalCanvas = lazy(() =>
+  import('./components/OperationalCanvas.tsx').then((m) => ({ default: m.OperationalCanvas })),
+)
+const ProductCoreCanvas = lazy(() =>
+  import('./components/ProductCoreCanvas.tsx').then((m) => ({ default: m.ProductCoreCanvas })),
+)
+const ProductApiCanvas = lazy(() =>
+  import('./components/ProductApiCanvas.tsx').then((m) => ({ default: m.ProductApiCanvas })),
+)
+const ProductUiCanvas = lazy(() =>
+  import('./components/ProductUiCanvas.tsx').then((m) => ({ default: m.ProductUiCanvas })),
+)
+const CrossLayerCanvas = lazy(() =>
+  import('./components/CrossLayerCanvas.tsx').then((m) => ({ default: m.CrossLayerCanvas })),
+)
 import { RunPhaseStub } from './components/RunPhaseStub.tsx'
 import {
   Toolbar,
@@ -450,21 +465,43 @@ const App = observer(function App() {
           onSubChange={handleSubChange}
         />
       }
-      canvas={renderCanvas({
-        phase,
-        sub,
-        graphModel,
-        dna,
-        currentView,
-        currentViewName,
-        operationalDna,
-        productCoreDna,
-        productApiDna,
-        productUiDna,
-        domain,
-        capabilityName,
-        onCapabilityChange: setCapabilityName,
-      })}
+      canvas={
+        <Suspense
+          fallback={
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                height: '100%',
+                background: '#0f172a',
+                color: '#94a3b8',
+                fontFamily: '-apple-system, sans-serif',
+                fontSize: 13,
+              }}
+            >
+              Loading canvas…
+            </div>
+          }
+        >
+          {renderCanvas({
+            phase,
+            sub,
+            graphModel,
+            dna,
+            currentView,
+            currentViewName,
+            operationalDna,
+            productCoreDna,
+            productApiDna,
+            productUiDna,
+            domain,
+            capabilityName,
+            onCapabilityChange: setCapabilityName,
+          })}
+        </Suspense>
+      }
       sidebar={
         <Sidebar model={graphModel} env={env} adapter={adapter} />
       }
