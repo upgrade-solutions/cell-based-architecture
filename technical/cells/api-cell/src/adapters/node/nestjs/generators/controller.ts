@@ -51,8 +51,11 @@ export function generateController(
 
     const capability = resolveCapability(ep.operation, operations)
     const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
-    const roles = accessRule?.allow?.map((a: { role: string }) => a.role) ?? []
-    const requiresOwnership = accessRule?.allow?.some(a => a.ownership) ?? false
+    const allowEntries: Array<{ role?: string; ownership?: boolean; flags?: string[] }> =
+      accessRule?.allow ?? []
+    const roles = allowEntries.map(a => a.role).filter((r): r is string => !!r)
+    const requiresOwnership = allowEntries.some(a => a.ownership)
+    const hasFlags = allowEntries.some(a => Array.isArray(a.flags) && a.flags.length > 0)
 
     const pathParams = (ep.params ?? []).filter(p => p.in === 'path')
     const queryParams = (ep.params ?? []).filter(p => p.in === 'query')
@@ -83,13 +86,24 @@ export function generateController(
     const apiQueryDecorators = queryParams.map(
       p => `  @ApiQuery({ name: '${p.name}', required: false })`
     )
+    // When any allow entry has flags we emit @AccessAllow with the full
+    // structured entries (preserves within-entry AND / cross-entry OR).
+    // Otherwise we keep @Roles for backward-compat and simpler generated code.
+    const allowDec = hasFlags
+      ? `  @AccessAllow(${JSON.stringify(allowEntries)})`
+      : null
+    const rolesDec = !hasFlags && roles.length
+      ? `  @Roles(${roles.map(r => `'${r}'`).join(', ')})`
+      : null
+
     const lines: string[] = [
       `  // ${ep.operation}${ep.description ? `: ${ep.description}` : ''}`,
       `  @ApiOperation({ summary: '${summary.replace(/'/g, "\\'")}' })`,
       `  @ApiBearerAuth()`,
       ...apiQueryDecorators,
       `  @UseGuards(AuthGuard)`,
-      ...(roles.length ? [`  @Roles(${roles.map(r => `'${r}'`).join(', ')})`] : []),
+      ...(allowDec ? [allowDec] : []),
+      ...(rolesDec ? [rolesDec] : []),
       ...(requiresOwnership ? ['  @RequiresOwnership()'] : []),
       `  ${pathDec}`,
       `  ${methodName}(${params.join(', ')}) {`,
@@ -115,7 +129,7 @@ export function generateController(
     `import { ${nestImports.join(', ')} } from '@nestjs/common'`,
     `import { ApiOperation, ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger'`,
     `import { AuthGuard } from '../auth/auth.guard'`,
-    `import { Roles, RequiresOwnership } from '../auth/roles.decorator'`,
+    `import { Roles, RequiresOwnership, AccessAllow } from '../auth/roles.decorator'`,
     `import { ${serviceName} } from './${fileName}.service'`,
     ...dtoImports,
     '',

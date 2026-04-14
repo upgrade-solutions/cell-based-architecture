@@ -3,9 +3,28 @@ export function generateAuth(authMode?: string): string {
   return generateOidcAuth()
 }
 
+/**
+ * Default feature-flag source. Reads flags from `FLAG_<UPPER_SNAKE>` env vars.
+ * Emitted as its own module so users can override a single file to plug in
+ * LaunchDarkly / Unleash / GrowthBook without touching the generated authz.
+ */
+export function generateFlags(): string {
+  return `// Default feature-flag source — reads FLAG_<UPPER_SNAKE> env vars.
+// Override this module to plug in LaunchDarkly / Unleash / GrowthBook etc.
+// The authz middleware imports { isFlagEnabled } from './flags'.
+
+export function isFlagEnabled(name: string): boolean {
+  const envName = 'FLAG_' + name.toUpperCase().replace(/[^A-Z0-9_]/g, '_')
+  const raw = process.env[envName]
+  return raw === '1' || raw === 'true'
+}
+`
+}
+
 function generateBuiltInAuth(): string {
   return `import { Request, Response, NextFunction } from 'express'
 import * as jwt from 'jsonwebtoken'
+import { isFlagEnabled } from './flags'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
 
@@ -18,6 +37,20 @@ function verifyToken(token: string): Promise<jwt.JwtPayload> {
   })
 }
 
+// ── Allow-entry matcher ──────────────────────────────────────────────────────
+// An allow entry matches iff:
+//   (no role OR user has the role) AND
+//   (no ownership constraint — ownership is enforced downstream in the handler) AND
+//   (every flag in entry.flags is currently enabled)
+// Cross-entry semantics is OR; within-entry is AND.
+function entryMatches(entry: any, userRoles: string[]): boolean {
+  if (entry.role && !userRoles.includes(entry.role)) return false
+  if (Array.isArray(entry.flags) && entry.flags.length > 0) {
+    if (!entry.flags.every((f: string) => isFlagEnabled(f))) return false
+  }
+  return true
+}
+
 // ── Middleware factory ────────────────────────────────────────────────────────
 
 export function createAuthMiddleware(endpoint: any, api: any, operational: any) {
@@ -26,8 +59,9 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
   const rule = (operational.rules ?? []).find(
     (r: any) => r.capability === capability && r.type === 'access',
   )
-  const requiredRoles: string[] = rule?.allow?.map((a: any) => a.role) ?? []
-  const requiresOwnership = rule?.allow?.some((a: any) => a.ownership) ?? false
+  const allowEntries: any[] = rule?.allow ?? []
+  const requiresOwnership = allowEntries.some((a: any) => a.ownership)
+  const hasAllow = allowEntries.length > 0
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization
@@ -40,10 +74,10 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
       const payload = await verifyToken(token)
       ;(req as any).user = payload
 
-      // Role check
-      if (requiredRoles.length) {
+      // Role + flag check — at least one allow entry must match.
+      if (hasAllow) {
         const userRoles: string[] = (payload.roles as string[]) ?? []
-        if (!requiredRoles.some((r: string) => userRoles.includes(r))) {
+        if (!allowEntries.some((entry: any) => entryMatches(entry, userRoles))) {
           return res.status(403).json({ message: 'Forbidden' })
         }
       }
@@ -67,6 +101,7 @@ import * as jwt from 'jsonwebtoken'
 import jwksClient from 'jwks-rsa'
 import * as fs from 'fs'
 import * as path from 'path'
+import { isFlagEnabled } from './flags'
 
 // ── Load auth config from Technical DNA ──────────────────────────────────────
 
@@ -117,6 +152,20 @@ function verifyToken(token: string): Promise<jwt.JwtPayload> {
   })
 }
 
+// ── Allow-entry matcher ──────────────────────────────────────────────────────
+// An allow entry matches iff:
+//   (no role OR user has the role) AND
+//   (no ownership constraint — ownership is enforced downstream in the handler) AND
+//   (every flag in entry.flags is currently enabled)
+// Cross-entry semantics is OR; within-entry is AND.
+function entryMatches(entry: any, userRoles: string[]): boolean {
+  if (entry.role && !userRoles.includes(entry.role)) return false
+  if (Array.isArray(entry.flags) && entry.flags.length > 0) {
+    if (!entry.flags.every((f: string) => isFlagEnabled(f))) return false
+  }
+  return true
+}
+
 // ── Middleware factory ────────────────────────────────────────────────────────
 
 export function createAuthMiddleware(endpoint: any, api: any, operational: any) {
@@ -125,8 +174,9 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
   const rule = (operational.rules ?? []).find(
     (r: any) => r.capability === capability && r.type === 'access',
   )
-  const requiredRoles: string[] = rule?.allow?.map((a: any) => a.role) ?? []
-  const requiresOwnership = rule?.allow?.some((a: any) => a.ownership) ?? false
+  const allowEntries: any[] = rule?.allow ?? []
+  const requiresOwnership = allowEntries.some((a: any) => a.ownership)
+  const hasAllow = allowEntries.length > 0
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization
@@ -141,11 +191,11 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
       const payload = await verifyToken(token)
       ;(req as any).user = payload
 
-      // Role check — read roles from the IDP-configured claim path
-      if (requiredRoles.length) {
+      // Role + flag check — at least one allow entry must match.
+      if (hasAllow) {
         const roleClaim = authConfig?.roleClaim ?? 'roles'
         const userRoles: string[] = (payload[roleClaim] as string[]) ?? []
-        if (!requiredRoles.some((r: string) => userRoles.includes(r))) {
+        if (!allowEntries.some((entry: any) => entryMatches(entry, userRoles))) {
           return res.status(403).json({ message: 'Forbidden' })
         }
       }

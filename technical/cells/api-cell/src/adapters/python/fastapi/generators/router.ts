@@ -160,7 +160,27 @@ function buildEmitLines(outcome: Outcome | undefined, signals?: Signal[], varNam
   return lines
 }
 
-function buildRouteParams(ep: Endpoint, kind: OpKind, resource: Resource, requestClass: string | undefined, roles: string[]): string {
+type AllowEntry = { role?: string; ownership?: boolean; flags?: string[] }
+
+/** Render an AllowEntry as a Python dict literal. */
+function pyAllowEntry(entry: AllowEntry): string {
+  const parts: string[] = []
+  if (entry.role) parts.push(`"role": "${entry.role}"`)
+  if (entry.ownership) parts.push(`"ownership": True`)
+  if (Array.isArray(entry.flags) && entry.flags.length > 0) {
+    parts.push(`"flags": [${entry.flags.map(f => `"${f}"`).join(', ')}]`)
+  }
+  return `{${parts.join(', ')}}`
+}
+
+function buildRouteParams(
+  ep: Endpoint,
+  kind: OpKind,
+  resource: Resource,
+  requestClass: string | undefined,
+  roles: string[],
+  allowEntries: AllowEntry[],
+): string {
   const params: string[] = []
 
   // Path params
@@ -190,7 +210,13 @@ function buildRouteParams(ep: Endpoint, kind: OpKind, resource: Resource, reques
   params.push(`db: Session = Depends(get_db)`)
 
   // Auth dependency
-  if (roles.length) {
+  // Use require_allow when any entry has flags (need full structured entries);
+  // fall back to require_roles for the simpler common case.
+  const hasFlags = allowEntries.some(a => Array.isArray(a.flags) && a.flags.length > 0)
+  if (hasFlags) {
+    const entriesLiteral = allowEntries.map(pyAllowEntry).join(', ')
+    params.push(`user: dict = Depends(require_allow([${entriesLiteral}]))`)
+  } else if (roles.length) {
     params.push(`user: dict = Depends(require_roles(${roles.map(r => `"${r}"`).join(', ')}))`)
   } else {
     params.push(`user: dict = Depends(get_current_user)`)
@@ -242,7 +268,8 @@ export function generateRouter(
     const kind = classifyEndpoint(ep)
 
     const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
-    const roles = accessRule?.allow?.map(a => a.role) ?? []
+    const allowEntries: AllowEntry[] = (accessRule?.allow ?? []) as AllowEntry[]
+    const roles = allowEntries.map(a => a.role).filter((r): r is string => !!r)
 
     const path = fastapiPath(ep.path)
     const method = httpMethod(ep.method)
@@ -256,7 +283,7 @@ export function generateRouter(
       ? (ep.request.name ?? `${ep.operation.replace('.', '')}Request`)
       : undefined
 
-    const params = buildRouteParams(ep, kind, resource, requestClass, roles)
+    const params = buildRouteParams(ep, kind, resource, requestClass, roles, allowEntries)
 
     let body: string[]
     if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability, signals)
@@ -280,7 +307,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import get_current_user, require_roles
+from app.auth import get_current_user, require_roles, require_allow
 from app.models.${toSnakeCase(resource.name)} import ${resource.name}
 from app.schemas.${toSnakeCase(resource.name)} import ${[...schemaImports].join(', ')}
 

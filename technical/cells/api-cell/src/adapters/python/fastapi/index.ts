@@ -6,7 +6,7 @@ import { toSnakeCase, toPlural, toModelFileName, toSchemaFileName, toRouterFileN
 import { generateModel, generateModelsInit } from './generators/models'
 import { generateResourceSchemas, generateSchemasInit } from './generators/schemas'
 import { generateRouter, generateRoutersInit } from './generators/router'
-import { generateAuth } from './generators/auth'
+import { generateAuth, generateFlags } from './generators/auth'
 import { generateDatabase } from './generators/database'
 import { generateMain } from './generators/main'
 import { generateSeed } from './generators/seed'
@@ -62,6 +62,7 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'app/schemas/__init__.py', generateSchemasInit(resources))
 
   // ── Auth ──────────────────────────────────────────────────────────────────
+  write(outputDir, 'app/flags.py', generateFlags())
   write(outputDir, 'app/auth.py', generateAuth(authConfig))
 
   // ── Routers (one per Resource) ────────────────────────────────────────────

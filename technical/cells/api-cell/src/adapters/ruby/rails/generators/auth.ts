@@ -29,6 +29,38 @@ export function generateApplicationController(authConfig?: AuthProviderConfig): 
     end
   end
 
+  # Class-level DSL: authorize_allow! [{role: 'underwriter', flags: ['new_flow']}, ...], only: [:create]
+  #
+  # Full allow[] semantics from operational DNA. An entry matches iff:
+  #   (no role OR user has the role) AND
+  #   (every flag in entry[:flags] is currently enabled)
+  # Cross-entry semantics is OR; within-entry is AND.
+  def self.authorize_allow!(allow_entries, only: [])
+    entries = Array(allow_entries).map { |e| e.transform_keys(&:to_sym) }
+    before_action(only: only) do
+      user = request.env['current_user']
+      raise AuthenticationError, 'Not authenticated' unless user
+
+      user_roles = Array(user[ROLE_CLAIM])
+      matched = entries.any? do |entry|
+        next false if entry[:role] && !user_roles.include?(entry[:role])
+        flags = Array(entry[:flags])
+        next false if flags.any? && !flags.all? { |f| flag_enabled?(f) }
+        true
+      end
+      raise ForbiddenError, 'Forbidden' unless matched
+    end
+  end
+
+  # Default feature-flag source — reads FLAG_<UPPER_SNAKE> env vars.
+  # Override by replacing this method (e.g. monkey-patch to call Flipper /
+  # LaunchDarkly / Unleash / GrowthBook).
+  def self.flag_enabled?(name)
+    env_name = "FLAG_\#{name.to_s.upcase.gsub(/[^A-Z0-9_]/, '_')}"
+    raw = ENV[env_name]
+    raw == '1' || raw == 'true'
+  end
+
   private
 
   def authenticate!

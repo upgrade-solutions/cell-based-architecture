@@ -7,6 +7,15 @@ import { generateDto, dtoClassName, dtoFileName } from './adapters/node/nestjs/g
 import { generateController } from './adapters/node/nestjs/generators/controller'
 import { generateService } from './adapters/node/nestjs/generators/service'
 import { generateModule } from './adapters/node/nestjs/generators/module'
+import {
+  generateFlags as generateNestFlags,
+  generateAuthGuard,
+  generateRolesDecorator,
+} from './adapters/node/nestjs/generators/auth'
+import {
+  generateAuth as generateExpressAuth,
+  generateFlags as generateExpressFlags,
+} from './adapters/node/express/generators/auth'
 import { generateDockerfile, generateDockerIgnore } from './adapters/node/docker'
 import { run } from './run'
 import { Noun, Resource, Endpoint, Namespace } from './types'
@@ -236,6 +245,32 @@ describe('generateController', () => {
     expect(ctrl).toContain("@Roles('underwriter')")
   })
 
+  test('emits @AccessAllow with full entries when rule has flags, and no @Roles for that op', () => {
+    const ruleWithFlag = {
+      capability: 'Loan.Approve',
+      type: 'access' as const,
+      allow: [
+        { role: 'underwriter', flags: ['new_approval_flow'] },
+        { role: 'senior_underwriter' },
+      ],
+    }
+    const flaggedCtrl = generateController(
+      loanResource,
+      [approveEndpoint],
+      [],
+      [ruleWithFlag],
+      namespace,
+    )
+    // @AccessAllow is the new decorator carrying the structured entries.
+    expect(flaggedCtrl).toContain('@AccessAllow(')
+    expect(flaggedCtrl).toContain('"flags":["new_approval_flow"]')
+    expect(flaggedCtrl).toContain('"role":"senior_underwriter"')
+    // For a rule with flags, fall through to @AccessAllow only (no @Roles).
+    expect(flaggedCtrl).not.toContain("@Roles('underwriter'")
+    // AccessAllow must be imported.
+    expect(flaggedCtrl).toContain('AccessAllow')
+  })
+
   test('uses @UseGuards(AuthGuard)', () => {
     expect(ctrl).toContain('@UseGuards(AuthGuard)')
   })
@@ -302,6 +337,52 @@ describe('generateModule', () => {
 
   test('exports the service', () => {
     expect(mod).toContain('exports: [LoansService]')
+  })
+})
+
+// ── Flag-aware authz (nestjs + express) ──────────────────────────────────────
+
+describe('flag-aware authz', () => {
+  test('nestjs generateFlags emits env-var-backed isFlagEnabled', () => {
+    const flags = generateNestFlags()
+    expect(flags).toContain('export function isFlagEnabled(name: string): boolean')
+    expect(flags).toContain("'FLAG_' + name.toUpperCase()")
+    expect(flags).toContain("raw === '1' || raw === 'true'")
+  })
+
+  test('express generateFlags emits env-var-backed isFlagEnabled', () => {
+    const flags = generateExpressFlags()
+    expect(flags).toContain('export function isFlagEnabled(name: string): boolean')
+    expect(flags).toContain("'FLAG_' + name.toUpperCase()")
+  })
+
+  test('nestjs AuthGuard reads allow metadata and honors flags', () => {
+    const guard = generateAuthGuard()
+    expect(guard).toContain("import { isFlagEnabled } from './flags'")
+    expect(guard).toContain("reflector.get<AllowEntry[]>('allow'")
+    expect(guard).toContain('entryMatches')
+    // Still honors the old @Roles metadata as a fallback.
+    expect(guard).toContain("reflector.get<string[]>('roles'")
+  })
+
+  test('nestjs Roles decorator file exports AccessAllow', () => {
+    const dec = generateRolesDecorator()
+    expect(dec).toContain('ALLOW_KEY')
+    expect(dec).toContain('export const AccessAllow')
+    expect(dec).toContain('interface AllowEntry')
+  })
+
+  test('express OIDC auth middleware uses isFlagEnabled via entryMatches', () => {
+    const auth = generateExpressAuth() // default = OIDC
+    expect(auth).toContain("import { isFlagEnabled } from './flags'")
+    expect(auth).toContain('function entryMatches')
+    expect(auth).toContain('entry.flags.every')
+  })
+
+  test('express built-in auth middleware uses isFlagEnabled via entryMatches', () => {
+    const auth = generateExpressAuth('built-in')
+    expect(auth).toContain("import { isFlagEnabled } from './flags'")
+    expect(auth).toContain('function entryMatches')
   })
 })
 

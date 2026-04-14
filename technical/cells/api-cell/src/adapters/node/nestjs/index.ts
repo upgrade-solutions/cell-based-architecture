@@ -8,7 +8,7 @@ import { generateDto, dtoFileName } from './generators/dto'
 import { generateController } from './generators/controller'
 import { generateService } from './generators/service'
 import { generateModule } from './generators/module'
-import { generateAuthGuard, generateRolesDecorator } from './generators/auth'
+import { generateAuthGuard, generateRolesDecorator, generateFlags } from './generators/auth'
 import { generateAppModule, generateMain } from './generators/app'
 import {
   generatePackageJson,
@@ -76,6 +76,7 @@ export const generate: ApiCellAdapter['generate'] = (
   // ── Auth ────────────────────────────────────────────────────────────────────
   write(outputDir, 'src/auth/auth.guard.ts', generateAuthGuard(authConfig))
   write(outputDir, 'src/auth/roles.decorator.ts', generateRolesDecorator())
+  write(outputDir, 'src/auth/flags.ts', generateFlags())
 
   // ── App shell ───────────────────────────────────────────────────────────────
   write(outputDir, 'src/app.module.ts', generateAppModule(resources))

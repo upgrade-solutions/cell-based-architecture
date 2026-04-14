@@ -197,8 +197,23 @@ export function generateController(
     const methodName = toActionMethod(action)
     const capability = resolveCapability(ep.operation, operations)
     const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
-    const roles = accessRule?.allow?.map(a => a.role) ?? []
-    if (roles.length) {
+    const allowEntries: Array<{ role?: string; ownership?: boolean; flags?: string[] }> =
+      accessRule?.allow ?? []
+    const roles = allowEntries.map(a => a.role).filter((r): r is string => !!r)
+    const hasFlags = allowEntries.some(a => Array.isArray(a.flags) && a.flags.length > 0)
+    if (hasFlags) {
+      // Emit full allow[] structure — Ruby hash literal per entry.
+      const rubyEntries = allowEntries.map(e => {
+        const parts: string[] = []
+        if (e.role) parts.push(`role: '${e.role}'`)
+        if (e.ownership) parts.push(`ownership: true`)
+        if (e.flags && e.flags.length > 0) {
+          parts.push(`flags: [${e.flags.map(f => `'${f}'`).join(', ')}]`)
+        }
+        return `{ ${parts.join(', ')} }`
+      }).join(', ')
+      roleChecks.push(`    authorize_allow! [${rubyEntries}], only: [:${methodName}]`)
+    } else if (roles.length) {
       roleChecks.push(`    authorize_roles! ${roles.map(r => `'${r}'`).join(', ')}, only: [:${methodName}]`)
     }
   }

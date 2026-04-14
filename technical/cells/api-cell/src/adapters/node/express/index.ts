@@ -6,7 +6,7 @@ import { generateDockerfile, generateDockerIgnore } from '../docker'
 import { generateDrizzleSchema, generateDrizzleConfig } from '../shared/drizzle'
 import { generatePackageJson, generateTsConfig, generateEnv } from './generators/scaffold'
 import { generateMain } from './generators/main'
-import { generateAuth } from './generators/auth'
+import { generateAuth, generateFlags } from './generators/auth'
 import { generateAuthRoutes } from './generators/auth-routes'
 import { generateStore } from './generators/store'
 import { generateHandler } from './generators/handler'
@@ -49,6 +49,7 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/db/index.ts', generateDbConnection())
 
   // ── Runtime interpreter — generic, reads DNA at startup ─────────────────────
+  write(outputDir, 'src/interpreter/flags.ts', generateFlags())
   write(outputDir, 'src/interpreter/auth.ts', generateAuth(authMode))
   if (authMode === 'built-in') {
     write(outputDir, 'src/interpreter/auth-routes.ts', generateAuthRoutes())
