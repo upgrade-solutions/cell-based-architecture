@@ -98,6 +98,8 @@ interface ToolbarProps {
   sub: Sub
   onPhaseChange: (phase: Phase) => void
   onSubChange: (sub: Sub) => void
+  /** Open the create-primitive dialog. Only wired on Build > Operational. */
+  onCreate?: () => void
 }
 
 /**
@@ -127,6 +129,7 @@ export const Toolbar = observer(function Toolbar({
   sub,
   onPhaseChange,
   onSubChange,
+  onCreate,
 }: ToolbarProps) {
   const scalePercent = Math.round(model.scale * 100)
 
@@ -147,6 +150,11 @@ export const Toolbar = observer(function Toolbar({
 
   // Sub-tab list for the active phase.
   const subs: Sub[] = phase === 'build' ? BUILD_SUBS : RUN_SUBS
+
+  // "+ New" only surfaces for the sub-tabs we support in Phase 5c.4
+  // Chunk 1 — currently just operational. Other build surfaces can
+  // enable this in later chunks.
+  const showCreate = phase === 'build' && sub === 'operational' && typeof onCreate === 'function'
 
   return (
     <div
@@ -226,6 +234,19 @@ export const Toolbar = observer(function Toolbar({
 
         <div style={{ flex: 1 }} />
 
+        {showCreate ? (
+          <>
+            <button
+              onClick={onCreate}
+              style={createButtonStyle}
+              title="Add a new Noun, Capability, Rule, or Outcome"
+            >
+              + New
+            </button>
+            <div style={{ width: 1, height: 20, background: '#475569' }} />
+          </>
+        ) : null}
+
         {/* Zoom controls */}
         <span style={{ color: '#94a3b8', fontSize: 12, minWidth: 40, textAlign: 'center' }}>
           {scalePercent}%
@@ -304,6 +325,18 @@ const buttonStyle: React.CSSProperties = {
   borderRadius: 4,
   padding: '4px 12px',
   fontSize: 12,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+}
+
+const createButtonStyle: React.CSSProperties = {
+  background: '#065f46',
+  color: '#ecfdf5',
+  border: '1px solid #10b981',
+  borderRadius: 4,
+  padding: '4px 12px',
+  fontSize: 12,
+  fontWeight: 600,
   cursor: 'pointer',
   fontFamily: 'inherit',
 }

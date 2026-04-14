@@ -8,9 +8,17 @@ interface SidebarProps {
   model: GraphModel
   env: string
   adapter: string
+  /**
+   * Phase 5c.4 Chunk 1 — hook for rename-with-referential-integrity.
+   * When the user edits a Noun.name or Capability's noun/verb in the
+   * inspector form, App computes a new DNA that rewrites every
+   * downstream reference and re-renders the canvas. Optional so non-
+   * operational layers keep the old "just update dna.source" behavior.
+   */
+  onOperationalRename?: (kind: 'noun' | 'capability', oldName: string, newName: string) => void
 }
 
-export const Sidebar = observer(function Sidebar({ model, env, adapter }: SidebarProps) {
+export const Sidebar = observer(function Sidebar({ model, env, adapter, onOperationalRename }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const cellView = model.selectedCellView
   const cell = cellView?.model
@@ -115,6 +123,36 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter }: Sideba
                   cell?.attr({ label: { text: nextObj.name } })
                 }
                 model.setDirty(true)
+
+                // Phase 5c.4 Chunk 1 — rename-with-referential-integrity.
+                //
+                // When a Noun's name or a Capability's noun/verb changes,
+                // every downstream reference in operational DNA has to be
+                // rewritten. App owns operationalDna state, so we bubble
+                // up via onOperationalRename. The handler there re-creates
+                // the DNA object, which triggers OperationalCanvas to
+                // re-mount with the updated graph.
+                //
+                // Name-based identity is the source of truth for this
+                // chunk. A future chunk will migrate to stable UUIDs so
+                // the rename walk becomes unnecessary.
+                if (layerName === 'operational' && onOperationalRename) {
+                  const source = dna.source as Record<string, unknown> | undefined
+                  if (kind === 'noun') {
+                    const oldName = source?.name as string | undefined
+                    const newName = nextObj.name
+                    if (oldName && newName && oldName !== newName) {
+                      onOperationalRename('noun', oldName, newName)
+                    }
+                  } else if (kind === 'capability') {
+                    const oldFull = (source?.name as string | undefined)
+                      ?? `${source?.noun ?? ''}.${source?.verb ?? ''}`
+                    const newFull = nextObj.name ?? `${nextObj.noun ?? ''}.${nextObj.verb ?? ''}`
+                    if (oldFull && newFull && oldFull !== newFull && !oldFull.endsWith('.') && !newFull.endsWith('.')) {
+                      onOperationalRename('capability', oldFull, newFull)
+                    }
+                  }
+                }
               }}
             />
           </Section>

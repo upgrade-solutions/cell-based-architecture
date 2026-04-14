@@ -54,6 +54,17 @@ import {
 } from './components/Toolbar.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Layout } from './components/Layout.tsx'
+// Phase 5c.4 Chunk 1 — operational CRUD dialogs + mutations
+import { CreatePrimitiveDialog } from './components/CreatePrimitiveDialog.tsx'
+import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.tsx'
+import {
+  renameNoun,
+  renameCapability,
+  deleteOperationalPrimitive,
+  previewCascade,
+  type OperationalPrimitiveKind,
+  type RemovedPrimitive,
+} from './features/operational-mutations.ts'
 
 // ── URL param getters ──────────────────────────────────────────────────
 
@@ -158,6 +169,15 @@ const App = observer(function App() {
   const [productCoreError, setProductCoreError] = useState<string | null>(null)
   const [productApiError, setProductApiError] = useState<string | null>(null)
   const [productUiError, setProductUiError] = useState<string | null>(null)
+
+  // Phase 5c.4 Chunk 1 — operational CRUD dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    kind: OperationalPrimitiveKind
+    key: string
+    label: string
+    removed: RemovedPrimitive[]
+  } | null>(null)
 
   const [domain] = useState(getDomain)
   const [env, setEnvState] = useState(getEnv)
@@ -407,6 +427,114 @@ const App = observer(function App() {
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [graphModel.dirty, handleSave])
+
+  // ── Phase 5c.4 Chunk 1 — operational CRUD handlers ──
+
+  /**
+   * Rename with referential integrity. The Sidebar form calls this when
+   * the user edits a Noun.name or Capability verb/noun. We compute a new
+   * DNA with all downstream references rewritten, then set it — the
+   * OperationalCanvas's `dna` dep re-runs and re-mounts the graph.
+   *
+   * Name-based identity is the Phase 5c.4 choice; UUID identity is a
+   * future chunk. See packages/cba-viz/src/features/operational-mutations.ts
+   * for the detailed walk.
+   */
+  const handleOperationalRename = useCallback(
+    (kind: 'noun' | 'capability', oldName: string, newName: string) => {
+      if (!operationalDna) return
+      const nextDna =
+        kind === 'noun'
+          ? renameNoun(operationalDna, oldName, newName)
+          : renameCapability(operationalDna, oldName, newName)
+      setOperationalDna(nextDna)
+      graphModel.setDirty(true)
+    },
+    [operationalDna, graphModel],
+  )
+
+  /** Create dialog result — swap in the new DNA and close the dialog. */
+  const handleCreatePrimitive = useCallback(
+    (nextDna: OperationalDNA) => {
+      setOperationalDna(nextDna)
+      graphModel.setDirty(true)
+      setCreateDialogOpen(false)
+    },
+    [graphModel],
+  )
+
+  /** Delete confirmation result — commit the cached deletion. */
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteConfirm || !operationalDna) return
+    const { dna: nextDna } = deleteOperationalPrimitive(
+      operationalDna,
+      deleteConfirm.kind,
+      deleteConfirm.key,
+    )
+    setOperationalDna(nextDna)
+    graphModel.setDirty(true)
+    graphModel.setSelectedCellView(null)
+    setDeleteConfirm(null)
+  }, [deleteConfirm, operationalDna, graphModel])
+
+  /**
+   * Delete / Backspace keyboard shortcut — only active on Build >
+   * Operational. Reads the selected cell's `dna.kind` + name to
+   * figure out what to delete, computes the cascade preview, and
+   * opens the confirmation dialog. The user has to explicitly confirm
+   * before the DNA is actually mutated.
+   *
+   * Rules handled specially — their "key" is the graph element id
+   * (`rule:<Noun.Verb>:<index>`) not a name, since rules don't have
+   * unique names. Same for outcomes.
+   */
+  useEffect(() => {
+    if (phase !== 'build' || sub !== 'operational') return
+    if (!operationalDna) return
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      // Ignore when focus is in an input/textarea/contenteditable — the
+      // user is editing text, not trying to delete a graph node.
+      const target = e.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        if (target.isContentEditable) return
+      }
+
+      const cellView = graphModel.selectedCellView
+      if (!cellView) return
+      const cell = cellView.model
+      const cellDna = cell.get('dna') as Record<string, unknown> | undefined
+      if (!cellDna) return
+      if (cellDna.layer !== 'operational') return
+
+      const kind = cellDna.kind as string | undefined
+      if (kind !== 'noun' && kind !== 'capability' && kind !== 'rule' && kind !== 'outcome' && kind !== 'signal') return
+
+      // Key lookup by kind: nouns + capabilities + signals use their
+      // display name; rules + outcomes use the stable graph id since
+      // they have no unique name (they're indexed under a capability).
+      let key: string
+      let label: string
+      if (kind === 'rule' || kind === 'outcome') {
+        key = cell.id as string
+        label = (cellDna.name as string | undefined) ?? key
+      } else {
+        key = cellDna.name as string
+        label = key
+      }
+      if (!key) return
+
+      e.preventDefault()
+      const removed = previewCascade(operationalDna, kind, key)
+      setDeleteConfirm({ kind, key, label, removed })
+    }
+
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [phase, sub, operationalDna, graphModel])
 
   // ── Readiness + error for the active (phase, sub) ──
   //
