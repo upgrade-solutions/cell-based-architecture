@@ -23,7 +23,7 @@
     },
     "allow": {
       "type": "array",
-      "description": "The actors permitted to perform this capability. Used when type is 'access'. An actor matching any entry is allowed.",
+      "description": "The actors permitted to perform this capability. Used when type is 'access'. An actor matching any entry is allowed; all properties within a single entry must match together (AND). Cross-entry semantics is OR.",
       "minItems": 1,
       "items": {
         "type": "object",
@@ -36,6 +36,12 @@
           "ownership": {
             "type": "boolean",
             "description": "When true, the actor must be the owner of the noun instance."
+          },
+          "flags": {
+            "type": "array",
+            "description": "Feature flags that must all be enabled for this allow entry to match. An entry matches iff its role + ownership pass AND every named flag is currently enabled in the runtime flag source (env var / LaunchDarkly / Unleash — whatever the cell adapter wires up). Flags are free-form strings; there is deliberately no separate flag registry or dna-validator cross-check in this first cut, so typos surface at runtime rather than validate time.\n\nA feature flag is just another form of access control around a capability — an always-off flag is equivalent to `allow: []`, an on-for-role-X flag is equivalent to adding a role entry. Pure kill-switch: `allow: [{ \"flags\": [\"enabled\"] }]` grants access iff the `enabled` flag is on.",
+            "items": { "type": "string" },
+            "examples": [["new_approval_flow"], ["beta", "experimental_underwriting"]]
           }
         }
       }
