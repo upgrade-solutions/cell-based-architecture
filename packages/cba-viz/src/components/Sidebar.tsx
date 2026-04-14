@@ -124,35 +124,29 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter, onOperat
                 }
                 model.setDirty(true)
 
-                // Phase 5c.4 Chunk 1 — rename-with-referential-integrity.
+                // Reference-integrity rewrite on rename does NOT fire here.
                 //
-                // When a Noun's name or a Capability's noun/verb changes,
-                // every downstream reference in operational DNA has to be
-                // rewritten. App owns operationalDna state, so we bubble
-                // up via onOperationalRename. The handler there re-creates
-                // the DNA object, which triggers OperationalCanvas to
-                // re-mount with the updated graph.
+                // Originally this path called `onOperationalRename` on
+                // every keystroke, which replaced `operationalDna` in App
+                // state, which re-ran OperationalCanvas's effect, which
+                // tore down the paper and rebuilt the graph — losing the
+                // selected cell after a single character. The user could
+                // only ever type one letter before the input disappeared.
                 //
-                // Name-based identity is the source of truth for this
-                // chunk. A future chunk will migrate to stable UUIDs so
-                // the rename walk becomes unnecessary.
-                if (layerName === 'operational' && onOperationalRename) {
-                  const source = dna.source as Record<string, unknown> | undefined
-                  if (kind === 'noun') {
-                    const oldName = source?.name as string | undefined
-                    const newName = nextObj.name
-                    if (oldName && newName && oldName !== newName) {
-                      onOperationalRename('noun', oldName, newName)
-                    }
-                  } else if (kind === 'capability') {
-                    const oldFull = (source?.name as string | undefined)
-                      ?? `${source?.noun ?? ''}.${source?.verb ?? ''}`
-                    const newFull = nextObj.name ?? `${nextObj.noun ?? ''}.${nextObj.verb ?? ''}`
-                    if (oldFull && newFull && oldFull !== newFull && !oldFull.endsWith('.') && !newFull.endsWith('.')) {
-                      onOperationalRename('capability', oldFull, newFull)
-                    }
-                  }
-                }
+                // Deferred instead to save-time: App.tsx's `handleSave`
+                // detects renames by diffing each element's current
+                // `dna.source.name` against its graph id (which still
+                // encodes the pre-edit name), applies `renameNoun` /
+                // `renameCapability` to the DNA, and then persists the
+                // rewritten document. The user types freely, the canvas
+                // label updates live via `cell.attr` above, and the
+                // reference walk runs once on commit.
+                //
+                // `onOperationalRename` stays wired as a capability for
+                // a future explicit "Rename…" menu action or stable-UUID
+                // migration. For now, it's unused from the per-keystroke
+                // path.
+                void onOperationalRename
               }}
             />
           </Section>

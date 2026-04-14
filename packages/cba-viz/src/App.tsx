@@ -393,7 +393,42 @@ const App = observer(function App() {
         await saveViews(domain, updatedDna)
       } else if (sub === 'operational') {
         if (!operationalDna) return
-        const updatedDna = graphToOperationalDNA(graphModel.graph, operationalDna)
+        // Detect pending renames on commit. The Sidebar form stores
+        // in-progress name edits directly on each cell's `dna.source`
+        // without firing the reference-integrity walk on every
+        // keystroke (that caused a canvas-remount loop that killed
+        // typing after one character). Here, we diff each graph
+        // element's pre-edit name (encoded in its stable id) against
+        // the current `dna.source.name` and apply `renameNoun` /
+        // `renameCapability` to the DNA before the mutate-by-id step.
+        //
+        // Applying rename walks before `graphToOperationalDNA` means
+        // the downstream references get rewritten first, then the
+        // mutate-by-id pass just confirms the primary entries. Clean
+        // separation between "walk the whole doc" (rename) and "update
+        // one entry in place" (form edit).
+        let baseDna = operationalDna
+        for (const el of graphModel.graph.getElements()) {
+          const cellDna = el.get('dna') as { layer?: string; kind?: string; source?: Record<string, unknown> } | undefined
+          if (cellDna?.layer !== 'operational') continue
+          const id = el.id as string
+          if (cellDna.kind === 'noun') {
+            const oldName = id.replace(/^noun:/, '')
+            const newName = cellDna.source?.name as string | undefined
+            if (newName && oldName !== newName) {
+              baseDna = renameNoun(baseDna, oldName, newName)
+            }
+          } else if (cellDna.kind === 'capability') {
+            const oldName = id.replace(/^capability:/, '')
+            const source = cellDna.source ?? {}
+            const newName = (source.name as string | undefined)
+              ?? `${source.noun as string | undefined ?? ''}.${source.verb as string | undefined ?? ''}`
+            if (newName && oldName !== newName && !newName.startsWith('.') && !newName.endsWith('.')) {
+              baseDna = renameCapability(baseDna, oldName, newName)
+            }
+          }
+        }
+        const updatedDna = graphToOperationalDNA(graphModel.graph, baseDna)
         await saveOperational(domain, updatedDna)
         setOperationalDna(updatedDna)
       } else if (sub === 'product-api') {
