@@ -323,10 +323,20 @@ Minimum-viable create/rename/delete for Operational DNA primitives. Proves the p
 - [x] **Delete with cascade confirmation** — Delete/Backspace on a selected operational node opens `DeleteConfirmDialog` listing the cascade (preview via `previewCascade`), then `deleteOperationalPrimitive` removes the primary plus downstream references. Delete-a-Noun cascades its Capabilities, which cascade their Rules/Outcomes/Causes.
 - [x] **Scope**: Noun, Capability, Rule, Outcome. Signal / Cause / Lifecycle / Relationship / Equation / Attribute CRUD deferred to chunk 2.
 
-#### Chunk 2+ — Deferred
+#### Chunk 2 — Product CRUD (Shipped)
 
-- [ ] **Stable identity strategy** — every primitive gets an opaque `_id` (UUID) on creation. Name fields become display labels that can be renamed freely without the rewrite walk. Migrate persistence to match.
-- [ ] **Product-layer CRUD** — `product-api-mutations.ts` + `product-ui-mutations.ts` mirroring the operational pattern for Resources, Endpoints, Pages, Blocks.
+Port the operational CRUD pattern to product-api and product-ui. Same save-time rename-walk strategy, same mutate-by-id persistence.
+
+- [x] **Product mutations** — `features/product-mutations.ts` mirrors operational-mutations.ts: `addResource`, `addEndpoint`, `addPage`, `addBlock`, `renameResource`, `renamePage`, `deleteProductApiPrimitive`, `deleteProductUiPrimitive`, `previewProductCascade`.
+- [x] **Rename-ref coverage** — Resource rename walks `Operation.resource`, `Operation.name`, `Endpoint.operation` prefix, `Endpoint.request.resource`, `Endpoint.response.resource`, `Namespace.resources[]` in product-api; `Page.resource`, `Block.operation` prefix in product-ui (cross-layer walk triggered in handleSave when both docs are loaded). Page rename walks `Route.page`.
+- [x] **Cascade rules** — Resource → filter endpoints + operations + namespace.resources. Page → drop routes pointing at it + cascade its blocks. Endpoint / Block → standalone removal via stable graph id parsing.
+- [x] **CreatePrimitiveDialog** — extended with a `context: 'operational' | 'product-api' | 'product-ui'` prop that swaps inner sub-dialogs sharing a common shell. Users on Product API never see operational type options.
+- [x] **Toolbar `+ New` gate** — now also shows when `sub === 'product'` and variant is `api` or `ui`. Product Core stays hidden (materialized, not authored).
+- [x] **App wiring** — `deleteConfirm` state carries a `layer` discriminator so `handleConfirmDelete` dispatches to the right mutation module. Delete keyboard shortcut reads `cellDna.layer` to pick the correct kind-validation path. Save-time rename walk runs against product-api and product-ui bases alongside operational.
+
+#### Chunk 3+ — Deferred
+
+- [ ] **Stable identity strategy** — every primitive gets an opaque `_id` (UUID) on creation. Name fields become display labels that can be renamed freely without the rewrite walk. Migrate persistence to match. Would collapse both the operational and product rename walks into near-no-ops.
 - [ ] **Technical-layer CRUD** — authoring cells/constructs/providers from the canvas (currently edit-only via `graphToArchView`).
 - [ ] **Element palette** — drag-to-add from a sidebar palette as an alternative to the `+ New` dialog. Shape determines primitive type.
 - [ ] **Remaining operational primitives** — Signal, Cause, Lifecycle, Relationship, Equation, Attribute CRUD.
@@ -353,7 +363,16 @@ Transition the canonical store from JSON files to Neo4j behind a GraphQL layer. 
 - [ ] **cba-viz GraphQL client** — swap the current `fetch('/api/dna/...')` calls for Apollo (or urql) queries and mutations. Loaders, mappers, shapes, and SchemaForm all reuse cleanly — only the network layer changes.
 - [ ] **Subscription plumbing** — live-update the canvas when another user (or the CLI) modifies DNA. First step toward multi-user collaboration.
 
-### Phase 5c.6: Collaboration, history, and permissions
+### Phase 5c.6: Runtime observability (Logs shipped)
+
+Fill in the Run phase stubs with real runtime surfaces. Logs first since it's the highest-leverage runtime signal during development.
+
+- [x] **Run > Logs — first cut** — new middleware endpoint `GET /api/logs/:domain?adapter=…&env=…&since=…&cell=…` that fans out `docker logs --since N --tail 500 --timestamps` across all containers matching the domain's compose project (reuses the same label-based container→cell mapping as status polling). Hard 5-second budget, per-container timeout, merges + timestamp-sorts before returning `{ lines: [{ ts, cell, text }], warning? }`. New `LogsPanel.tsx` component polls every 2s with AbortController cleanup, hand-rolled virtualization (18px rows, 10-row buffer, ResizeObserver), per-cell stable HSL color coding, cell filter dropdown, follow mode with "Jump to latest" chip, dark theme. Terraform/AWS CloudWatch streaming stubbed with a warning banner for now.
+- [ ] **Metrics** — per-cell and per-construct dashboards: request rates, latency percentiles, error budgets, resource utilization. Pulls from Prometheus for docker-compose, CloudWatch Metrics for terraform/aws.
+- [ ] **Access** — runtime access control inspection: which roles exist, which capabilities each can invoke, where credentials live, token introspection for live requests.
+- [ ] **Terraform/AWS log streaming** — replace the stub with CloudWatch Logs Tail for ECS tasks. Trickier than docker logs because CloudWatch API requires paginated polling + log group discovery; factor into a separate delivery-adapter helper.
+
+### Phase 5c.7: Collaboration, history, and permissions
 
 - [ ] **Revision history** — full audit log of every DNA change, replayable in the viewer
 - [ ] **Multi-user editing** — presence indicators, conflict resolution, optimistic UI via subscriptions
