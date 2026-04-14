@@ -13,6 +13,12 @@ import {
 } from './loaders/product-loader.ts'
 import { graphToArchView, saveViews } from './features/persistence.ts'
 import { graphToOperationalDNA, saveOperational } from './features/operational-persistence.ts'
+import {
+  graphToProductApiDNA,
+  graphToProductUiDNA,
+  saveProductApi,
+  saveProductUi,
+} from './features/product-persistence.ts'
 import { TechnicalCanvas } from './components/TechnicalCanvas.tsx'
 import { OperationalCanvas } from './components/OperationalCanvas.tsx'
 import { ProductCoreCanvas } from './components/ProductCoreCanvas.tsx'
@@ -267,22 +273,6 @@ const App = observer(function App() {
       return
     }
 
-    // Product API / UI editing is authoring territory — the files are
-    // hand-maintained, not materialized — but the graph→DNA mutation
-    // helpers + save endpoints are follow-up work. Block the save for
-    // now so position drags and form edits don't silently disappear
-    // on refresh, and point the user at the missing piece.
-    if (layer === 'product-api' || layer === 'product-ui') {
-      const which = layer === 'product-api' ? 'API' : 'UI'
-      alert(
-        `Product ${which} save is not wired up yet. The canvas is rendering-only until the ` +
-        `graphToProductXxxDNA helper + /api/dna/${layer} POST persistence lands in a ` +
-        'follow-up commit. Your edits are safe in the browser session — refresh loses them.',
-      )
-      graphModel.setDirty(false)
-      return
-    }
-
     setSaving(true)
     try {
       if (layer === 'technical') {
@@ -301,6 +291,16 @@ const App = observer(function App() {
         // persisted form (otherwise RJSF edits would re-layer on top of
         // the previous save's layout).
         setOperationalDna(updatedDna)
+      } else if (layer === 'product-api') {
+        if (!productApiDna) return
+        const updatedDna = graphToProductApiDNA(graphModel.graph, productApiDna)
+        await saveProductApi(domain, updatedDna)
+        setProductApiDna(updatedDna)
+      } else if (layer === 'product-ui') {
+        if (!productUiDna) return
+        const updatedDna = graphToProductUiDNA(graphModel.graph, productUiDna)
+        await saveProductUi(domain, updatedDna)
+        setProductUiDna(updatedDna)
       }
       graphModel.setDirty(false)
     } catch (err) {
@@ -309,7 +309,7 @@ const App = observer(function App() {
     } finally {
       setSaving(false)
     }
-  }, [graphModel, layer, currentView, currentViewName, dna, operationalDna, domain])
+  }, [graphModel, layer, currentView, currentViewName, dna, operationalDna, productApiDna, productUiDna, domain])
 
   // Keyboard shortcut: Ctrl/Cmd+S to save. useEffect, not useMemo — the
   // original version used useMemo which doesn't wire up cleanup correctly
