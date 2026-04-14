@@ -90,6 +90,19 @@ Replace direct HTTP delivery with durable queue-based delivery. A worker process
 - [ ] Delivery adapter support: `docker-compose` adds worker service alongside queue; `terraform/aws` wires SQS → Lambda or ECS worker
 - [ ] Technical DNA `signal_delivery` config: `"mode": "http"` (Pattern A) or `"mode": "queue"` (Pattern B) per cell
 
+### Phase 3f: Feature flags (Shipped)
+
+Feature flags as another predicate on the existing operational `Rule.allow[]` shape — not a new primitive. An always-off flag is equivalent to `allow: []`; an on-for-role-X flag is equivalent to adding a role entry. One schema extension, then a ripple through every cell adapter that emits authz middleware and every UI adapter that emits access guards.
+
+- [x] **Schema extension** — `operational/schemas/rule.json` adds optional `flags: string[]` to each `allow[]` entry. Semantics: an entry matches iff its `role` + `ownership` pass AND every named flag in `flags[]` is currently enabled. Free-form strings, no separate flag registry, no `dna-validator` cross-check — typos surface at runtime not validate time. Deliberately minimal to let consumers move fast.
+- [x] **api-cell adapters** — authz middleware generators for `node/express`, `node/nestjs`, `python/fastapi`, and `ruby/rails` now honor `rule.allow[].flags`. An injectable `isFlagEnabled(name)` helper (per language) reads `FLAG_<UPPER_SNAKE_NAME>` env vars by default; users swap the helper module to plug in LaunchDarkly / Unleash / GrowthBook. `entryMatches` is now (role OR role-any) AND (ownership if present) AND (all flags enabled). 7 new tests, 76 passing total.
+- [x] **ui-cell adapters** — `vite/react`, `vite/vue`, and `next/react` gain a render-time visibility guard (pure function of user + flag snapshot) and a click-time guard that re-reads the same snapshot as a fast-path check before firing the API call. Flag source is an injectable React context (or Vue provide) that fetches `/api/flags` at app mount; fail-closed on missing/404. Disable-with-tooltip for buttons controlled by flags ("Requires feature: X"), hide entirely when the role itself denies. Note: the existing UI adapters had NO authz at all before this chunk, so the whole guard layer was introduced from scratch alongside operational-DNA loading into `UiCellContext` and user role extraction from the `auth_token` JWT. 18 new tests, 37 passing total.
+- [x] **cba-viz flag chip widget** — `FlagChipsWidget.tsx` replaces the default RJSF vertical text-array input for `rule.allow[].flags` with inline emerald tag chips. Scoped via a nested `ui:widget` override in the Rule form's `uiSchema`, so other string-array fields (`conditions`, `allow` itself) keep their default rendering. Enter or comma commits, × removes, backspace on empty input pops the last chip, blur commits in-progress drafts, duplicates silently ignored. No autocomplete — the schema has no flag registry to populate from.
+- [ ] **`/api/flags` endpoint in api-cell** — currently the UI adapters fetch `/api/flags` expecting a `Record<string, boolean>`. The api-cell doesn't yet emit that endpoint — the UI gracefully falls back to all-flags-off on 404. Follow-up chunk to emit the endpoint that serves the current flag snapshot from the same source `isFlagEnabled` reads.
+- [ ] **Technical DNA flag provider config** — today every `isFlagEnabled` helper defaults to env vars. Technical DNA could carry a per-cell `flag_provider: 'env' | 'launchdarkly' | 'unleash' | 'growthbook'` config that the cell adapter reads to emit the right provider module. Deferred.
+- [ ] **Audit logging** — separate concern, belongs in Technical DNA as a cell-level infra config (not per-capability Rule), and is always-on infrastructure rather than a match predicate. Separate chunk when someone needs it.
+- [ ] **Rate limiting** — same bucket: Technical DNA cell-level config, separate chunk.
+
 ---
 
 ## Phase 4: Multi-Adapter Expansion
