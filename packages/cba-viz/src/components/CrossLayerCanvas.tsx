@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { dia, shapes } from '@joint/plus'
 import { observer } from 'mobx-react-lite'
 import type { GraphModel } from '../models/GraphModel.ts'
 import type { OperationalDNA } from '../loaders/operational-loader.ts'
 import type { ProductApiDNA, ProductUiDNA } from '../loaders/product-loader.ts'
 import { crossLayerToGraphCells } from '../mappers/cross-layer-to-graph.ts'
-import { ZoomHandler, PanHandler } from '../features/interaction.ts'
+import { mountJointPaper } from '../features/joint-paper.ts'
 import { CapabilityPicker } from './CapabilityPicker.tsx'
 
 // Register all shapes that the cross-layer mapper might use so JointJS
@@ -29,17 +28,23 @@ interface CrossLayerCanvasProps {
 }
 
 /**
- * Capability-centric canvas spanning Operational → Product API → Product UI.
+ * Capability-centric canvas spanning Operational → Product API →
+ * Product UI. Reuses shapes from all three layers so clicking any
+ * element opens its normal RJSF inspector form via the sidebar's
+ * `(layer, kind)` routing.
  *
- * Reuses the shapes from all three layers so clicking any element
- * opens its normal RJSF inspector form via the sidebar's (layer, kind)
- * routing. A floating CapabilityPicker overlays the top-left corner
- * for selecting which capability to explore.
+ * Paper plumbing lives in `mountJointPaper`. The pieces unique to
+ * cross-layer:
  *
- * This is the sixth canvas variant in the codebase — next touch of
- * any canvas file should extract the shared JointJS paper setup
- * (paper creation, zoom, pan, fade-in, selection handlers) into a
- * `useJointPaper` hook. For now the duplication is controlled.
+ *   - `linkMove` and `labelMove` interactive options disabled — the
+ *     view is read-only exploration, positions can still be dragged
+ *     for readability but link topology and label positions are
+ *     locked.
+ *
+ *   - A separate inner `paperContainerRef` inside the outer wrapper
+ *     so the `CapabilityPicker` overlay chip and the empty-state
+ *     hint can float over the paper without getting clipped by the
+ *     SVG boundary.
  */
 export const CrossLayerCanvas = observer(function CrossLayerCanvas({
   model,
@@ -49,114 +54,31 @@ export const CrossLayerCanvas = observer(function CrossLayerCanvas({
   capabilityName,
   onCapabilityChange,
 }: CrossLayerCanvasProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
   const paperContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!paperContainerRef.current) return
-
-    const paperEl = document.createElement('div')
-    paperEl.style.width = '100%'
-    paperEl.style.height = '100%'
-    paperEl.style.opacity = '0'
-    paperEl.style.transition = 'opacity 220ms ease-out'
-    paperContainerRef.current.appendChild(paperEl)
-
-    const graph = new dia.Graph({}, { cellNamespace: shapes })
-    const paper = new dia.Paper({
-      el: paperEl,
-      model: graph,
-      width: '100%',
-      height: '100%',
-      background: { color: '#0f172a' },
-      gridSize: 10,
-      drawGrid: { name: 'dot', args: { color: '#1e293b' } },
-      sorting: dia.Paper.sorting.APPROX,
-      cellViewNamespace: shapes,
+    return mountJointPaper(paperContainerRef.current, {
+      model,
+      cells: crossLayerToGraphCells({
+        operationalDna,
+        productApiDna,
+        productUiDna,
+        capabilityName,
+      }),
       interactive: {
         // Cross-layer is read-only exploration — dragging is allowed
-        // (you can rearrange for readability) but the results aren't
-        // persisted anywhere. App.tsx blocks saves from this view.
+        // (you can rearrange for readability) but link/label topology
+        // stays locked. App.tsx also blocks saves from this view.
         elementMove: true,
         linkMove: false,
         labelMove: false,
       },
-      defaultRouter: { name: 'manhattan', args: { step: 20, padding: 16 } },
-      defaultConnector: { name: 'rounded', args: { radius: 6 } },
-      embeddingMode: true,
-      validateEmbedding: (_childView, parentView) => {
-        return parentView.model.get('type') === 'cbaViz.ZoneContainer'
-      },
     })
-
-    model.setGraph(graph)
-    model.setPaper(paper)
-
-    const cells = crossLayerToGraphCells({
-      operationalDna,
-      productApiDna,
-      productUiDna,
-      capabilityName,
-    })
-    graph.resetCells(cells)
-
-    // Dirty tracking still runs so layout drags feel alive, but
-    // handleSave in App.tsx refuses to persist from this canvas.
-    graph.on('change:position', () => model.setDirty(true))
-    graph.on('change:size', () => model.setDirty(true))
-    graph.on('change:vertices', () => model.setDirty(true))
-
-    const zoomHandler = new ZoomHandler({
-      paper,
-      container: paperContainerRef.current,
-      onScaleChange: (scale) => model.setScale(scale),
-    })
-    const panHandler = new PanHandler({ paper })
-
-    paper.on('cell:pointerclick', (cellView: dia.CellView) => {
-      // Bands and banners don't have a schema-backed dna.layer so the
-      // sidebar will ignore them — but we still set the selection so
-      // the canvas shows the "you clicked this" highlight.
-      model.setSelectedCellView(cellView)
-    })
-    paper.on('blank:pointerclick', () => {
-      model.setSelectedCellView(null)
-    })
-
-    paper.on('blank:pointerdown', (evt: dia.Event) => {
-      const e = evt as unknown as MouseEvent
-      panHandler.startPan(e.clientX, e.clientY)
-    })
-
-    const handleWheel = (evt: WheelEvent) => {
-      evt.preventDefault()
-      if (evt.ctrlKey || evt.metaKey) {
-        zoomHandler.zoomAtPoint(evt.clientX, evt.clientY, evt.deltaY < 0)
-      } else {
-        panHandler.pan(-evt.deltaX, -evt.deltaY)
-      }
-    }
-    paperContainerRef.current.addEventListener('wheel', handleWheel, { passive: false })
-
-    requestAnimationFrame(() => {
-      try { zoomHandler.fitToContent() } catch (_) { /* paper may be removed */ }
-      requestAnimationFrame(() => {
-        paperEl.style.opacity = '1'
-      })
-    })
-
-    return () => {
-      paperContainerRef.current?.removeEventListener('wheel', handleWheel)
-      panHandler.cleanup()
-      graph.clear()
-      paper.remove()
-      if (paperEl.parentNode) paperEl.parentNode.removeChild(paperEl)
-      model.cleanup()
-    }
   }, [operationalDna, productApiDna, productUiDna, capabilityName, model])
 
   return (
-    <div ref={containerRef} style={outerStyle}>
+    <div style={outerStyle}>
       <div ref={paperContainerRef} style={paperStyle} />
 
       <CapabilityPicker
