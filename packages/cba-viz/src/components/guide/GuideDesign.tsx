@@ -1,10 +1,21 @@
+import { useState } from 'react'
 import type { OperationalDNA } from '../../loaders/operational-loader.ts'
 
 interface GuideDesignProps {
   dna: OperationalDNA
 }
 
+type DesignTab = 'sops' | 'flows' | 'api' | 'ui'
+
+const TABS: { key: DesignTab; label: string }[] = [
+  { key: 'sops', label: 'SOPs' },
+  { key: 'flows', label: 'Process Flows' },
+  { key: 'api', label: 'Product API' },
+  { key: 'ui', label: 'Product UI' },
+]
+
 export function GuideDesign({ dna }: GuideDesignProps) {
+  const [tab, setTab] = useState<DesignTab>('sops')
   const processes = dna.processes ?? []
   const tasks = dna.tasks ?? []
   const positions = dna.positions ?? []
@@ -14,9 +25,23 @@ export function GuideDesign({ dna }: GuideDesignProps) {
 
   return (
     <div style={containerStyle}>
-      {/* Section 1: SOPs */}
+      {/* Sub-tab nav */}
+      <div style={tabBarStyle}>
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            style={tab === t.key ? activeTabStyle : tabStyle}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={tabContentStyle}>
+      {/* SOPs */}
+      {tab === 'sops' && (
       <div style={sectionStyle}>
-        <h3 style={sectionTitleStyle}>Standard Operating Procedures</h3>
         {processes.length === 0 ? (
           <div style={emptyStyle}>No processes defined. Define processes in the Define phase to generate SOPs.</div>
         ) : (
@@ -82,10 +107,11 @@ export function GuideDesign({ dna }: GuideDesignProps) {
           ))
         )}
       </div>
+      )}
 
-      {/* Section 2: Process flow diagrams */}
+      {/* Process Flows */}
+      {tab === 'flows' && (
       <div style={sectionStyle}>
-        <h3 style={sectionTitleStyle}>Process Flows</h3>
         {processes.map((proc) => {
           const layers = topoSort(proc.steps)
           return (
@@ -113,16 +139,20 @@ export function GuideDesign({ dna }: GuideDesignProps) {
             </div>
           )
         })}
+        {processes.length === 0 && (
+          <div style={emptyStyle}>No processes defined.</div>
+        )}
       </div>
+      )}
 
-      {/* Section 3: Product DNA summary */}
+      {/* Product API */}
+      {tab === 'api' && (
       <div style={sectionStyle}>
-        <h3 style={sectionTitleStyle}>Product DNA Summary</h3>
-        <p style={productIntroStyle}>Derived from Operational DNA — what the Product layers would contain.</p>
+        <p style={productIntroStyle}>REST surface derived from the domain's Nouns and Capabilities.</p>
 
-        {/* Roles */}
+        {/* Roles — auth inputs */}
         <div style={productSubsectionStyle}>
-          <div style={productSubtitleStyle}>Roles (Product Core)</div>
+          <div style={productSubtitleStyle}>Roles (for auth middleware)</div>
           <div style={chipGridStyle}>
             {[...new Set(positions.flatMap((p) => p.roles ?? []))].map((role) => (
               <span key={role} style={roleChipStyle}>{role}</span>
@@ -130,9 +160,8 @@ export function GuideDesign({ dna }: GuideDesignProps) {
           </div>
         </div>
 
-        {/* API surface */}
         <div style={productSubsectionStyle}>
-          <div style={productSubtitleStyle}>API Surface (Product API)</div>
+          <div style={productSubtitleStyle}>Endpoints</div>
           <table style={apiTableStyle}>
             <thead>
               <tr>
@@ -140,6 +169,7 @@ export function GuideDesign({ dna }: GuideDesignProps) {
                 <th style={thStyle}>Endpoint</th>
                 <th style={thStyle}>Method</th>
                 <th style={thStyle}>Capability</th>
+                <th style={thStyle}>Allowed Roles</th>
               </tr>
             </thead>
             <tbody>
@@ -152,31 +182,44 @@ export function GuideDesign({ dna }: GuideDesignProps) {
                       <td style={tdStyle}>{`/${toKebab(noun.name)}s`}</td>
                       <td style={tdStyle}>GET</td>
                       <td style={tdMutedStyle}>list (implicit)</td>
+                      <td style={tdMutedStyle}>—</td>
                     </tr>,
                   ]
                 }
-                return nounCaps.map((cap) => (
-                  <tr key={cap.name}>
-                    <td style={tdStyle}>{cap.noun}</td>
-                    <td style={tdStyle}>{suggestEndpoint(cap)}</td>
-                    <td style={tdStyle}>{suggestMethod(cap.verb)}</td>
-                    <td style={tdStyle}>{cap.name}</td>
-                  </tr>
-                ))
+                return nounCaps.map((cap) => {
+                  const accessRules = rules.filter((r) => r.capability === cap.name && r.type === 'access')
+                  const allowedRoles = accessRules.flatMap((r) => (r.allow ?? []).map((a) => a.role).filter(Boolean))
+                  return (
+                    <tr key={cap.name}>
+                      <td style={tdStyle}>{cap.noun}</td>
+                      <td style={tdStyle}>{suggestEndpoint(cap)}</td>
+                      <td style={tdStyle}>{suggestMethod(cap.verb)}</td>
+                      <td style={tdStyle}>{cap.name}</td>
+                      <td style={tdStyle}>{allowedRoles.length > 0 ? allowedRoles.join(', ') : <span style={{ color: '#475569', fontStyle: 'italic' }}>—</span>}</td>
+                    </tr>
+                  )
+                })
               })}
             </tbody>
           </table>
         </div>
+      </div>
+      )}
 
-        {/* UI pages */}
+      {/* Product UI */}
+      {tab === 'ui' && (
+      <div style={sectionStyle}>
+        <p style={productIntroStyle}>Suggested pages and blocks derived from the domain's Nouns and Capabilities.</p>
+
         <div style={productSubsectionStyle}>
-          <div style={productSubtitleStyle}>UI Pages (Product UI)</div>
+          <div style={productSubtitleStyle}>Pages</div>
           <div style={uiGridStyle}>
             {nouns.map((noun) => {
               const nounCaps = capabilities.filter((c) => c.noun === noun.name)
               return (
                 <div key={noun.name} style={uiPageCardStyle}>
                   <div style={uiPageNameStyle}>{noun.name}</div>
+                  <div style={uiPageRouteStyle}>/{toKebab(noun.name)}s</div>
                   <div style={uiBlocksStyle}>
                     <span style={uiBlockStyle}>list</span>
                     <span style={uiBlockStyle}>detail</span>
@@ -188,6 +231,18 @@ export function GuideDesign({ dna }: GuideDesignProps) {
             })}
           </div>
         </div>
+
+        {/* Navigation hint */}
+        <div style={productSubsectionStyle}>
+          <div style={productSubtitleStyle}>Navigation</div>
+          <div style={chipGridStyle}>
+            {processes.map((p) => (
+              <span key={p.name} style={navChipStyle}>/{toKebab(p.name)}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+      )}
       </div>
     </div>
   )
@@ -251,7 +306,27 @@ function isWriteVerb(verb: string): boolean {
 // ── Styles ──────────────────────────────────────────────────────────────
 
 const containerStyle: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 32, height: '100%', overflow: 'auto',
+  display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
+}
+
+const tabBarStyle: React.CSSProperties = {
+  display: 'flex', gap: 2, borderBottom: '1px solid #334155', flexShrink: 0,
+}
+
+const tabBase: React.CSSProperties = {
+  padding: '8px 16px', fontSize: 12, fontWeight: 500, background: 'transparent',
+  border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer',
+  fontFamily: '-apple-system, sans-serif', marginBottom: -1,
+}
+
+const tabStyle: React.CSSProperties = { ...tabBase, color: '#64748b' }
+
+const activeTabStyle: React.CSSProperties = {
+  ...tabBase, color: '#f1f5f9', borderBottomColor: '#f59e0b',
+}
+
+const tabContentStyle: React.CSSProperties = {
+  flex: 1, overflow: 'auto', paddingTop: 16, minHeight: 0,
 }
 
 const sectionStyle: React.CSSProperties = {
@@ -466,6 +541,15 @@ const uiPageCardStyle: React.CSSProperties = {
 
 const uiPageNameStyle: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, color: '#e2e8f0', fontFamily: 'ui-monospace, monospace',
+}
+
+const uiPageRouteStyle: React.CSSProperties = {
+  fontSize: 10, color: '#475569', fontFamily: 'ui-monospace, monospace',
+}
+
+const navChipStyle: React.CSSProperties = {
+  padding: '2px 8px', fontSize: 11, fontWeight: 500, color: '#f59e0b',
+  border: '1px solid #f59e0b', borderRadius: 4, fontFamily: 'ui-monospace, monospace',
 }
 
 const uiBlocksStyle: React.CSSProperties = {
