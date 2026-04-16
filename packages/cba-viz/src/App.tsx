@@ -876,6 +876,8 @@ function computeReadiness(inp: ReadinessInput): { ready: boolean; error: string 
       // capabilities array. Product layers are optional; missing bands
       // render as placeholders inside the cross-layer canvas.
       return { ready: !!inp.operationalDna, error: inp.operationalError }
+    case 'guide':
+      return { ready: true, error: null }
   }
 }
 
