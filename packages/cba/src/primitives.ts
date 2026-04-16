@@ -26,9 +26,16 @@ export const PRIMITIVES: PrimitiveSpec[] = [
   { type: 'Cause', layer: 'operational', location: 'causes' },
   { type: 'Rule', layer: 'operational', location: 'rules' },
   { type: 'Outcome', layer: 'operational', location: 'outcomes' },
-  { type: 'Lifecycle', layer: 'operational', location: 'lifecycles' },
   { type: 'Equation', layer: 'operational', location: 'equations' },
   { type: 'Relationship', layer: 'operational', location: 'relationships' },
+  { type: 'Signal', layer: 'operational', location: 'signals' },
+  { type: 'Position', layer: 'operational', location: 'positions' },
+  { type: 'Person', layer: 'operational', location: 'persons' },
+  { type: 'Task', layer: 'operational', location: 'tasks' },
+  { type: 'Process', layer: 'operational', location: 'processes' },
+
+  // product.core
+  { type: 'Role', layer: 'product.core', location: 'roles' },
 
   // product.api
   { type: 'Namespace', layer: 'product.api', location: 'namespace' },
