@@ -125,9 +125,9 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
                     )}
                     <div style={extActionsStyle}>
                       <button onClick={() => handleToggle(ext.id)} style={extToggleStyle}>
-                        {ext.approved ? '\u2713' : '\u25cb'}
+                        {ext.approved ? '✓' : '○'}
                       </button>
-                      <button onClick={() => handleRemove(ext.id)} style={extRemoveStyle}>\u00d7</button>
+                      <button onClick={() => handleRemove(ext.id)} style={extRemoveStyle}>×</button>
                     </div>
                   </div>
                 ))}

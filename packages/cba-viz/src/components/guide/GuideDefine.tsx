@@ -68,7 +68,7 @@ export function GuideDefine({ dna, onChange }: GuideDefineProps) {
               >
                 <span style={accordionLabelStyle}>{section.label}</span>
                 <span style={{ ...accordionCountStyle, color: section.color }}>{section.items.length}</span>
-                <span style={chevronStyle}>{expanded === section.label ? '\u25BC' : '\u25B6'}</span>
+                <span style={chevronStyle}>{expanded === section.label ? '▼' : '▶'}</span>
               </button>
               {expanded === section.label && (
                 <div style={accordionBodyStyle}>

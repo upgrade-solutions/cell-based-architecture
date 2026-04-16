@@ -94,7 +94,7 @@ export function GuideDesign({ dna }: GuideDesignProps) {
               <div style={flowGridStyle}>
                 {layers.map((layer, li) => (
                   <div key={li} style={flowLayerStyle}>
-                    {li > 0 && <div style={flowArrowStyle}>{'\u2192'}</div>}
+                    {li > 0 && <div style={flowArrowStyle}>→</div>}
                     <div style={flowColumnStyle}>
                       {layer.map((step) => {
                         const task = tasks.find((t) => t.name === step.task)
@@ -102,7 +102,7 @@ export function GuideDesign({ dna }: GuideDesignProps) {
                           <div key={step.id} style={flowStepStyle}>
                             <div style={flowStepIdStyle}>{step.id}</div>
                             <div style={flowStepPosStyle}>{task?.position ?? '?'}</div>
-                            {step.branch && <div style={flowBranchStyle}>{'\u25C6'}</div>}
+                            {step.branch && <div style={flowBranchStyle}>◆</div>}
                           </div>
                         )
                       })}
