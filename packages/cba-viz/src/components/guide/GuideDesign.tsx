@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import type { OperationalDNA } from '../../loaders/operational-loader.ts'
 import { GuideDefine } from './GuideDefine.tsx'
+import { GuidePlan } from './GuidePlan.tsx'
 
 interface GuideDesignProps {
   dna: OperationalDNA
 }
 
-type DesignTab = 'summary' | 'sops' | 'flows' | 'api' | 'ui'
+type DesignTab = 'summary' | 'sops' | 'flows' | 'plan' | 'api' | 'ui'
 
 const TABS: { key: DesignTab; label: string }[] = [
   { key: 'summary', label: 'Summary' },
   { key: 'sops', label: 'SOPs' },
   { key: 'flows', label: 'Process Flows' },
+  { key: 'plan', label: 'Plan' },
   { key: 'api', label: 'Product API' },
   { key: 'ui', label: 'Product UI' },
 ]
@@ -150,6 +152,11 @@ export function GuideDesign({ dna }: GuideDesignProps) {
           <div style={emptyStyle}>No processes defined.</div>
         )}
       </div>
+      )}
+
+      {/* Plan (Gantt) */}
+      {tab === 'plan' && (
+        <GuidePlan dna={dna} />
       )}
 
       {/* Product API */}
