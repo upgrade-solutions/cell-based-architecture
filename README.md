@@ -1048,7 +1048,8 @@ cell-based-architecture/
       operational.json              # Marshall Fire mass-tort Operational DNA (justice.masstort.marshall):
                                     #   9 Nouns (IntakeSubmission, Claimant, Claim, Incident, Property,
                                     #            Evidence, CaseStatus, Firm, Attorney)
-                                    #   13 Capabilities, 20 Rules, 12 Outcomes,
+                                    #   15 Capabilities, 24 Rules, 14 Outcomes,
+                                    #   6 Positions, 4 Persons, 12 Tasks, 5 Processes,
                                     #   4 Signals, 2 Equations, 7 Relationships
       product.core.json             # Materialized slice — 8 nouns / 13 capabilities / 4 signals
       product.api.json              # REST surface — 7 Resources, 23 Operations, 23 Endpoints
