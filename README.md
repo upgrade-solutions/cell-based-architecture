@@ -197,7 +197,7 @@ http://localhost:5175/?domain=torts/marshall&phase=run&sub=deployment&env=prod
 |-------|---------|-------------|
 | `domain` | `lending` | DNA domain path (supports nested paths like `torts/marshall`) |
 | `phase` | `build` | Lifecycle phase: `build` (authoring) or `run` (runtime observation) |
-| `sub` | `operational` | Sub-tab within the phase. Build: `operational`, `product-core`, `product-api`, `product-ui`, `technical`, `cross-layer`. Run: `deployment`, `logs*`, `metrics*`, `access*` (* = stub) |
+| `sub` | `operational` | Sub-tab within the phase. Build: `operational`, `product`, `technical`, `cross-layer`, `guide`. Run: `deployment`, `logs*`, `metrics*`, `access*` (* = stub) |
 | `cap` | _(none)_ | Selected capability for `sub=cross-layer`, as `Noun.Verb` (e.g. `Loan.Approve`) |
 | `env` | `dev` | Environment for technical overlay (dev uses rabbitmq, prod uses eventbridge). Only applies to `sub=deployment` / `sub=technical` |
 | `adapter` | `docker-compose` | Technical status probe adapter. Only applies to `sub=deployment` |
@@ -210,6 +210,7 @@ Phase + sub are selectable in the two-row toolbar at runtime. `env` and `adapter
 
 **Features:**
 - **Build / Run lifecycle nav** — top-level `Build` tab groups authoring surfaces (Operational, Product Core / API / UI, Technical, Cross-layer); `Run` groups runtime observation (Deployment + stubs for Logs, Metrics, Access). The IA asks *"what am I doing right now?"*, not *"which file am I editing?"*.
+- **Discovery guide** — phased walkthrough from stakeholder conversation to Operational DNA. Shows 7 discovery phases in order (Domain & Entities → Actions & Capabilities → Organization & Tasks → Processes & SOPs → Rules & Constraints → Triggers & Effects → Relationships & Equations), with live count badges from the loaded DNA and a process visualization showing Steps, dependencies, and branches. Read-only — no canvas, no saves.
 - **Cross-layer view** — a single-capability lens spanning Operational → Product API → Product UI. Pick a capability from the floating chip in the top-left; the canvas renders three horizontal bands with the capability + its rules/outcomes on top, matching endpoints in the middle, matching pages/blocks on the bottom, and dashed cross-layer edges linking them. Clicking any node opens its home-layer RJSF form in the sidebar.
 - **Multi-layer editing** — Build sub-tabs switch between the **Operational** (Nouns, Capabilities, Rules, Outcomes, Signals), **Product Core / API / UI** (Resources, Endpoints, Pages, Blocks), and **Technical** (deployment graph) DNA layers. Each layer has its own canvas, shape palette, and save pipeline.
 - **Schema-driven inspector** — operational nodes surface a live RJSF form generated from `operational/schemas/*.json`, so editing a Capability or Rule round-trips cleanly through the same JSON Schema the CLI and validator use. Edits stream through `onChange` and mark the graph dirty for Ctrl+S.

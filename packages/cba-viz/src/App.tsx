@@ -40,6 +40,9 @@ const ProductUiCanvas = lazy(() =>
 const CrossLayerCanvas = lazy(() =>
   import('./components/CrossLayerCanvas.tsx').then((m) => ({ default: m.CrossLayerCanvas })),
 )
+const GuideCanvas = lazy(() =>
+  import('./components/GuideCanvas.tsx').then((m) => ({ default: m.GuideCanvas })),
+)
 import { RunPhaseStub } from './components/RunPhaseStub.tsx'
 import { LogsPanel } from './components/LogsPanel.tsx'
 import {
@@ -443,6 +446,10 @@ const App = observer(function App() {
         'Cross-layer is a read-only exploration view. To edit the selected capability or its product surfaces, ' +
         'switch to the specific sub-tab (Operational, Product API, or Product UI) and save there.',
       )
+      graphModel.setDirty(false)
+      return
+    }
+    if (sub === 'guide') {
       graphModel.setDirty(false)
       return
     }
@@ -970,5 +977,12 @@ function renderCanvas(inp: CanvasInput): React.ReactNode {
           onCapabilityChange={inp.onCapabilityChange}
         />
       ) : null
+    case 'guide':
+      return (
+        <GuideCanvas
+          key={`build:guide:${domain}`}
+          operationalDna={inp.operationalDna ?? null}
+        />
+      )
   }
 }

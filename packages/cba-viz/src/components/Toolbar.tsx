@@ -16,6 +16,7 @@ export type BuildSub =
   | 'product'
   | 'technical'
   | 'cross-layer'
+  | 'guide'
 
 export type RunSub =
   | 'deployment'
@@ -50,6 +51,7 @@ export const BUILD_SUBS: BuildSub[] = [
   'product',
   'technical',
   'cross-layer',
+  'guide',
 ]
 
 export const RUN_SUBS: RunSub[] = [
@@ -70,6 +72,7 @@ export function subLabel(sub: Sub): string {
     case 'product':      return 'Product'
     case 'technical':    return 'Technical'
     case 'cross-layer':  return 'Cross-layer'
+    case 'guide':        return 'Guide'
     case 'deployment':   return 'Deployment'
     case 'logs':         return 'Logs'
     case 'metrics':      return 'Metrics'
@@ -84,6 +87,7 @@ function subTitle(sub: Sub): string {
     case 'product':      return 'Product DNA — Core (materialized), API (resources + endpoints), UI (layout + pages + blocks). Pick a variant from the dropdown.'
     case 'technical':    return 'Technical DNA — cells, constructs, providers, environments'
     case 'cross-layer':  return 'Cross-layer — a single capability across operational, product API, and product UI'
+    case 'guide':        return 'Discovery guide — phased walkthrough from stakeholder conversation to Operational DNA'
     case 'deployment':   return 'Live deployment state — docker-compose or terraform/aws status polling'
     case 'logs':         return 'Live log stream — docker-compose via docker logs, terraform/aws coming soon'
     case 'metrics':      return 'Metrics dashboards (coming soon)'
