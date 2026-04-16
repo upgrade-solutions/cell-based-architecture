@@ -1,7 +1,7 @@
 {
   "domain": {
-    "name": "acme",
-    "path": "acme",
+    "name": "lending",
+    "path": "acme.finance.lending",
     "domains": [
       {
         "name": "finance",
@@ -17,23 +17,92 @@
                 "description": "A person or entity that applies for and receives a loan.",
                 "domain": "acme.finance.lending",
                 "attributes": [
-                  { "name": "id", "type": "string", "required": true, "description": "Unique identifier." },
-                  { "name": "first_name", "type": "string", "required": true },
-                  { "name": "last_name", "type": "string", "required": true },
-                  { "name": "email", "type": "string", "required": true },
-                  { "name": "date_of_birth", "type": "date" },
-                  { "name": "annual_income", "type": "number", "description": "Stated annual income in base currency." },
-                  { "name": "credit_score", "type": "number", "description": "Credit bureau score at time of application." },
-                  { "name": "status", "type": "enum", "values": ["active", "suspended"], "required": true }
+                  {
+                    "name": "id",
+                    "type": "string",
+                    "required": true,
+                    "description": "Unique identifier."
+                  },
+                  {
+                    "name": "first_name",
+                    "type": "string",
+                    "required": true
+                  },
+                  {
+                    "name": "last_name",
+                    "type": "string",
+                    "required": true
+                  },
+                  {
+                    "name": "email",
+                    "type": "string",
+                    "required": true
+                  },
+                  {
+                    "name": "date_of_birth",
+                    "type": "date"
+                  },
+                  {
+                    "name": "annual_income",
+                    "type": "number",
+                    "description": "Stated annual income in base currency."
+                  },
+                  {
+                    "name": "credit_score",
+                    "type": "number",
+                    "description": "Credit bureau score at time of application."
+                  },
+                  {
+                    "name": "status",
+                    "type": "enum",
+                    "values": [
+                      "active",
+                      "suspended"
+                    ],
+                    "required": true
+                  }
                 ],
                 "verbs": [
-                  { "name": "Register", "description": "A new borrower creates their profile." },
-                  { "name": "Suspend", "description": "An admin suspends a borrower account." }
+                  {
+                    "name": "Register",
+                    "description": "A new borrower creates their profile."
+                  },
+                  {
+                    "name": "Suspend",
+                    "description": "An admin suspends a borrower account."
+                  }
                 ],
                 "examples": [
-                  { "id": "borrower-1", "first_name": "Alice", "last_name": "Morgan", "email": "alice.morgan@example.com", "date_of_birth": "1985-04-12", "annual_income": 92000, "credit_score": 740, "status": "active" },
-                  { "id": "borrower-2", "first_name": "James", "last_name": "Okafor", "email": "james.okafor@example.com", "date_of_birth": "1979-09-30", "annual_income": 67000, "credit_score": 690, "status": "active" },
-                  { "id": "borrower-3", "first_name": "Sofia", "last_name": "Reyes", "email": "sofia.reyes@example.com", "date_of_birth": "1992-02-14", "annual_income": 54000, "credit_score": 610, "status": "suspended" }
+                  {
+                    "id": "borrower-1",
+                    "first_name": "Alice",
+                    "last_name": "Morgan",
+                    "email": "alice.morgan@example.com",
+                    "date_of_birth": "1985-04-12",
+                    "annual_income": 92000,
+                    "credit_score": 740,
+                    "status": "active"
+                  },
+                  {
+                    "id": "borrower-2",
+                    "first_name": "James",
+                    "last_name": "Okafor",
+                    "email": "james.okafor@example.com",
+                    "date_of_birth": "1979-09-30",
+                    "annual_income": 67000,
+                    "credit_score": 690,
+                    "status": "active"
+                  },
+                  {
+                    "id": "borrower-3",
+                    "first_name": "Sofia",
+                    "last_name": "Reyes",
+                    "email": "sofia.reyes@example.com",
+                    "date_of_birth": "1992-02-14",
+                    "annual_income": 54000,
+                    "credit_score": 610,
+                    "status": "suspended"
+                  }
                 ]
               },
               {
@@ -41,50 +110,196 @@
                 "description": "A financial loan issued to a borrower with repayment terms.",
                 "domain": "acme.finance.lending",
                 "attributes": [
-                  { "name": "id", "type": "string", "required": true },
-                  { "name": "borrower_id", "type": "reference", "noun": "Borrower", "required": true, "description": "Reference to the Borrower." },
-                  { "name": "lender_id", "type": "reference", "noun": "Lender", "required": true, "description": "Reference to the Lender that funds this Loan." },
-                  { "name": "amount", "type": "number", "required": true, "description": "Requested principal in base currency." },
-                  { "name": "interest_rate", "type": "number", "description": "Annual interest rate as a decimal, set on approval." },
-                  { "name": "term_months", "type": "number", "required": true, "description": "Loan duration in months." },
-                  { "name": "purpose", "type": "string", "description": "Stated purpose of the loan." },
-                  { "name": "status", "type": "enum", "required": true, "values": ["draft", "under_review", "approved", "rejected", "active", "repaid", "defaulted"] },
-                  { "name": "amount_paid", "type": "number", "description": "Running total of all repayments received." },
-                  { "name": "due_date", "type": "date", "description": "Final date by which the loan must be fully repaid." },
-                  { "name": "disbursed_at", "type": "datetime", "description": "Timestamp when funds were released to the borrower." },
-                  { "name": "approved_at", "type": "datetime", "description": "Timestamp when the loan was approved." },
-                  { "name": "reviewed_by", "type": "string", "description": "ID of the underwriter who reviewed the application." }
+                  {
+                    "name": "id",
+                    "type": "string",
+                    "required": true
+                  },
+                  {
+                    "name": "borrower_id",
+                    "type": "reference",
+                    "noun": "Borrower",
+                    "required": true,
+                    "description": "Reference to the Borrower."
+                  },
+                  {
+                    "name": "lender_id",
+                    "type": "reference",
+                    "noun": "Lender",
+                    "required": true,
+                    "description": "Reference to the Lender that funds this Loan."
+                  },
+                  {
+                    "name": "amount",
+                    "type": "number",
+                    "required": true,
+                    "description": "Requested principal in base currency."
+                  },
+                  {
+                    "name": "interest_rate",
+                    "type": "number",
+                    "description": "Annual interest rate as a decimal, set on approval."
+                  },
+                  {
+                    "name": "term_months",
+                    "type": "number",
+                    "required": true,
+                    "description": "Loan duration in months."
+                  },
+                  {
+                    "name": "purpose",
+                    "type": "string",
+                    "description": "Stated purpose of the loan."
+                  },
+                  {
+                    "name": "status",
+                    "type": "enum",
+                    "required": true,
+                    "values": [
+                      "draft",
+                      "under_review",
+                      "approved",
+                      "rejected",
+                      "active",
+                      "repaid",
+                      "defaulted"
+                    ]
+                  },
+                  {
+                    "name": "amount_paid",
+                    "type": "number",
+                    "description": "Running total of all repayments received."
+                  },
+                  {
+                    "name": "due_date",
+                    "type": "date",
+                    "description": "Final date by which the loan must be fully repaid."
+                  },
+                  {
+                    "name": "disbursed_at",
+                    "type": "datetime",
+                    "description": "Timestamp when funds were released to the borrower."
+                  },
+                  {
+                    "name": "approved_at",
+                    "type": "datetime",
+                    "description": "Timestamp when the loan was approved."
+                  },
+                  {
+                    "name": "reviewed_by",
+                    "type": "string",
+                    "description": "ID of the underwriter who reviewed the application."
+                  }
                 ],
                 "examples": [
-                  { "id": "loan-1", "borrower_id": "borrower-2", "lender_id": "lender-1", "amount": 18500, "interest_rate": 0.082, "term_months": 24, "purpose": "Home renovation", "status": "active", "amount_paid": 3200, "due_date": "2026-08-01", "disbursed_at": "2024-08-01T09:00:00Z", "approved_at": "2024-07-28T14:30:00Z", "reviewed_by": "borrower-1" },
-                  { "id": "loan-2", "borrower_id": "borrower-1", "lender_id": "lender-2", "amount": 45000, "interest_rate": 0.071, "term_months": 36, "purpose": "Business expansion", "status": "under_review", "amount_paid": 0, "due_date": null, "disbursed_at": null, "approved_at": null, "reviewed_by": null },
-                  { "id": "loan-3", "borrower_id": "borrower-3", "lender_id": "lender-1", "amount": 9000, "interest_rate": 0.095, "term_months": 12, "purpose": "Medical expenses", "status": "repaid", "amount_paid": 9000, "due_date": "2025-01-15", "disbursed_at": "2024-01-15T11:00:00Z", "approved_at": "2024-01-12T16:00:00Z", "reviewed_by": "borrower-2" }
+                  {
+                    "id": "loan-1",
+                    "borrower_id": "borrower-2",
+                    "lender_id": "lender-1",
+                    "amount": 18500,
+                    "interest_rate": 0.082,
+                    "term_months": 24,
+                    "purpose": "Home renovation",
+                    "status": "active",
+                    "amount_paid": 3200,
+                    "due_date": "2026-08-01",
+                    "disbursed_at": "2024-08-01T09:00:00Z",
+                    "approved_at": "2024-07-28T14:30:00Z",
+                    "reviewed_by": "borrower-1"
+                  },
+                  {
+                    "id": "loan-2",
+                    "borrower_id": "borrower-1",
+                    "lender_id": "lender-2",
+                    "amount": 45000,
+                    "interest_rate": 0.071,
+                    "term_months": 36,
+                    "purpose": "Business expansion",
+                    "status": "under_review",
+                    "amount_paid": 0,
+                    "due_date": null,
+                    "disbursed_at": null,
+                    "approved_at": null,
+                    "reviewed_by": null
+                  },
+                  {
+                    "id": "loan-3",
+                    "borrower_id": "borrower-3",
+                    "lender_id": "lender-1",
+                    "amount": 9000,
+                    "interest_rate": 0.095,
+                    "term_months": 12,
+                    "purpose": "Medical expenses",
+                    "status": "repaid",
+                    "amount_paid": 9000,
+                    "due_date": "2025-01-15",
+                    "disbursed_at": "2024-01-15T11:00:00Z",
+                    "approved_at": "2024-01-12T16:00:00Z",
+                    "reviewed_by": "borrower-2"
+                  }
                 ],
                 "verbs": [
-                  { "name": "Apply", "description": "A borrower submits a loan application." },
-                  { "name": "Review", "description": "An underwriter opens an application for review." },
+                  {
+                    "name": "Apply",
+                    "description": "A borrower submits a loan application."
+                  },
+                  {
+                    "name": "Review",
+                    "description": "An underwriter opens an application for review."
+                  },
                   {
                     "name": "Approve",
                     "description": "An underwriter approves a loan application.",
                     "input": [
-                      { "name": "reviewed_by", "type": "string", "required": true },
-                      { "name": "interest_rate", "type": "number", "required": true },
-                      { "name": "due_date", "type": "date", "required": true }
+                      {
+                        "name": "reviewed_by",
+                        "type": "string",
+                        "required": true
+                      },
+                      {
+                        "name": "interest_rate",
+                        "type": "number",
+                        "required": true
+                      },
+                      {
+                        "name": "due_date",
+                        "type": "date",
+                        "required": true
+                      }
                     ],
                     "output": [
-                      { "name": "status", "type": "enum", "values": ["approved"] }
+                      {
+                        "name": "status",
+                        "type": "enum",
+                        "values": [
+                          "approved"
+                        ]
+                      }
                     ]
                   },
-                  { "name": "Reject", "description": "An underwriter rejects a loan application." },
-                  { "name": "Disburse", "description": "Funds are released to the borrower after approval." },
+                  {
+                    "name": "Reject",
+                    "description": "An underwriter rejects a loan application."
+                  },
+                  {
+                    "name": "Disburse",
+                    "description": "Funds are released to the borrower after approval."
+                  },
                   {
                     "name": "Repay",
                     "description": "The borrower makes a repayment against the loan.",
                     "input": [
-                      { "name": "payment_amount", "type": "number", "required": true }
+                      {
+                        "name": "payment_amount",
+                        "type": "number",
+                        "required": true
+                      }
                     ]
                   },
-                  { "name": "Default", "description": "The loan is marked as defaulted after the due date passes without full repayment." }
+                  {
+                    "name": "Default",
+                    "description": "The loan is marked as defaulted after the due date passes without full repayment."
+                  }
                 ]
               },
               {
@@ -92,53 +307,211 @@
                 "description": "An institution or entity that funds loans — e.g. a bank, credit union, private fund, or peer lender.",
                 "domain": "acme.finance.lending",
                 "attributes": [
-                  { "name": "id", "type": "string", "required": true, "description": "Unique identifier." },
-                  { "name": "name", "type": "string", "required": true, "description": "Legal or trading name of the lender." },
-                  { "name": "type", "type": "enum", "required": true, "values": ["bank", "credit_union", "private_fund", "peer"], "description": "Kind of lending institution." },
-                  { "name": "license_number", "type": "string", "description": "Regulatory license or registration number." },
-                  { "name": "jurisdiction", "type": "string", "description": "Primary regulatory jurisdiction (e.g. country or state code)." },
-                  { "name": "email", "type": "string", "description": "Primary contact email." },
-                  { "name": "phone", "type": "string", "description": "Primary contact phone number." },
-                  { "name": "funding_capacity", "type": "number", "description": "Maximum aggregate funding the lender can commit, in base currency." },
-                  { "name": "status", "type": "enum", "required": true, "values": ["active", "inactive"], "description": "Whether the lender is currently authorized to fund new loans." }
+                  {
+                    "name": "id",
+                    "type": "string",
+                    "required": true,
+                    "description": "Unique identifier."
+                  },
+                  {
+                    "name": "name",
+                    "type": "string",
+                    "required": true,
+                    "description": "Legal or trading name of the lender."
+                  },
+                  {
+                    "name": "type",
+                    "type": "enum",
+                    "required": true,
+                    "values": [
+                      "bank",
+                      "credit_union",
+                      "private_fund",
+                      "peer"
+                    ],
+                    "description": "Kind of lending institution."
+                  },
+                  {
+                    "name": "license_number",
+                    "type": "string",
+                    "description": "Regulatory license or registration number."
+                  },
+                  {
+                    "name": "jurisdiction",
+                    "type": "string",
+                    "description": "Primary regulatory jurisdiction (e.g. country or state code)."
+                  },
+                  {
+                    "name": "email",
+                    "type": "string",
+                    "description": "Primary contact email."
+                  },
+                  {
+                    "name": "phone",
+                    "type": "string",
+                    "description": "Primary contact phone number."
+                  },
+                  {
+                    "name": "funding_capacity",
+                    "type": "number",
+                    "description": "Maximum aggregate funding the lender can commit, in base currency."
+                  },
+                  {
+                    "name": "status",
+                    "type": "enum",
+                    "required": true,
+                    "values": [
+                      "active",
+                      "inactive"
+                    ],
+                    "description": "Whether the lender is currently authorized to fund new loans."
+                  }
                 ],
                 "verbs": [
-                  { "name": "Onboard", "description": "Add a new lender to the platform." },
-                  { "name": "Activate", "description": "Authorize the lender to fund new loans." },
-                  { "name": "Deactivate", "description": "Pause the lender from funding new loans." },
-                  { "name": "UpdateRates", "description": "Update the lender's posted interest rate schedule." },
-                  { "name": "SetLimits", "description": "Set or update the lender's funding capacity and per-loan limits." }
+                  {
+                    "name": "Onboard",
+                    "description": "Add a new lender to the platform."
+                  },
+                  {
+                    "name": "Activate",
+                    "description": "Authorize the lender to fund new loans."
+                  },
+                  {
+                    "name": "Deactivate",
+                    "description": "Pause the lender from funding new loans."
+                  },
+                  {
+                    "name": "UpdateRates",
+                    "description": "Update the lender's posted interest rate schedule."
+                  },
+                  {
+                    "name": "SetLimits",
+                    "description": "Set or update the lender's funding capacity and per-loan limits."
+                  }
                 ],
                 "examples": [
-                  { "id": "lender-1", "name": "First National Bank", "type": "bank", "license_number": "FNB-2011-44821", "jurisdiction": "US-NY", "email": "originations@fnb.example.com", "phone": "+1-212-555-0101", "funding_capacity": 50000000, "status": "active" },
-                  { "id": "lender-2", "name": "Riverside Credit Union", "type": "credit_union", "license_number": "NCUA-24871", "jurisdiction": "US-CA", "email": "loans@riversidecu.example.com", "phone": "+1-415-555-0142", "funding_capacity": 12000000, "status": "active" },
-                  { "id": "lender-3", "name": "Cedar Peak Capital", "type": "private_fund", "license_number": "SEC-IA-118204", "jurisdiction": "US-DE", "email": "deals@cedarpeak.example.com", "phone": "+1-302-555-0173", "funding_capacity": 8000000, "status": "inactive" }
+                  {
+                    "id": "lender-1",
+                    "name": "First National Bank",
+                    "type": "bank",
+                    "license_number": "FNB-2011-44821",
+                    "jurisdiction": "US-NY",
+                    "email": "originations@fnb.example.com",
+                    "phone": "+1-212-555-0101",
+                    "funding_capacity": 50000000,
+                    "status": "active"
+                  },
+                  {
+                    "id": "lender-2",
+                    "name": "Riverside Credit Union",
+                    "type": "credit_union",
+                    "license_number": "NCUA-24871",
+                    "jurisdiction": "US-CA",
+                    "email": "loans@riversidecu.example.com",
+                    "phone": "+1-415-555-0142",
+                    "funding_capacity": 12000000,
+                    "status": "active"
+                  },
+                  {
+                    "id": "lender-3",
+                    "name": "Cedar Peak Capital",
+                    "type": "private_fund",
+                    "license_number": "SEC-IA-118204",
+                    "jurisdiction": "US-DE",
+                    "email": "deals@cedarpeak.example.com",
+                    "phone": "+1-302-555-0173",
+                    "funding_capacity": 8000000,
+                    "status": "inactive"
+                  }
                 ]
               }
             ]
           }
         ]
       }
-    ]
+    ],
+    "description": "Loan origination, underwriting, disbursement, and repayment."
   },
-
   "capabilities": [
-    { "noun": "Borrower", "verb": "Register", "name": "Borrower.Register", "description": "A new borrower creates their profile in the system." },
-    { "noun": "Borrower", "verb": "Suspend", "name": "Borrower.Suspend", "description": "An admin suspends a borrower, preventing new applications." },
-    { "noun": "Loan", "verb": "Apply", "name": "Loan.Apply", "description": "A borrower submits a loan application." },
-    { "noun": "Loan", "verb": "Review", "name": "Loan.Review", "description": "An underwriter picks up an application for review." },
-    { "noun": "Loan", "verb": "Approve", "name": "Loan.Approve", "description": "An underwriter approves the loan and sets terms." },
-    { "noun": "Loan", "verb": "Reject", "name": "Loan.Reject", "description": "An underwriter rejects the loan application." },
-    { "noun": "Loan", "verb": "Disburse", "name": "Loan.Disburse", "description": "Funds are disbursed to the borrower." },
-    { "noun": "Loan", "verb": "Repay", "name": "Loan.Repay", "description": "A borrower submits a repayment." },
-    { "noun": "Loan", "verb": "Default", "name": "Loan.Default", "description": "The loan is marked as defaulted after passing its due date unpaid." },
-    { "noun": "Lender", "verb": "Onboard", "name": "Lender.Onboard", "description": "A new lender is added to the platform." },
-    { "noun": "Lender", "verb": "Activate", "name": "Lender.Activate", "description": "A lender is authorized to fund new loans." },
-    { "noun": "Lender", "verb": "Deactivate", "name": "Lender.Deactivate", "description": "A lender is paused from funding new loans." },
-    { "noun": "Lender", "verb": "UpdateRates", "name": "Lender.UpdateRates", "description": "A lender updates their posted interest rate schedule." },
-    { "noun": "Lender", "verb": "SetLimits", "name": "Lender.SetLimits", "description": "A lender's funding capacity or per-loan limits are set." }
+    {
+      "noun": "Borrower",
+      "verb": "Register",
+      "name": "Borrower.Register",
+      "description": "A new borrower creates their profile in the system."
+    },
+    {
+      "noun": "Borrower",
+      "verb": "Suspend",
+      "name": "Borrower.Suspend",
+      "description": "An admin suspends a borrower, preventing new applications."
+    },
+    {
+      "noun": "Loan",
+      "verb": "Apply",
+      "name": "Loan.Apply",
+      "description": "A borrower submits a loan application."
+    },
+    {
+      "noun": "Loan",
+      "verb": "Review",
+      "name": "Loan.Review",
+      "description": "An underwriter picks up an application for review."
+    },
+    {
+      "noun": "Loan",
+      "verb": "Approve",
+      "name": "Loan.Approve",
+      "description": "An underwriter approves the loan and sets terms."
+    },
+    {
+      "noun": "Loan",
+      "verb": "Reject",
+      "name": "Loan.Reject",
+      "description": "An underwriter rejects the loan application."
+    },
+    {
+      "noun": "Loan",
+      "verb": "Disburse",
+      "name": "Loan.Disburse",
+      "description": "Funds are disbursed to the borrower."
+    },
+    {
+      "noun": "Loan",
+      "verb": "Repay",
+      "name": "Loan.Repay",
+      "description": "A borrower submits a repayment."
+    },
+    {
+      "noun": "Loan",
+      "verb": "Default",
+      "name": "Loan.Default",
+      "description": "The loan is marked as defaulted after passing its due date unpaid."
+    },
+    {
+      "noun": "Lender",
+      "verb": "Onboard",
+      "name": "Lender.Onboard",
+      "description": "A new lender is added to the platform."
+    },
+    {
+      "noun": "Lender",
+      "verb": "Activate",
+      "name": "Lender.Activate",
+      "description": "A lender is authorized to fund new loans."
+    },
+    {
+      "noun": "Lender",
+      "verb": "Deactivate",
+      "name": "Lender.Deactivate",
+      "description": "A lender is paused from funding new loans."
+    },
+    {
+      "noun": "Lender",
+      "verb": "UpdateRates",
+      "name": "Lender.UpdateRates",
+      "description": "A lender updates their posted interest rate schedule."
+    }
   ],
-
   "causes": [
     {
       "capability": "Borrower.Register",
@@ -193,72 +566,126 @@
       "description": "Daily job checks all active loans and marks overdue ones as defaulted."
     }
   ],
-
   "rules": [
     {
       "capability": "Borrower.Register",
       "type": "access",
       "description": "Any unauthenticated user can register as a borrower.",
-      "allow": [{ "role": "borrower" }]
+      "allow": [
+        {
+          "role": "borrower"
+        }
+      ]
     },
     {
       "capability": "Borrower.Suspend",
       "type": "access",
       "description": "Only admins may suspend borrowers.",
-      "allow": [{ "role": "admin" }]
+      "allow": [
+        {
+          "role": "admin"
+        }
+      ]
     },
     {
       "capability": "Loan.Apply",
       "type": "access",
       "description": "Only authenticated borrowers may apply for a loan.",
-      "allow": [{ "role": "borrower" }]
+      "allow": [
+        {
+          "role": "borrower"
+        }
+      ]
     },
     {
       "capability": "Loan.Review",
       "type": "access",
       "description": "Only underwriters may open an application for review.",
-      "allow": [{ "role": "underwriter" }]
+      "allow": [
+        {
+          "role": "underwriter"
+        }
+      ]
     },
     {
       "capability": "Loan.Approve",
       "type": "access",
       "description": "Only underwriters may approve a loan.",
-      "allow": [{ "role": "underwriter" }]
+      "allow": [
+        {
+          "role": "underwriter"
+        }
+      ]
     },
     {
       "capability": "Loan.Reject",
       "type": "access",
       "description": "Only underwriters may reject a loan.",
-      "allow": [{ "role": "underwriter" }]
+      "allow": [
+        {
+          "role": "underwriter"
+        }
+      ]
     },
     {
       "capability": "Loan.Disburse",
       "type": "access",
       "description": "Disbursement is performed by the system only.",
-      "allow": [{ "role": "system" }]
+      "allow": [
+        {
+          "role": "system"
+        }
+      ]
     },
     {
       "capability": "Loan.Repay",
       "type": "access",
       "description": "Only the borrower who owns the loan may submit a repayment.",
-      "allow": [{ "role": "borrower", "ownership": true }]
+      "allow": [
+        {
+          "role": "borrower",
+          "ownership": true
+        }
+      ]
     },
     {
       "capability": "Loan.Default",
       "type": "access",
       "description": "Defaulting is performed by the system scheduler only.",
-      "allow": [{ "role": "system" }]
+      "allow": [
+        {
+          "role": "system"
+        }
+      ]
     },
     {
       "capability": "Loan.Apply",
       "type": "condition",
       "description": "Borrower must have a complete financial profile before applying.",
       "conditions": [
-        { "attribute": "borrower.credit_score", "operator": "present" },
-        { "attribute": "borrower.annual_income", "operator": "present" },
-        { "attribute": "borrower.status", "operator": "eq", "value": "active" },
-        { "attribute": "loan.amount", "operator": "gt", "value": 0 },
-        { "attribute": "loan.term_months", "operator": "gt", "value": 0 }
+        {
+          "attribute": "borrower.credit_score",
+          "operator": "present"
+        },
+        {
+          "attribute": "borrower.annual_income",
+          "operator": "present"
+        },
+        {
+          "attribute": "borrower.status",
+          "operator": "eq",
+          "value": "active"
+        },
+        {
+          "attribute": "loan.amount",
+          "operator": "gt",
+          "value": 0
+        },
+        {
+          "attribute": "loan.term_months",
+          "operator": "gt",
+          "value": 0
+        }
       ]
     },
     {
@@ -266,7 +693,11 @@
       "type": "condition",
       "description": "Only loans in under_review status can be picked up by an underwriter.",
       "conditions": [
-        { "attribute": "loan.status", "operator": "eq", "value": "under_review" }
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "under_review"
+        }
       ]
     },
     {
@@ -274,8 +705,16 @@
       "type": "condition",
       "description": "Loan must be under review and within the lender's maximum amount.",
       "conditions": [
-        { "attribute": "loan.status", "operator": "eq", "value": "under_review" },
-        { "attribute": "loan.amount", "operator": "lte", "value": 250000 }
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "under_review"
+        },
+        {
+          "attribute": "loan.amount",
+          "operator": "lte",
+          "value": 250000
+        }
       ]
     },
     {
@@ -283,7 +722,11 @@
       "type": "condition",
       "description": "Only loans under review can be rejected.",
       "conditions": [
-        { "attribute": "loan.status", "operator": "eq", "value": "under_review" }
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "under_review"
+        }
       ]
     },
     {
@@ -291,7 +734,11 @@
       "type": "condition",
       "description": "Only approved loans can be disbursed.",
       "conditions": [
-        { "attribute": "loan.status", "operator": "eq", "value": "approved" }
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "approved"
+        }
       ]
     },
     {
@@ -299,8 +746,16 @@
       "type": "condition",
       "description": "Repayments can only be made on active loans.",
       "conditions": [
-        { "attribute": "loan.status", "operator": "eq", "value": "active" },
-        { "attribute": "loan.amount_paid", "operator": "lt", "value": "loan.amount" }
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "active"
+        },
+        {
+          "attribute": "loan.amount_paid",
+          "operator": "lt",
+          "value": "loan.amount"
+        }
       ]
     },
     {
@@ -308,84 +763,156 @@
       "type": "condition",
       "description": "Only active loans past their due date are eligible for default.",
       "conditions": [
-        { "attribute": "loan.status", "operator": "eq", "value": "active" },
-        { "attribute": "loan.due_date", "operator": "present" }
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "active"
+        },
+        {
+          "attribute": "loan.due_date",
+          "operator": "present"
+        }
       ]
     }
   ],
-
   "outcomes": [
     {
       "capability": "Loan.Apply",
       "description": "Loan enters the underwriting queue.",
       "changes": [
-        { "attribute": "loan.status", "set": "under_review" }
+        {
+          "attribute": "loan.status",
+          "set": "under_review"
+        }
       ]
     },
     {
       "capability": "Loan.Approve",
       "description": "Loan is approved and terms are locked in.",
       "changes": [
-        { "attribute": "loan.status", "set": "approved" },
-        { "attribute": "loan.approved_at", "set": "now" },
-        { "attribute": "loan.reviewed_by", "set": "actor.id" }
+        {
+          "attribute": "loan.status",
+          "set": "approved"
+        },
+        {
+          "attribute": "loan.approved_at",
+          "set": "now"
+        },
+        {
+          "attribute": "loan.reviewed_by",
+          "set": "actor.id"
+        }
       ]
     },
     {
       "capability": "Loan.Reject",
       "description": "Loan is closed as rejected.",
       "changes": [
-        { "attribute": "loan.status", "set": "rejected" }
+        {
+          "attribute": "loan.status",
+          "set": "rejected"
+        }
       ]
     },
     {
       "capability": "Loan.Disburse",
       "description": "Loan becomes active and funds are marked as released.",
       "changes": [
-        { "attribute": "loan.status", "set": "active" },
-        { "attribute": "loan.disbursed_at", "set": "now" },
-        { "attribute": "loan.amount_paid", "set": 0 }
+        {
+          "attribute": "loan.status",
+          "set": "active"
+        },
+        {
+          "attribute": "loan.disbursed_at",
+          "set": "now"
+        },
+        {
+          "attribute": "loan.amount_paid",
+          "set": 0
+        }
       ],
-      "emits": ["lending.Loan.Disbursed"]
+      "emits": [
+        "lending.Loan.Disbursed"
+      ]
     },
     {
       "capability": "Loan.Repay",
       "description": "Payment is recorded; loan is marked repaid if balance is cleared.",
       "changes": [
-        { "attribute": "loan.amount_paid", "set": "loan.amount_paid + input.payment_amount" }
+        {
+          "attribute": "loan.amount_paid",
+          "set": "loan.amount_paid + input.payment_amount"
+        }
       ],
-      "initiates": ["Loan.Default"]
+      "initiates": [
+        "Loan.Default"
+      ]
     },
     {
       "capability": "Loan.Default",
       "description": "Loan is closed as defaulted.",
       "changes": [
-        { "attribute": "loan.status", "set": "defaulted" }
+        {
+          "attribute": "loan.status",
+          "set": "defaulted"
+        }
       ],
-      "emits": ["lending.Loan.Defaulted"]
+      "emits": [
+        "lending.Loan.Defaulted"
+      ]
     },
     {
       "capability": "Borrower.Suspend",
       "description": "Borrower account is deactivated.",
       "changes": [
-        { "attribute": "borrower.status", "set": "suspended" }
+        {
+          "attribute": "borrower.status",
+          "set": "suspended"
+        }
       ]
     }
   ],
-
   "signals": [
     {
       "name": "lending.Loan.Disbursed",
       "capability": "Loan.Disburse",
       "description": "Published when funds are released to the borrower. Downstream domains (e.g. payments) can subscribe to schedule repayment collection.",
       "payload": [
-        { "name": "loan_id", "type": "string", "description": "The disbursed loan's identifier." },
-        { "name": "borrower_id", "type": "string", "description": "The borrower receiving funds." },
-        { "name": "lender_id", "type": "string", "description": "The lender funding the loan." },
-        { "name": "amount", "type": "number", "description": "Principal amount disbursed." },
-        { "name": "interest_rate", "type": "number", "description": "Annual interest rate locked at approval." },
-        { "name": "term_months", "type": "number", "description": "Loan duration in months." },
-        { "name": "disbursed_at", "type": "datetime", "description": "Timestamp when funds were released." }
+        {
+          "name": "loan_id",
+          "type": "string",
+          "description": "The disbursed loan's identifier."
+        },
+        {
+          "name": "borrower_id",
+          "type": "string",
+          "description": "The borrower receiving funds."
+        },
+        {
+          "name": "lender_id",
+          "type": "string",
+          "description": "The lender funding the loan."
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "description": "Principal amount disbursed."
+        },
+        {
+          "name": "interest_rate",
+          "type": "number",
+          "description": "Annual interest rate locked at approval."
+        },
+        {
+          "name": "term_months",
+          "type": "number",
+          "description": "Loan duration in months."
+        },
+        {
+          "name": "disbursed_at",
+          "type": "datetime",
+          "description": "Timestamp when funds were released."
+        }
       ]
     },
     {
@@ -393,16 +920,39 @@
       "capability": "Loan.Default",
       "description": "Published when a loan is marked as defaulted. Downstream domains can trigger collections, credit reporting, or risk adjustments.",
       "payload": [
-        { "name": "loan_id", "type": "string", "description": "The defaulted loan's identifier." },
-        { "name": "borrower_id", "type": "string", "description": "The borrower who defaulted." },
-        { "name": "lender_id", "type": "string", "description": "The lender who funded the loan." },
-        { "name": "amount", "type": "number", "description": "Original principal amount." },
-        { "name": "amount_paid", "type": "number", "description": "Total repayments received before default." },
-        { "name": "due_date", "type": "date", "description": "The due date that was missed." }
+        {
+          "name": "loan_id",
+          "type": "string",
+          "description": "The defaulted loan's identifier."
+        },
+        {
+          "name": "borrower_id",
+          "type": "string",
+          "description": "The borrower who defaulted."
+        },
+        {
+          "name": "lender_id",
+          "type": "string",
+          "description": "The lender who funded the loan."
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "description": "Original principal amount."
+        },
+        {
+          "name": "amount_paid",
+          "type": "number",
+          "description": "Total repayments received before default."
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "description": "The due date that was missed."
+        }
       ]
     }
   ],
-
   "relationships": [
     {
       "name": "Loan.borrower",
@@ -423,24 +973,592 @@
       "inverse": "loans"
     }
   ],
-
-  "lifecycles": [
+  "equations": [],
+  "positions": [
     {
-      "noun": "Loan",
-      "description": "The full loan origination and repayment lifecycle.",
-      "steps": ["Loan.Apply", "Loan.Review", "Loan.Approve", "Loan.Disburse", "Loan.Repay"],
-      "branches": [
-        { "from": "Loan.Review", "to": "Loan.Reject", "description": "Underwriter may reject instead of approve." },
-        { "from": "Loan.Repay", "to": "Loan.Default", "description": "Active loan defaults if due date passes unpaid." }
+      "name": "LoanOfficer",
+      "description": "Assists borrowers with applications and manages borrower relationships.",
+      "domain": "acme.finance.lending",
+      "reports_to": "LendingManager",
+      "roles": ["borrower", "editor"]
+    },
+    {
+      "name": "Underwriter",
+      "description": "Reviews loan applications and makes approval/rejection decisions.",
+      "domain": "acme.finance.lending",
+      "reports_to": "LendingManager",
+      "roles": ["underwriter"]
+    },
+    {
+      "name": "LendingManager",
+      "description": "Oversees the loan origination process and manages staff.",
+      "domain": "acme.finance.lending",
+      "roles": ["admin", "underwriter"]
+    },
+    {
+      "name": "LenderAdmin",
+      "description": "Manages lender entities on the platform.",
+      "domain": "acme.finance.lending",
+      "reports_to": "LendingManager",
+      "roles": ["admin"]
+    }
+  ],
+  "persons": [
+    {
+      "name": "sarah-chen",
+      "display_name": "Sarah Chen",
+      "position": "Underwriter",
+      "email": "sarah.chen@acme.finance",
+      "domain": "acme.finance.lending",
+      "active": true
+    },
+    {
+      "name": "marcus-johnson",
+      "display_name": "Marcus Johnson",
+      "position": "LendingManager",
+      "email": "marcus.johnson@acme.finance",
+      "domain": "acme.finance.lending",
+      "active": true
+    },
+    {
+      "name": "priya-patel",
+      "display_name": "Priya Patel",
+      "position": "LoanOfficer",
+      "email": "priya.patel@acme.finance",
+      "domain": "acme.finance.lending",
+      "active": true
+    }
+  ],
+  "tasks": [
+    {
+      "name": "review-loan",
+      "description": "Underwriter picks up a loan application from the queue and reviews it.",
+      "position": "Underwriter",
+      "capability": "Loan.Review",
+      "domain": "acme.finance.lending"
+    },
+    {
+      "name": "approve-loan",
+      "description": "Underwriter approves the loan and locks in terms.",
+      "position": "Underwriter",
+      "capability": "Loan.Approve",
+      "domain": "acme.finance.lending"
+    },
+    {
+      "name": "reject-loan",
+      "description": "Underwriter rejects the loan application.",
+      "position": "Underwriter",
+      "capability": "Loan.Reject",
+      "domain": "acme.finance.lending"
+    },
+    {
+      "name": "suspend-borrower",
+      "description": "Manager suspends a borrower account to prevent new applications.",
+      "position": "LendingManager",
+      "capability": "Borrower.Suspend",
+      "domain": "acme.finance.lending"
+    },
+    {
+      "name": "onboard-lender",
+      "description": "Admin adds a new lender to the platform.",
+      "position": "LenderAdmin",
+      "capability": "Lender.Onboard",
+      "domain": "acme.finance.lending"
+    },
+    {
+      "name": "activate-lender",
+      "description": "Admin authorizes a lender to fund new loans.",
+      "position": "LenderAdmin",
+      "capability": "Lender.Activate",
+      "domain": "acme.finance.lending"
+    },
+    {
+      "name": "deactivate-lender",
+      "description": "Admin pauses a lender from funding new loans.",
+      "position": "LenderAdmin",
+      "capability": "Lender.Deactivate",
+      "domain": "acme.finance.lending"
+    },
+    {
+      "name": "update-lender-rates",
+      "description": "Admin updates a lender's posted interest rate schedule.",
+      "position": "LenderAdmin",
+      "capability": "Lender.UpdateRates",
+      "domain": "acme.finance.lending"
+    }
+  ],
+  "processes": [
+    {
+      "name": "LoanOrigination",
+      "description": "Staff workflow for processing a loan application through underwriting to a decision. Begins after a borrower self-submits an application (Loan.Apply) and ends with approval or rejection. Disbursement is system-triggered after approval.",
+      "domain": "acme.finance.lending",
+      "operator": "LendingManager",
+      "steps": [
+        {
+          "id": "review",
+          "task": "review-loan",
+          "description": "Underwriter picks up the application from the queue."
+        },
+        {
+          "id": "approve",
+          "task": "approve-loan",
+          "depends_on": ["review"],
+          "branch": { "when": "loan qualifies per underwriting criteria", "else": "reject" },
+          "description": "If the loan qualifies, underwriter approves and locks terms."
+        },
+        {
+          "id": "reject",
+          "task": "reject-loan",
+          "depends_on": ["review"],
+          "description": "If the loan does not qualify, underwriter rejects the application."
+        }
       ]
     },
     {
-      "noun": "Borrower",
-      "description": "Borrower account lifecycle.",
-      "steps": ["Borrower.Register"],
-      "branches": [
-        { "from": "Borrower.Register", "to": "Borrower.Suspend", "description": "Admin may suspend the account at any point." }
+      "name": "LenderOnboarding",
+      "description": "Staff workflow for adding a new lending partner to the platform.",
+      "domain": "acme.finance.lending",
+      "operator": "LendingManager",
+      "steps": [
+        {
+          "id": "onboard",
+          "task": "onboard-lender",
+          "description": "Admin registers the lender entity with license and jurisdiction details."
+        },
+        {
+          "id": "activate",
+          "task": "activate-lender",
+          "depends_on": ["onboard"],
+          "description": "Admin activates the lender to begin funding loans."
+        }
       ]
+    }
+  ],
+  "layouts": [
+    {
+      "name": "default",
+      "elements": {
+        "domain:acme.finance.lending": {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 2424,
+            "height": 544
+          }
+        },
+        "noun:Borrower": {
+          "position": {
+            "x": 48,
+            "y": 64
+          },
+          "size": {
+            "width": 180,
+            "height": 56
+          }
+        },
+        "capability:Borrower.Register": {
+          "position": {
+            "x": 48,
+            "y": 152
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Borrower.Register:0": {
+          "position": {
+            "x": 268,
+            "y": 156
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "capability:Borrower.Suspend": {
+          "position": {
+            "x": 48,
+            "y": 204
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Borrower.Suspend:0": {
+          "position": {
+            "x": 268,
+            "y": 208
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "outcome:Borrower.Suspend:0": {
+          "position": {
+            "x": 324,
+            "y": 208
+          },
+          "size": {
+            "width": 32,
+            "height": 32
+          }
+        },
+        "noun:Loan": {
+          "position": {
+            "x": 608,
+            "y": 64
+          },
+          "size": {
+            "width": 180,
+            "height": 56
+          }
+        },
+        "capability:Loan.Apply": {
+          "position": {
+            "x": 608,
+            "y": 152
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Loan.Apply:0": {
+          "position": {
+            "x": 828,
+            "y": 156
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "rule:Loan.Apply:1": {
+          "position": {
+            "x": 870,
+            "y": 156
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "outcome:Loan.Apply:0": {
+          "position": {
+            "x": 926,
+            "y": 156
+          },
+          "size": {
+            "width": 32,
+            "height": 32
+          }
+        },
+        "capability:Loan.Review": {
+          "position": {
+            "x": 608,
+            "y": 204
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Loan.Review:0": {
+          "position": {
+            "x": 828,
+            "y": 208
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "rule:Loan.Review:1": {
+          "position": {
+            "x": 870,
+            "y": 208
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "capability:Loan.Approve": {
+          "position": {
+            "x": 608,
+            "y": 256
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Loan.Approve:0": {
+          "position": {
+            "x": 828,
+            "y": 260
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "rule:Loan.Approve:1": {
+          "position": {
+            "x": 870,
+            "y": 260
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "outcome:Loan.Approve:0": {
+          "position": {
+            "x": 926,
+            "y": 260
+          },
+          "size": {
+            "width": 32,
+            "height": 32
+          }
+        },
+        "capability:Loan.Reject": {
+          "position": {
+            "x": 608,
+            "y": 308
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Loan.Reject:0": {
+          "position": {
+            "x": 828,
+            "y": 312
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "rule:Loan.Reject:1": {
+          "position": {
+            "x": 870,
+            "y": 312
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "outcome:Loan.Reject:0": {
+          "position": {
+            "x": 926,
+            "y": 312
+          },
+          "size": {
+            "width": 32,
+            "height": 32
+          }
+        },
+        "capability:Loan.Disburse": {
+          "position": {
+            "x": 608,
+            "y": 360
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Loan.Disburse:0": {
+          "position": {
+            "x": 828,
+            "y": 364
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "rule:Loan.Disburse:1": {
+          "position": {
+            "x": 870,
+            "y": 364
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "outcome:Loan.Disburse:0": {
+          "position": {
+            "x": 926,
+            "y": 364
+          },
+          "size": {
+            "width": 32,
+            "height": 32
+          }
+        },
+        "capability:Loan.Repay": {
+          "position": {
+            "x": 608,
+            "y": 412
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Loan.Repay:0": {
+          "position": {
+            "x": 828,
+            "y": 416
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "rule:Loan.Repay:1": {
+          "position": {
+            "x": 870,
+            "y": 416
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "outcome:Loan.Repay:0": {
+          "position": {
+            "x": 926,
+            "y": 416
+          },
+          "size": {
+            "width": 32,
+            "height": 32
+          }
+        },
+        "capability:Loan.Default": {
+          "position": {
+            "x": 608,
+            "y": 464
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "rule:Loan.Default:0": {
+          "position": {
+            "x": 828,
+            "y": 468
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "rule:Loan.Default:1": {
+          "position": {
+            "x": 870,
+            "y": 468
+          },
+          "size": {
+            "width": 36,
+            "height": 32
+          }
+        },
+        "outcome:Loan.Default:0": {
+          "position": {
+            "x": 926,
+            "y": 468
+          },
+          "size": {
+            "width": 32,
+            "height": 32
+          }
+        },
+        "noun:Lender": {
+          "position": {
+            "x": 1168,
+            "y": 64
+          },
+          "size": {
+            "width": 180,
+            "height": 56
+          }
+        },
+        "capability:Lender.Onboard": {
+          "position": {
+            "x": 1168,
+            "y": 152
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "capability:Lender.Activate": {
+          "position": {
+            "x": 1168,
+            "y": 204
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "capability:Lender.Deactivate": {
+          "position": {
+            "x": 1168,
+            "y": 256
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "capability:Lender.UpdateRates": {
+          "position": {
+            "x": 1168,
+            "y": 308
+          },
+          "size": {
+            "width": 200,
+            "height": 40
+          }
+        },
+        "signal:lending.Loan.Disbursed": {
+          "position": {
+            "x": 2280,
+            "y": 64
+          },
+          "size": {
+            "width": 56,
+            "height": 56
+          }
+        },
+        "signal:lending.Loan.Defaulted": {
+          "position": {
+            "x": 2280,
+            "y": 144
+          },
+          "size": {
+            "width": 56,
+            "height": 56
+          }
+        }
+      }
     }
   ]
 }

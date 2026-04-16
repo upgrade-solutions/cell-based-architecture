@@ -865,44 +865,12 @@
       ]
     }
   ],
-  "lifecycles": [
-    {
-      "noun": "Loan",
-      "description": "The full loan origination and repayment lifecycle.",
-      "steps": [
-        "Loan.Apply",
-        "Loan.Review",
-        "Loan.Approve",
-        "Loan.Disburse",
-        "Loan.Repay"
-      ],
-      "branches": [
-        {
-          "from": "Loan.Review",
-          "to": "Loan.Reject",
-          "description": "Underwriter may reject instead of approve."
-        },
-        {
-          "from": "Loan.Repay",
-          "to": "Loan.Default",
-          "description": "Active loan defaults if due date passes unpaid."
-        }
-      ]
-    },
-    {
-      "noun": "Borrower",
-      "description": "Borrower account lifecycle.",
-      "steps": [
-        "Borrower.Register"
-      ],
-      "branches": [
-        {
-          "from": "Borrower.Register",
-          "to": "Borrower.Suspend",
-          "description": "Admin may suspend the account at any point."
-        }
-      ]
-    }
+  "roles": [
+    { "name": "borrower", "description": "May submit loan applications and repayments." },
+    { "name": "underwriter", "description": "May review, approve, or reject loan applications." },
+    { "name": "admin", "description": "Full system access — manage borrowers, lenders, and platform settings." },
+    { "name": "editor", "description": "May edit records (borrower profiles, loan details)." },
+    { "name": "system", "description": "System-triggered operations (disbursement, default scheduling)." }
   ],
   "signals": [
     {
