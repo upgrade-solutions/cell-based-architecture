@@ -84,7 +84,8 @@
                 "verbs": [
                   { "name": "Register", "description": "Creates a claimant record from a qualified intake submission." },
                   { "name": "View", "description": "Retrieve details for a specific claimant." },
-                  { "name": "Assign", "description": "Assign an attorney to represent this claimant." }
+                  { "name": "Assign", "description": "Assign an attorney to represent this claimant." },
+                  { "name": "Withdraw", "description": "Claimant voluntarily exits the case." }
                 ],
                 "examples": [
                   {
@@ -197,7 +198,9 @@
                   { "name": "claimant_id", "type": "string", "description": "Reference to the Claimant who owns or occupied this property.", "reference": "Claimant" },
                   { "name": "in_affected_zone", "type": "boolean", "required": true, "description": "Whether this address falls within the verified Marshall Fire damage perimeter." }
                 ],
-                "verbs": [],
+                "verbs": [
+                  { "name": "Assess", "description": "Record or update the official damage assessment for this property." }
+                ],
                 "examples": [
                   {
                     "id": "property-1",
@@ -461,6 +464,18 @@
       "verb": "Assign",
       "name": "Attorney.Assign",
       "description": "Assign an attorney to represent a Claimant."
+    },
+    {
+      "noun": "Claimant",
+      "verb": "Withdraw",
+      "name": "Claimant.Withdraw",
+      "description": "A claimant voluntarily exits the case. All open claims are dismissed and the claimant record is marked withdrawn."
+    },
+    {
+      "noun": "Property",
+      "verb": "Assess",
+      "name": "Property.Assess",
+      "description": "Record or update the official damage assessment for a property, sourced from county records, insurance reports, or on-site inspection."
     }
   ],
   "causes": [
@@ -530,6 +545,16 @@
       "source": "signal",
       "signal": "marshall.Claimant.Registered",
       "description": "Triggered by the Claimant.Registered signal to prompt attorney assignment workflow."
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "source": "user",
+      "description": "Claimant or case manager initiates voluntary withdrawal from the case."
+    },
+    {
+      "capability": "Property.Assess",
+      "source": "user",
+      "description": "Paralegal records damage assessment from county records, insurance report, or site visit."
     }
   ],
   "rules": [
@@ -666,6 +691,26 @@
         { "attribute": "attorney.status", "operator": "eq", "value": "active" }
       ],
       "description": "Only active attorneys may be assigned to claimants."
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "type": "access",
+      "allow": [{ "role": "attorney" }, { "role": "admin" }],
+      "description": "Only the assigned attorney or an admin may process a withdrawal."
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "type": "condition",
+      "conditions": [
+        { "attribute": "claimant.status", "operator": "in", "value": ["registered", "assigned", "active"] }
+      ],
+      "description": "Only claimants who have not already settled or withdrawn may withdraw."
+    },
+    {
+      "capability": "Property.Assess",
+      "type": "access",
+      "allow": [{ "role": "paralegal" }, { "role": "admin" }],
+      "description": "Paralegals and admins may record property damage assessments."
     }
   ],
   "outcomes": [
@@ -769,6 +814,21 @@
         { "attribute": "claimant.status", "set": "assigned" },
         { "attribute": "claimant.assigned_at", "set": "now" }
       ]
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "description": "Marks the claimant as withdrawn. Open claims should be dismissed as a downstream effect.",
+      "changes": [
+        { "attribute": "claimant.status", "set": "withdrawn" }
+      ]
+    },
+    {
+      "capability": "Property.Assess",
+      "description": "Records the damage assessment level for the property.",
+      "changes": [
+        { "attribute": "property.damage_assessment", "set": "input.damage_assessment" },
+        { "attribute": "property.assessed_at", "set": "now" }
+      ]
     }
   ],
   "positions": [
@@ -864,6 +924,20 @@
       "domain": "justice.masstort.marshall"
     },
     {
+      "name": "withdraw-claimant",
+      "description": "Case manager processes a claimant's voluntary withdrawal from the case.",
+      "position": "CaseManager",
+      "capability": "Claimant.Withdraw",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "assess-property",
+      "description": "Paralegal records the official damage assessment for a claimant's property.",
+      "position": "Paralegal",
+      "capability": "Property.Assess",
+      "domain": "justice.masstort.marshall"
+    },
+    {
       "name": "file-claim",
       "description": "Paralegal formally files a claim on behalf of a claimant.",
       "position": "Paralegal",
@@ -886,7 +960,7 @@
     },
     {
       "name": "upload-evidence",
-      "description": "Paralegal or attorney uploads supporting evidence for a claim.",
+      "description": "Paralegal uploads supporting evidence for a claim.",
       "position": "Paralegal",
       "capability": "Evidence.Upload",
       "domain": "justice.masstort.marshall"
@@ -923,7 +997,7 @@
   "processes": [
     {
       "name": "ClaimantIntake",
-      "description": "End-to-end process from public intake submission through qualification, claimant registration (system-triggered), and attorney assignment.",
+      "description": "Public intake submission through qualification and attorney assignment. Claimant.Register fires automatically via signal after qualification; the staff workflow is qualify → assign.",
       "domain": "justice.masstort.marshall",
       "operator": "CaseManager",
       "steps": [
@@ -942,39 +1016,113 @@
       ]
     },
     {
+      "name": "CasePreparation",
+      "description": "After attorney assignment, three workstreams run in parallel: property damage assessment, evidence collection + verification, and case milestone advancement. All three must complete before the attorney review.",
+      "domain": "justice.masstort.marshall",
+      "operator": "CaseManager",
+      "steps": [
+        {
+          "id": "assess-property",
+          "task": "assess-property",
+          "description": "Paralegal records damage assessment from county records or insurance report."
+        },
+        {
+          "id": "collect-evidence",
+          "task": "upload-evidence",
+          "description": "Paralegal uploads supporting documentation (photos, receipts, insurance correspondence)."
+        },
+        {
+          "id": "verify-evidence",
+          "task": "verify-evidence",
+          "depends_on": ["collect-evidence"],
+          "description": "Case manager verifies uploaded evidence for authenticity."
+        },
+        {
+          "id": "advance-to-filed",
+          "task": "advance-case-status",
+          "description": "Paralegal advances case milestone to 'filed' stage."
+        },
+        {
+          "id": "attorney-review",
+          "task": "review-claim",
+          "depends_on": ["assess-property", "verify-evidence", "advance-to-filed"],
+          "description": "Attorney reviews the complete case package — property assessment, verified evidence, and case status all converge here."
+        }
+      ]
+    },
+    {
       "name": "ClaimResolution",
-      "description": "Process for taking a claim from filing through legal review to resolution (settlement or dismissal).",
+      "description": "Takes a prepared claim through filing, legal review, and resolution. Branching: if the attorney approves, the claim proceeds to settlement or dismissal; if not, it returns for additional preparation.",
       "domain": "justice.masstort.marshall",
       "operator": "PartnerAttorney",
       "steps": [
         {
           "id": "file",
           "task": "file-claim",
-          "description": "Paralegal formally files the claim."
-        },
-        {
-          "id": "collect-evidence",
-          "task": "upload-evidence",
-          "depends_on": ["file"],
-          "description": "Paralegal uploads supporting evidence."
-        },
-        {
-          "id": "verify",
-          "task": "verify-evidence",
-          "depends_on": ["collect-evidence"],
-          "description": "Case manager verifies evidence authenticity."
+          "description": "Paralegal formally files the claim with the court."
         },
         {
           "id": "review",
           "task": "review-claim",
-          "depends_on": ["verify"],
-          "description": "Attorney reviews the filed claim with verified evidence."
+          "depends_on": ["file"],
+          "description": "Attorney reviews the filed claim for legal sufficiency."
         },
         {
           "id": "resolve",
           "task": "update-claim-status",
           "depends_on": ["review"],
-          "description": "Claim disposition updated to settled or dismissed."
+          "branch": { "when": "claim passes legal review", "else": "abort" },
+          "description": "Claim disposition updated to settled or dismissed based on negotiation outcome."
+        },
+        {
+          "id": "advance-to-resolved",
+          "task": "advance-case-status",
+          "depends_on": ["resolve"],
+          "description": "Case milestone advanced to settled or dismissed."
+        }
+      ]
+    },
+    {
+      "name": "EvidenceCollection",
+      "description": "Standalone evidence workflow that can run repeatedly per claim. Each piece of evidence goes through upload then verification before it's admissible.",
+      "domain": "justice.masstort.marshall",
+      "operator": "CaseManager",
+      "steps": [
+        {
+          "id": "upload",
+          "task": "upload-evidence",
+          "description": "Paralegal uploads a supporting document."
+        },
+        {
+          "id": "verify",
+          "task": "verify-evidence",
+          "depends_on": ["upload"],
+          "description": "Case manager reviews the document for authenticity and relevance."
+        }
+      ]
+    },
+    {
+      "name": "ClientWithdrawal",
+      "description": "Process for handling a claimant's voluntary withdrawal from the case. The case manager reviews the request, processes the withdrawal (which marks the claimant as withdrawn), and advances the case status to dismissed.",
+      "domain": "justice.masstort.marshall",
+      "operator": "CaseManager",
+      "steps": [
+        {
+          "id": "withdraw",
+          "task": "withdraw-claimant",
+          "description": "Case manager processes the claimant's voluntary withdrawal."
+        },
+        {
+          "id": "dismiss-claims",
+          "task": "update-claim-status",
+          "depends_on": ["withdraw"],
+          "description": "Open claims are updated to dismissed status."
+        },
+        {
+          "id": "close-case",
+          "task": "advance-case-status",
+          "depends_on": ["dismiss-claims"],
+          "description": "Case milestone advanced to dismissed."
         }
       ]
     }
