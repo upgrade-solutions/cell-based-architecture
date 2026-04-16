@@ -1,31 +1,17 @@
-import { useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import type { Extraction, PrimitiveType, DiscoverState } from './types.ts'
-import { PRIMITIVE_TYPES, PRIMITIVE_COLORS } from './types.ts'
+import { PRIMITIVE_COLORS } from './types.ts'
+import type { OperationalDNA } from '../../loaders/operational-loader.ts'
 
 interface GuideDiscoverProps {
   state: DiscoverState
   onChange: (state: DiscoverState) => void
   onProceed: () => void
+  dna: OperationalDNA | null
 }
 
-export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  const handleTag = useCallback((type: PrimitiveType) => {
-    const ta = textareaRef.current
-    if (!ta) return
-    const selected = ta.value.substring(ta.selectionStart, ta.selectionEnd).trim()
-    if (!selected) return
-
-    const extraction: Extraction = {
-      id: crypto.randomUUID(),
-      text: selected,
-      primitiveType: type,
-      confidence: 'manual',
-      approved: true,
-    }
-    onChange({ ...state, extractions: [...state.extractions, extraction] })
-  }, [state, onChange])
+export function GuideDiscover({ state, onChange, onProceed, dna }: GuideDiscoverProps) {
+  const [showDna, setShowDna] = useState(false)
 
   const handleToggle = useCallback((id: string) => {
     onChange({
@@ -70,33 +56,23 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
       <div style={leftStyle}>
         <div style={sectionHeaderStyle}>Source Material</div>
         <textarea
-          ref={textareaRef}
           value={state.sourceText}
           onChange={(e) => onChange({ ...state, sourceText: e.target.value })}
           placeholder="Paste meeting notes, requirements documents, transcripts, or any source material here."
           style={textareaStyle}
         />
-        <div style={tagBarStyle}>
-          <span style={tagLabelStyle}>Manual tag (optional) — select text then click a type:</span>
-          <div style={tagButtonsStyle}>
-            {PRIMITIVE_TYPES.map((type) => (
-              <button
-                key={type}
-                onClick={() => handleTag(type)}
-                style={{ ...tagButtonStyle, borderColor: PRIMITIVE_COLORS[type], color: PRIMITIVE_COLORS[type] }}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Right: extractions */}
       <div style={rightStyle}>
-        <div style={sectionHeaderStyle}>
-          Extractions
-          {approvedCount > 0 && <span style={countStyle}>{approvedCount} approved</span>}
+        <div style={extractionHeaderStyle}>
+          <div style={sectionHeaderStyle}>
+            Extractions
+            {approvedCount > 0 && <span style={countStyle}>{approvedCount} approved</span>}
+          </div>
+          <button onClick={() => setShowDna(true)} style={viewDnaButtonStyle} disabled={!dna}>
+            View DNA
+          </button>
         </div>
 
         {state.extractions.length === 0 ? (
@@ -142,6 +118,18 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
           </button>
         )}
       </div>
+
+      {showDna && dna && (
+        <div style={modalBackdropStyle} onClick={() => setShowDna(false)}>
+          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={modalHeaderStyle}>
+              <span style={modalTitleStyle}>Operational DNA (raw JSON)</span>
+              <button onClick={() => setShowDna(false)} style={modalCloseStyle}>×</button>
+            </div>
+            <pre style={modalPreStyle}>{JSON.stringify(dna, null, 2)}</pre>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -205,33 +193,88 @@ const textareaStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-const tagBarStyle: React.CSSProperties = {
+const extractionHeaderStyle: React.CSSProperties = {
   display: 'flex',
-  flexDirection: 'column',
-  gap: 6,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
 }
 
-const tagLabelStyle: React.CSSProperties = {
+const viewDnaButtonStyle: React.CSSProperties = {
+  padding: '4px 12px',
   fontSize: 11,
-  color: '#64748b',
+  fontWeight: 500,
+  background: 'transparent',
+  border: '1px solid #334155',
+  borderRadius: 4,
+  color: '#cbd5e1',
+  cursor: 'pointer',
   fontFamily: '-apple-system, sans-serif',
 }
 
-const tagButtonsStyle: React.CSSProperties = {
+const modalBackdropStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 0, left: 0, right: 0, bottom: 0,
+  background: 'rgba(0, 0, 0, 0.6)',
   display: 'flex',
-  flexWrap: 'wrap',
-  gap: 4,
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 100,
 }
 
-const tagButtonStyle: React.CSSProperties = {
-  padding: '3px 8px',
-  fontSize: 10,
-  fontWeight: 500,
+const modalStyle: React.CSSProperties = {
+  width: '80%',
+  maxWidth: 960,
+  height: '80%',
+  background: '#0f172a',
+  border: '1px solid #334155',
+  borderRadius: 8,
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden',
+  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+}
+
+const modalHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '12px 20px',
+  borderBottom: '1px solid #334155',
+  background: '#1e293b',
+}
+
+const modalTitleStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: '#f1f5f9',
+  fontFamily: '-apple-system, sans-serif',
+}
+
+const modalCloseStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   background: 'transparent',
-  border: '1px solid',
+  border: '1px solid #334155',
   borderRadius: 4,
+  color: '#94a3b8',
   cursor: 'pointer',
-  fontFamily: 'ui-monospace, monospace',
+  fontSize: 18,
+}
+
+const modalPreStyle: React.CSSProperties = {
+  flex: 1,
+  margin: 0,
+  padding: 20,
+  overflow: 'auto',
+  fontSize: 11,
+  lineHeight: 1.5,
+  color: '#cbd5e1',
+  background: '#0f172a',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
 }
 
 const emptyStyle: React.CSSProperties = {

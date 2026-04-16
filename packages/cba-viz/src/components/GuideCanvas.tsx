@@ -72,6 +72,7 @@ export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: Gui
             state={discoverState}
             onChange={setDiscoverState}
             onProceed={handleProceedToDesign}
+            dna={activeDna}
           />
         )}
         {phase === 'design' && activeDna && (
