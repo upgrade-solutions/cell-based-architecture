@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dna.local/operational",
   "title": "OperationalDNA",
-  "description": "A complete Operational DNA document for an application instance. Composes a domain hierarchy with the full behavior stack: capabilities, causes, rules, outcomes, lifecycles, and equations.",
+  "description": "A complete Operational DNA document for an application instance. Composes a domain hierarchy with the full behavior stack (capabilities, causes, rules, outcomes, equations) and the SOP stack (positions, persons, tasks, processes).",
   "type": "object",
   "required": ["domain"],
   "properties": {
@@ -30,11 +30,6 @@
       "description": "State changes and side effects that result from each capability.",
       "items": { "$ref": "https://dna.local/operational/outcome" }
     },
-    "lifecycles": {
-      "type": "array",
-      "description": "Valid sequences of capabilities across the life of each noun.",
-      "items": { "$ref": "https://dna.local/operational/lifecycle" }
-    },
     "equations": {
       "type": "array",
       "description": "Named, technology-agnostic computations that cannot be expressed as declarative Rules or Outcomes. Implemented concretely by Scripts in Technical DNA.",
@@ -49,6 +44,26 @@
       "type": "array",
       "description": "Named, directed connections between Nouns — formalizes the semantic link a reference Attribute implies, adding cardinality.",
       "items": { "$ref": "https://dna.local/operational/relationship" }
+    },
+    "positions": {
+      "type": "array",
+      "description": "Organizational job titles. Each Position carries Roles (declared in Product Core DNA) and is referenced by Tasks and Persons.",
+      "items": { "$ref": "https://dna.local/operational/position" }
+    },
+    "persons": {
+      "type": "array",
+      "description": "Individuals who currently fill Positions — the business org roster. Documentation-grade DNA, not authentication identity.",
+      "items": { "$ref": "https://dna.local/operational/person" }
+    },
+    "tasks": {
+      "type": "array",
+      "description": "Atomic reusable units of human activity: a Position performing exactly one Capability.",
+      "items": { "$ref": "https://dna.local/operational/task" }
+    },
+    "processes": {
+      "type": "array",
+      "description": "Standard Operating Procedures — named, owned, ordered DAGs of Steps that accomplish business goals.",
+      "items": { "$ref": "https://dna.local/operational/process" }
     }
   },
   "examples": [
@@ -99,8 +114,23 @@
         { "capability": "Loan.Apply", "changes": [{ "attribute": "loan.status", "set": "under_review" }] },
         { "capability": "Loan.Approve", "changes": [{ "attribute": "loan.status", "set": "active" }] }
       ],
-      "lifecycles": [
-        { "noun": "Loan", "steps": ["Loan.Apply", "Loan.Approve"] }
+      "positions": [
+        { "name": "LoanOfficer", "roles": ["borrower"] },
+        { "name": "Underwriter", "roles": ["underwriter"] }
+      ],
+      "tasks": [
+        { "name": "intake-loan", "position": "LoanOfficer", "capability": "Loan.Apply" },
+        { "name": "approve-loan", "position": "Underwriter", "capability": "Loan.Approve" }
+      ],
+      "processes": [
+        {
+          "name": "LoanOrigination",
+          "operator": "Underwriter",
+          "steps": [
+            { "id": "intake", "task": "intake-loan" },
+            { "id": "approve", "task": "approve-loan", "depends_on": ["intake"] }
+          ]
+        }
       ]
     }
   ]

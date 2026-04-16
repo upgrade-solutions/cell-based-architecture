@@ -52,10 +52,10 @@
       "description": "State changes and side effects for surfaced capabilities, including Signals emitted via Outcome.emits. Cells read outcomes to wire signal middleware.",
       "items": { "$ref": "https://dna.local/operational/outcome" }
     },
-    "lifecycles": {
+    "roles": {
       "type": "array",
-      "description": "Valid sequences of capabilities across the life of each surfaced Noun. Used by cells to generate state-machine guards and UI flow hints.",
-      "items": { "$ref": "https://dna.local/operational/lifecycle" }
+      "description": "Named access-control grants. Referenced by Operational Rules (type: access) and Positions. Consumed by api-cell for auth middleware and ui-cell for permission guards.",
+      "items": { "$ref": "https://dna.local/product/core/role" }
     },
     "equations": {
       "type": "array",

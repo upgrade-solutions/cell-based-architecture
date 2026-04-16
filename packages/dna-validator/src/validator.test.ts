@@ -52,14 +52,107 @@ describe('DnaValidator — operational/capability', () => {
   })
 })
 
-describe('DnaValidator — operational/lifecycle', () => {
-  it('validates a valid Lifecycle', () => {
+describe('DnaValidator — operational/position', () => {
+  it('validates a valid Position', () => {
     const result = validator.validate({
-      noun: 'Loan',
-      steps: ['Loan.Apply', 'Loan.Approve', 'Loan.Disburse', 'Loan.Repay'],
-      branches: [{ from: 'Loan.Disburse', to: 'Loan.Default' }]
-    }, 'operational/lifecycle')
+      name: 'ClosingSpecialist',
+      description: 'Closes approved loans.',
+      domain: 'acme.finance.lending',
+      reports_to: 'LendingManager',
+      roles: ['closer', 'editor']
+    }, 'operational/position')
     expect(result.valid).toBe(true)
+  })
+
+  it('rejects a Position missing required name', () => {
+    const result = validator.validate({ roles: ['closer'] }, 'operational/position')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'name')).toBe(true)
+  })
+})
+
+describe('DnaValidator — operational/person', () => {
+  it('validates a valid Person', () => {
+    const result = validator.validate({
+      name: 'jane-smith',
+      display_name: 'Jane Smith',
+      position: 'ClosingSpecialist',
+      email: 'jane@acme.finance',
+      active: true
+    }, 'operational/person')
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects a Person missing required position', () => {
+    const result = validator.validate({ name: 'jane-smith' }, 'operational/person')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'position')).toBe(true)
+  })
+})
+
+describe('DnaValidator — operational/task', () => {
+  it('validates a valid Task', () => {
+    const result = validator.validate({
+      name: 'close-loan',
+      position: 'ClosingSpecialist',
+      capability: 'Loan.Close',
+      description: 'Closing specialist closes an approved loan.'
+    }, 'operational/task')
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects a Task missing required capability', () => {
+    const result = validator.validate({ name: 'close-loan', position: 'ClosingSpecialist' }, 'operational/task')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'capability')).toBe(true)
+  })
+})
+
+describe('DnaValidator — operational/process', () => {
+  it('validates a valid Process', () => {
+    const result = validator.validate({
+      name: 'LoanOrigination',
+      operator: 'LendingManager',
+      steps: [
+        { id: 'intake', task: 'intake-loan' },
+        { id: 'underwrite', task: 'underwrite-loan', depends_on: ['intake'] },
+        { id: 'close', task: 'close-loan', depends_on: ['underwrite'], branch: { when: "loan.status == 'approved'", else: 'abort' } }
+      ]
+    }, 'operational/process')
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects a Process with no steps', () => {
+    const result = validator.validate({
+      name: 'EmptyProcess',
+      operator: 'Manager',
+      steps: []
+    }, 'operational/process')
+    expect(result.valid).toBe(false)
+  })
+
+  it('rejects a Process missing required operator', () => {
+    const result = validator.validate({
+      name: 'NoOperator',
+      steps: [{ id: 'step-one', task: 'some-task' }]
+    }, 'operational/process')
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.params?.missingProperty === 'operator')).toBe(true)
+  })
+})
+
+describe('DnaValidator — product/core/role', () => {
+  it('validates a valid Role', () => {
+    const result = validator.validate({
+      name: 'closer',
+      description: 'May close approved loans.'
+    }, 'product/core/role')
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects a Role with invalid name pattern', () => {
+    const result = validator.validate({ name: 'CloserRole' }, 'product/core/role')
+    expect(result.valid).toBe(false)
   })
 })
 
@@ -447,8 +540,12 @@ describe('DnaValidator — availableSchemas', () => {
     expect(schemas).toContain('operational/cause')
     expect(schemas).toContain('operational/rule')
     expect(schemas).toContain('operational/outcome')
-    expect(schemas).toContain('operational/lifecycle')
     expect(schemas).toContain('operational/equation')
+    expect(schemas).toContain('operational/position')
+    expect(schemas).toContain('operational/person')
+    expect(schemas).toContain('operational/task')
+    expect(schemas).toContain('operational/process')
+    expect(schemas).toContain('product/core/role')
     expect(schemas).toContain('operational/signal')
     expect(schemas).toContain('operational/relationship')
     expect(schemas).toContain('product/core/resource')

@@ -12,7 +12,7 @@ The relationship: DNA describes *what* the business is and does; cells decide *h
 ## 1. Operational DNA
 > *"What the business does"* — analogous to Domain-Driven Design
 
-Operational DNA captures pure business logic: domain concepts, processes, rules, and lifecycle. It is technology-agnostic and owned by the business, not engineering.
+Operational DNA captures pure business logic: domain concepts, processes, rules, and SOPs. It is technology-agnostic and owned by the business, not engineering.
 
 **Structure primitives:**
 
@@ -27,7 +27,7 @@ Operational DNA captures pure business logic: domain concepts, processes, rules,
 
 **Behavior primitives** — evaluated in order:
 ```
-Cause → Rule → [Capability executes] → Outcome (→ Signal) → Lifecycle
+Cause → Rule → [Capability executes] → Outcome (→ Signal)
 ```
 
 | Primitive | Description |
@@ -36,8 +36,16 @@ Cause → Rule → [Capability executes] → Outcome (→ Signal) → Lifecycle
 | `Rule` | A constraint on a Capability — who may perform it (`type: access`) or what conditions must be met (`type: condition`) |
 | `Outcome` | State changes and side effects after execution. Can `initiate` downstream Capabilities (intra-domain, sync) or `emit` Signals (cross-domain, async) |
 | `Signal` | A named domain event published after a Capability executes — crosses domain boundaries with a typed payload contract. Other domains subscribe via `Cause` with `source: "signal"` |
-| `Lifecycle` | The valid sequence of Capabilities across the life of a Noun |
 | `Equation` | A named, technology-agnostic computation — pure function with typed inputs and output. Implemented concretely by a Script in Technical DNA |
+
+**SOP primitives** — the human operating playbook:
+
+| Primitive | Description |
+|-----------|-------------|
+| `Position` | An organizational job title (e.g. `ClosingSpecialist`, `LoanOfficer`). Carries Roles (declared in Product Core DNA) and is referenced by Tasks and Persons |
+| `Person` | An individual who currently fills a Position — the business org roster. Documentation-grade DNA, not authentication identity |
+| `Task` | The atomic reusable unit of human activity: a Position performing exactly one Capability (e.g. `ClosingSpecialist does Loan.Close`) |
+| `Process` | A Standard Operating Procedure: a named, owned, ordered DAG of Steps that accomplishes a business goal. Each Step references a Task. Purely descriptive — runtime orchestration deferred to workflow-cell |
 
 Schemas live in `../operational/schemas/` or https://github.com/upgrade-solutions/cell-based-architecture/tree/main/operational/schemas
 
@@ -55,6 +63,7 @@ Product DNA translates Operational DNA into the concrete surface of a product: t
 | `Resource` | `Noun` | The product-level entity — realized as a Page in UI and a REST resource in API |
 | `Action` | `Verb` | A product-level operation — realized as a UI trigger and an API endpoint action |
 | `Operation` | `Capability` | A Resource:Action pair at the product level — the unit of user/system interaction |
+| `Role` | `Position` (many-to-many) | A named access-control grant referenced by Rules and Positions. Consumed by api-cell for auth middleware and ui-cell for permission guards |
 
 **UI primitives:**
 
@@ -213,8 +222,8 @@ When the Terraform/AWS adapter is selected, nodes start as `planned` (from the D
 
 | Layer | Primitives |
 |-------|-----------|
-| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Relationship`, `Cause`, `Rule`, `Outcome`, `Signal`, `Lifecycle`, `Equation` |
-| Product | `Resource`, `Action`, `Operation`, `Layout`, `Page`, `Route`, `Block`, `Field`, `Namespace`, `Endpoint`, `Schema`, `Param` |
+| Operational | `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Relationship`, `Cause`, `Rule`, `Outcome`, `Signal`, `Equation`, `Position`, `Person`, `Task`, `Process` |
+| Product | `Resource`, `Action`, `Operation`, `Role`, `Layout`, `Page`, `Route`, `Block`, `Field`, `Namespace`, `Endpoint`, `Schema`, `Param` |
 | Technical | `Environment`, `Cell`, `Construct`, `Provider`, `Variable`, `Output`, `Script`, `View`, `Node`, `Connection`, `Zone` |
 
 No primitive name is shared across layers.
@@ -227,8 +236,8 @@ No primitive name is shared across layers.
 flowchart LR
     subgraph Layers["DNA — Source of Truth (JSON)"]
         direction TB
-        OP["Operational DNA\nNouns · Verbs · Capabilities · Relationships\nCauses · Rules · Outcomes · Lifecycles · Equations"]
-        PROD["Product DNA\nResources · Actions · Operations\nPages · Routes · Endpoints · Schemas"]
+        OP["Operational DNA\nNouns · Verbs · Capabilities · Relationships\nCauses · Rules · Outcomes · Equations\nPositions · Persons · Tasks · Processes"]
+        PROD["Product DNA\nResources · Actions · Operations · Roles\nPages · Routes · Endpoints · Schemas"]
         TECH["Technical DNA\nCells · Constructs · Providers\nEnvironments · Variables · Scripts"]
         OP -->|"maps to"| PROD
         PROD -->|"configures"| TECH
@@ -277,7 +286,7 @@ A cell is a **TypeScript package** that:
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
 | `db-cell` | Technical | Construct config (infra-only — no application schema) | Database provisioning (Docker, roles, permissions) | **Built** — `technical/cells/db-cell/` |
 | `event-bus-cell` | Operational → Technical | Signals across all domains + queue Construct config | Schema registry, typed publisher libs, routing config, worker stubs | **Built** — `technical/cells/event-bus-cell/` |
-| `workflow-cell` | Technical | Causes, Lifecycles, Outcomes, Constructs | Event-driven workflows | Planned |
+| `workflow-cell` | Technical | Causes, Processes, Outcomes, Constructs | Event-driven workflows | Planned |
 
 Signal delivery uses two patterns — **Pattern A (HTTP push)**: publisher API dispatches signals directly to subscriber API endpoints (`/_signals/:signalName`), configured via `signal_dispatch` in Technical DNA. **Pattern B (queue + worker)**: durable queue-based delivery with a standalone worker process (planned — see [ROADMAP.md](ROADMAP.md) Phase 3e).
 
@@ -1011,7 +1020,7 @@ Conformance tests verify that all adapters for a given cell produce the same ext
 cell-based-architecture/
   dna/                              # DNA documents organized by application instance
     lending/
-      operational.json              # Full Operational DNA: domain, nouns, capabilities, relationships, causes, rules, outcomes, signals, lifecycles
+      operational.json              # Full Operational DNA: domain, nouns, capabilities, relationships, causes, rules, outcomes, signals, equations, positions, persons, tasks, processes
       product.api.json              # Product API DNA: namespace, resources, operations, endpoints
       product.ui.json               # Product UI DNA: layout, pages, routes, blocks
       technical.json                # Technical DNA: providers, constructs, variables, cells, environments
@@ -1019,7 +1028,7 @@ cell-based-architecture/
       operational.json              # Marshall Fire mass-tort Operational DNA (justice.masstort.marshall):
                                     #   9 Nouns (IntakeSubmission, Claimant, Claim, Incident, Property,
                                     #            Evidence, CaseStatus, Firm, Attorney)
-                                    #   13 Capabilities, 20 Rules, 12 Outcomes, 5 Lifecycles,
+                                    #   13 Capabilities, 20 Rules, 12 Outcomes,
                                     #   4 Signals, 2 Equations, 7 Relationships
       product.core.json             # Materialized slice — 8 nouns / 13 capabilities / 4 signals
       product.api.json              # REST surface — 7 Resources, 23 Operations, 23 Endpoints

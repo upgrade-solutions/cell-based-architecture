@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dna.local/product/core/role",
+  "title": "Role",
+  "description": "A Role is a named access-control grant referenced by Operational Rules (`type: access`) and by Positions. Roles describe what the system lets an actor touch, independent of any particular job title or Position. Role is a Product-layer primitive because it defines product-level access semantics consumed by both API and UI cells.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The lowercase snake_case name of the role.",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "examples": ["admin", "editor", "viewer", "closer", "underwriter", "borrower"]
+    },
+    "description": {
+      "type": "string",
+      "description": "A human-readable explanation of what this role grants."
+    }
+  },
+  "examples": [
+    { "name": "closer", "description": "May close approved loans." },
+    { "name": "underwriter", "description": "May approve or reject loan applications." },
+    { "name": "admin", "description": "Full system access." },
+    { "name": "editor", "description": "May edit records." },
+    { "name": "viewer", "description": "Read-only access." }
+  ]
+}

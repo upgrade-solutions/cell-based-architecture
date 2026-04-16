@@ -7,10 +7,14 @@ import * as domainSchema from '../../../operational/schemas/domain.json'
 import * as causeSchema from '../../../operational/schemas/cause.json'
 import * as ruleSchema from '../../../operational/schemas/rule.json'
 import * as outcomeSchema from '../../../operational/schemas/outcome.json'
-import * as lifecycleSchema from '../../../operational/schemas/lifecycle.json'
 import * as equationSchema from '../../../operational/schemas/equation.json'
+import * as positionSchema from '../../../operational/schemas/position.json'
+import * as personSchema from '../../../operational/schemas/person.json'
+import * as taskSchema from '../../../operational/schemas/task.json'
+import * as processSchema from '../../../operational/schemas/process.json'
 import * as signalSchema from '../../../operational/schemas/signal.json'
 import * as relationshipSchema from '../../../operational/schemas/relationship.json'
+import * as roleSchema from '../../../product/schemas/core/role.json'
 import * as fieldSchema from '../../../product/schemas/core/field.json'
 import * as actionSchema from '../../../product/schemas/core/action.json'
 import * as resourceSchema from '../../../product/schemas/core/resource.json'
@@ -66,7 +70,12 @@ interface OperationalDNA {
   signals?: { name: string; capability: string }[]
   outcomes?: { capability: string; emits?: string[] }[]
   causes?: { capability: string; source: string; signal?: string }[]
+  rules?: { capability: string; type?: string; allow?: { role?: string }[] }[]
   relationships?: { name: string; from: string; to: string; attribute: string; cardinality: string }[]
+  positions?: { name: string; roles?: string[]; reports_to?: string }[]
+  persons?: { name: string; position: string }[]
+  tasks?: { name: string; position: string; capability: string }[]
+  processes?: { name: string; operator: string; steps: { id: string; task: string; depends_on?: string[] }[]; emits?: string[] }[]
 }
 
 interface ProductCoreDNA {
@@ -77,6 +86,7 @@ interface ProductCoreDNA {
   outcomes?: { capability: string; emits?: string[] }[]
   causes?: { capability: string; source: string; signal?: string }[]
   relationships?: { name: string; from: string; to: string; attribute: string }[]
+  roles?: { name: string }[]
 }
 
 interface ProductApiDNA {
@@ -116,8 +126,12 @@ export class DnaValidator {
       causeSchema,
       ruleSchema,
       outcomeSchema,
-      lifecycleSchema,
       equationSchema,
+      positionSchema,
+      personSchema,
+      taskSchema,
+      processSchema,
+      roleSchema,
       fieldSchema,
       actionSchema,
       resourceSchema,
@@ -270,6 +284,93 @@ export class DnaValidator {
           }
         }
       }
+
+      // ── SOP: intra-operational references ─────────────────────────────
+      const positionNames = new Set((op.positions ?? []).map(p => p.name))
+      const taskNames = new Set((op.tasks ?? []).map(t => t.name))
+
+      // Position.reports_to must reference a declared Position
+      for (const pos of op.positions ?? []) {
+        if (pos.reports_to && !positionNames.has(pos.reports_to)) {
+          errors.push({
+            layer: 'operational',
+            path: `positions/${pos.name}/reports_to`,
+            message: `Position "${pos.name}" reports_to "${pos.reports_to}" which does not exist. Available: ${[...positionNames].join(', ')}`,
+          })
+        }
+      }
+
+      // Person.position must reference a declared Position
+      for (const person of op.persons ?? []) {
+        if (!positionNames.has(person.position)) {
+          errors.push({
+            layer: 'operational',
+            path: `persons/${person.name}/position`,
+            message: `Person "${person.name}" references Position "${person.position}" which does not exist. Available: ${[...positionNames].join(', ')}`,
+          })
+        }
+      }
+
+      // Task.position must reference a declared Position
+      // Task.capability must reference a declared Capability
+      for (const task of op.tasks ?? []) {
+        if (!positionNames.has(task.position)) {
+          errors.push({
+            layer: 'operational',
+            path: `tasks/${task.name}/position`,
+            message: `Task "${task.name}" references Position "${task.position}" which does not exist. Available: ${[...positionNames].join(', ')}`,
+          })
+        }
+        if (!capabilityNames.has(task.capability)) {
+          errors.push({
+            layer: 'operational',
+            path: `tasks/${task.name}/capability`,
+            message: `Task "${task.name}" references Capability "${task.capability}" which does not exist. Available: ${[...capabilityNames].join(', ')}`,
+          })
+        }
+      }
+
+      // Process.operator must reference a declared Position
+      // Process.steps[].task must reference a declared Task
+      // Process.steps[].depends_on[] must reference sibling step IDs
+      // Process.emits[] must reference declared Signals
+      for (const proc of op.processes ?? []) {
+        if (!positionNames.has(proc.operator)) {
+          errors.push({
+            layer: 'operational',
+            path: `processes/${proc.name}/operator`,
+            message: `Process "${proc.name}" operator "${proc.operator}" does not reference a declared Position. Available: ${[...positionNames].join(', ')}`,
+          })
+        }
+        const stepIds = new Set((proc.steps ?? []).map(s => s.id))
+        for (const step of proc.steps ?? []) {
+          if (!taskNames.has(step.task)) {
+            errors.push({
+              layer: 'operational',
+              path: `processes/${proc.name}/steps/${step.id}/task`,
+              message: `Step "${step.id}" in Process "${proc.name}" references Task "${step.task}" which does not exist. Available: ${[...taskNames].join(', ')}`,
+            })
+          }
+          for (const dep of step.depends_on ?? []) {
+            if (!stepIds.has(dep)) {
+              errors.push({
+                layer: 'operational',
+                path: `processes/${proc.name}/steps/${step.id}/depends_on/${dep}`,
+                message: `Step "${step.id}" in Process "${proc.name}" depends_on "${dep}" which is not a sibling step ID. Available: ${[...stepIds].join(', ')}`,
+              })
+            }
+          }
+        }
+        for (const sig of proc.emits ?? []) {
+          if (!signalNames.has(sig)) {
+            errors.push({
+              layer: 'operational',
+              path: `processes/${proc.name}/emits/${sig}`,
+              message: `Process "${proc.name}" emits Signal "${sig}" which does not exist. Available: ${[...signalNames].join(', ')}`,
+            })
+          }
+        }
+      }
     }
 
     // ── Operational → Product Core (materializer consistency) ──────────────
@@ -306,6 +407,37 @@ export class DnaValidator {
             path: `signals/${sig.name}`,
             message: `Product Core Signal "${sig.name}" is not present in Operational DNA. Re-run the materializer.`,
           })
+        }
+      }
+
+      // ── Operational → Product Core: Role references ───────────────────
+      const coreRoleNames = new Set((core.roles ?? []).map(r => r.name))
+      if (coreRoleNames.size > 0) {
+        // Position.roles[] must reference declared Product Core Roles
+        for (const pos of op.positions ?? []) {
+          for (const roleName of pos.roles ?? []) {
+            if (!coreRoleNames.has(roleName)) {
+              errors.push({
+                layer: 'operational',
+                path: `positions/${pos.name}/roles/${roleName}`,
+                message: `Position "${pos.name}" references Role "${roleName}" which does not exist in Product Core DNA. Available: ${[...coreRoleNames].join(', ')}`,
+              })
+            }
+          }
+        }
+
+        // Rule.allow[].role must reference declared Product Core Roles
+        for (const rule of op.rules ?? []) {
+          if (rule.type !== 'access') continue
+          for (const entry of (rule as any).allow ?? []) {
+            if (entry.role && !coreRoleNames.has(entry.role)) {
+              errors.push({
+                layer: 'operational',
+                path: `rules/${(rule as any).capability}/allow/role/${entry.role}`,
+                message: `Rule for "${(rule as any).capability}" references Role "${entry.role}" which does not exist in Product Core DNA. Available: ${[...coreRoleNames].join(', ')}`,
+              })
+            }
+          }
         }
       }
     }
