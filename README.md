@@ -49,6 +49,26 @@ Cause → Rule → [Capability executes] → Outcome (→ Signal)
 
 Schemas live in `../operational/schemas/` or https://github.com/upgrade-solutions/cell-based-architecture/tree/main/operational/schemas
 
+### SOPs in Operational DNA
+
+The SOP primitives model **who does what in what order** — the human operating playbook behind Capability executions. They complement the behavior stack (Cause → Rule → Outcome) which models *what the system does*.
+
+**Position vs Role:** Position is the org-chart title (`ClosingSpecialist`, `Underwriter`) — it lives in Operational DNA because it describes the business. Role is the access-control grant (`closer`, `admin`) — it lives in Product Core DNA because it defines what the product permits. Positions carry Roles via `Position.roles[]`. The two are many-to-many: a `ClosingSpecialist` might have roles `[closer, editor]`; the `admin` role might not map to any Position.
+
+**Task = Position + Capability:** A Task is the atomic reusable unit — *"ClosingSpecialist does Loan.Close"*. One Task = one Capability. If the rules change, it's a different Capability (and therefore a different Task). Tasks are composed into Processes, not called directly.
+
+**Process = ordered DAG of Steps:** Each Step references a Task and optionally `depends_on` sibling step IDs. Multiple `depends_on` entries mean "wait for all" (AND fan-in) — this is how parallel branches converge. A `branch` on a Step provides a conditional gate with `when` / `else`. Processes are **purely descriptive** in v1 — they document the playbook but don't execute it. The planned workflow-cell will consume Processes to drive real orchestration.
+
+**Person** is the current org roster — who fills each Position today. It's documentation-grade DNA, not authentication identity (JWT subjects stay with the IDP). Editing `persons[]` does not trigger downstream code generation.
+
+Example — Loan Origination SOP:
+```
+Process: LoanOrigination (operator: LendingManager)
+  ├── review: Underwriter does Loan.Review
+  ├── approve: Underwriter does Loan.Approve (depends_on: review, branch: when qualified)
+  └── reject: Underwriter does Loan.Reject (depends_on: review, branch: else)
+```
+
 ---
 
 ## 2. Product DNA
