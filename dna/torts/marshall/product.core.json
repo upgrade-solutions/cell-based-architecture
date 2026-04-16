@@ -1,14 +1,14 @@
 {
   "domain": {
     "name": "marshall",
-    "path": "justice.masstort.marshall",
+    "path": "marshall-fire-justice.masstort.marshall",
     "description": "Marshall Fire mass tort — Boulder County, Colorado, December 30, 2021. Representing homeowners, renters, and business owners affected by the most destructive wildfire in Colorado history."
   },
   "nouns": [
     {
       "name": "IntakeSubmission",
       "description": "A public submission from a potential Marshall Fire claimant seeking a free case review.",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -131,7 +131,7 @@
     {
       "name": "Claimant",
       "description": "A person whose intake submission has been reviewed and qualified as a legitimate Marshall Fire victim pursuing a legal claim.",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -244,7 +244,7 @@
     {
       "name": "Claim",
       "description": "A specific cause of action filed by a Claimant against the defendants responsible for the Marshall Fire. A single Claimant may file multiple Claims (e.g., real property and personal injury).",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -346,7 +346,7 @@
     {
       "name": "Evidence",
       "description": "A supporting document uploaded by a claimant or staff member to substantiate a Claim — such as insurance policies, photographs, damage assessments, receipts, or government records.",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -464,7 +464,7 @@
     {
       "name": "CaseStatus",
       "description": "A milestone record tracking the progression of a Claimant's overall case through the mass-tort pipeline — from intake through settlement or dismissal.",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -539,7 +539,7 @@
     {
       "name": "Firm",
       "description": "A participating law firm in the Marshall Fire mass-tort coordination network. Supports multi-firm coordination where multiple firms jointly represent claimants.",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -614,7 +614,7 @@
     {
       "name": "Attorney",
       "description": "An individual attorney at a participating Firm who is assigned to represent one or more Claimants in the Marshall Fire mass-tort matter.",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -690,7 +690,7 @@
     {
       "name": "Property",
       "description": "A real-property address within the Marshall Fire affected zone. Linked to one or more Claims; used to verify jurisdiction and assess property damage.",
-      "domain": "justice.masstort.marshall",
+      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",

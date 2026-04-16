@@ -158,7 +158,7 @@ This is the same layering principle as database views: operational DNA is the ba
 
 ### Operational DNA to produce
 
-**Domain**: `justice.masstort.marshall` (hierarchy under a `justice` root, `masstort` sub-namespace, `marshall` leaf domain)
+**Domain**: `marshall-fire-justice.masstort.marshall` (hierarchy under a `marshall-fire-justice` root, `masstort` sub-namespace, `marshall` leaf domain)
 
 **Core Nouns** (expect ~6–10):
 - `Claimant` — a person filing a claim

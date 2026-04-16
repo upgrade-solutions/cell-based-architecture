@@ -19,7 +19,7 @@
     "domain": {
       "type": "string",
       "description": "The dot-separated domain path this process is scoped to.",
-      "examples": ["acme.finance.lending", "justice.masstort.marshall"]
+      "examples": ["acme.finance.lending", "marshall-fire-justice.masstort.marshall"]
     },
     "operator": {
       "type": "string",

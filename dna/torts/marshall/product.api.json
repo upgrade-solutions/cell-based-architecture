@@ -2,7 +2,7 @@
   "namespace": {
     "name": "marshall",
     "path": "/marshall",
-    "domain": "justice.masstort.marshall",
+    "domain": "marshall-fire-justice.masstort.marshall",
     "description": "Public API for the Marshall Fire mass-tort intake.",
     "resources": [
       "IntakeSubmission"

@@ -19,7 +19,7 @@
         "path": {
           "type": "string",
           "description": "The dot-separated domain path from the platform root.",
-          "examples": ["acme.finance.lending", "justice.masstort.marshall"]
+          "examples": ["acme.finance.lending", "marshall-fire-justice.masstort.marshall"]
         },
         "description": {
           "type": "string",
