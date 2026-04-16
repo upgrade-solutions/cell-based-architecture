@@ -1,5 +1,132 @@
 import type { OperationalDNA, Domain } from '../../loaders/operational-loader.ts'
-import type { Extraction } from './types.ts'
+import type { Extraction, PrimitiveType } from './types.ts'
+
+// ── Auto-extraction from text ───────────────────────────────────────────
+
+const POSITION_SUFFIXES = [
+  'Manager', 'Specialist', 'Officer', 'Attorney', 'Agent', 'Representative',
+  'Administrator', 'Admin', 'Analyst', 'Clerk', 'Supervisor', 'Director',
+  'Coordinator', 'Paralegal', 'Associate', 'Partner', 'Assistant', 'Lead',
+  'Underwriter', 'Processor', 'Reviewer', 'Approver',
+]
+
+const ACTION_VERBS = [
+  'submit', 'review', 'approve', 'reject', 'file', 'upload', 'verify',
+  'assign', 'register', 'dismiss', 'update', 'create', 'send', 'notify',
+  'qualify', 'withdraw', 'assess', 'disburse', 'repay', 'default', 'close',
+  'onboard', 'activate', 'deactivate', 'advance', 'initiate', 'complete',
+  'process', 'cancel', 'suspend', 'apply',
+]
+
+const RULE_PATTERNS = [
+  /\b(?:must|only|required to|cannot|may not|shall|should|needs to)\b[^.!?\n]{5,120}/gi,
+  /\b(?:when|unless|if)\s+[^,.!?\n]{5,80}[,.]/gi,
+]
+
+const PROCESS_WORDS = ['process', 'workflow', 'procedure', 'flow', 'pipeline']
+
+interface AutoExtractionInput {
+  text: string
+}
+
+export function autoExtract({ text }: AutoExtractionInput): Extraction[] {
+  if (!text || text.trim().length < 10) return []
+
+  const results: Extraction[] = []
+  const seen = new Set<string>()
+
+  const push = (type: PrimitiveType, fragment: string, parentNoun?: string) => {
+    const key = `${type}:${fragment.toLowerCase()}`
+    if (seen.has(key)) return
+    seen.add(key)
+    results.push({
+      id: crypto.randomUUID(),
+      text: fragment,
+      primitiveType: type,
+      confidence: 'suggested',
+      approved: true,
+      parentNoun,
+    })
+  }
+
+  // Positions: capitalized word(s) ending in a position suffix
+  const posPattern = new RegExp(
+    `\\b([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*\\s+(?:${POSITION_SUFFIXES.join('|')}))\\b`,
+    'g',
+  )
+  for (const m of text.matchAll(posPattern)) {
+    push('position', m[1].trim())
+  }
+
+  // Nouns: capitalized multi-word phrases or Title Case words that aren't positions
+  const nounPattern = /\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+){0,2})\b/g
+  const capturedPositions = new Set(results.filter((r) => r.primitiveType === 'position').map((r) => r.text.toLowerCase()))
+  const nounCandidates = new Map<string, number>()
+  for (const m of text.matchAll(nounPattern)) {
+    const candidate = m[1].trim()
+    if (capturedPositions.has(candidate.toLowerCase())) continue
+    if (POSITION_SUFFIXES.some((s) => candidate.endsWith(s))) continue
+    if (candidate.split(/\s+/).length > 3) continue
+    // skip common sentence-starters
+    if (/^(The|This|That|These|Those|When|If|After|Before|During|Each)\s/.test(candidate)) continue
+    nounCandidates.set(candidate, (nounCandidates.get(candidate) ?? 0) + 1)
+  }
+  // Only include noun candidates that appear 1+ times (keep generous for short docs)
+  for (const [noun] of nounCandidates) {
+    push('noun', noun)
+  }
+
+  // Capabilities: <Noun>.<Verb> patterns (already-formatted)
+  const capPattern = /\b([A-Z][a-zA-Z]+\.[A-Z][a-zA-Z]+)\b/g
+  for (const m of text.matchAll(capPattern)) {
+    push('capability', m[1])
+  }
+
+  // Verbs: action verbs detected in text, linked to nearest preceding Noun
+  const nounNames = [...nounCandidates.keys()]
+  const verbPattern = new RegExp(`\\b(${ACTION_VERBS.join('|')})s?\\b`, 'gi')
+  for (const m of text.matchAll(verbPattern)) {
+    const verbWord = m[1].toLowerCase()
+    const idx = m.index ?? 0
+    // Find closest preceding noun within 80 chars
+    const preceding = text.substring(Math.max(0, idx - 80), idx)
+    let parentNoun: string | undefined
+    for (let i = nounNames.length - 1; i >= 0; i--) {
+      if (preceding.includes(nounNames[i])) {
+        parentNoun = nounNames[i].replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('')
+        break
+      }
+    }
+    const verbPascal = verbWord.charAt(0).toUpperCase() + verbWord.slice(1)
+    push('verb', verbPascal, parentNoun)
+  }
+
+  // Rules: sentences containing modal/conditional keywords
+  for (const pattern of RULE_PATTERNS) {
+    for (const m of text.matchAll(pattern)) {
+      const fragment = m[0].trim().replace(/\s+/g, ' ')
+      if (fragment.length > 150) continue
+      push('rule', fragment)
+    }
+  }
+
+  // Processes: capitalized phrases containing "process" or similar words
+  const procPattern = new RegExp(
+    `\\b([A-Z][a-zA-Z]+(?:\\s+[A-Z][a-zA-Z]+){0,3}\\s+(?:${PROCESS_WORDS.join('|')}))\\b`,
+    'gi',
+  )
+  for (const m of text.matchAll(procPattern)) {
+    push('process', m[1].trim())
+  }
+
+  // Signals: "after X" / "once X" / "when X is Xed"
+  const signalPattern = /\b(?:after|once)\s+([a-zA-Z ]{5,40})(?:is|has|\s+completes?|\s+finishes?)/gi
+  for (const m of text.matchAll(signalPattern)) {
+    push('signal', m[0].trim())
+  }
+
+  return results
+}
 
 function findLeafDomain(domain: Domain): Domain {
   if (!domain.domains || domain.domains.length === 0) return domain

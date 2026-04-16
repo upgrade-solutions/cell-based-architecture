@@ -1,6 +1,7 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 import type { Extraction, PrimitiveType, DiscoverState } from './types.ts'
 import { PRIMITIVE_TYPES, PRIMITIVE_COLORS } from './types.ts'
+import { autoExtract } from './extraction-utils.ts'
 
 interface GuideDiscoverProps {
   state: DiscoverState
@@ -10,6 +11,35 @@ interface GuideDiscoverProps {
 
 export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-extract on text change (debounced 400ms). Replaces prior 'suggested'
+  // extractions but preserves 'manual' ones the user added by selection.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const autoExtractions = autoExtract({ text: state.sourceText })
+      const manualExtractions = state.extractions.filter((e) => e.confidence === 'manual')
+
+      // Preserve user approval/rejection decisions on auto extractions by key
+      const previousByKey = new Map(
+        state.extractions
+          .filter((e) => e.confidence === 'suggested')
+          .map((e) => [`${e.primitiveType}:${e.text.toLowerCase()}`, e]),
+      )
+      const mergedAuto = autoExtractions.map((e) => {
+        const prev = previousByKey.get(`${e.primitiveType}:${e.text.toLowerCase()}`)
+        return prev ? { ...e, id: prev.id, approved: prev.approved, parentNoun: prev.parentNoun ?? e.parentNoun } : e
+      })
+
+      // Only update if the result actually changed — avoid render loops
+      const prevIds = state.extractions.filter((e) => e.confidence === 'suggested').map((e) => e.id).sort().join(',')
+      const nextIds = mergedAuto.map((e) => e.id).sort().join(',')
+      if (prevIds === nextIds && mergedAuto.length === state.extractions.filter((e) => e.confidence === 'suggested').length) return
+
+      onChange({ ...state, extractions: [...manualExtractions, ...mergedAuto] })
+    }, 400)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sourceText])
 
   const handleTag = useCallback((type: PrimitiveType) => {
     const ta = textareaRef.current
@@ -73,11 +103,11 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
           ref={textareaRef}
           value={state.sourceText}
           onChange={(e) => onChange({ ...state, sourceText: e.target.value })}
-          placeholder="Paste meeting notes, requirements documents, transcripts, or any source material here. Then select text and tag it with a primitive type using the buttons below."
+          placeholder="Paste meeting notes, requirements documents, transcripts, or any source material here. Primitives will be auto-extracted as you type. You can also select text and tag it manually using the buttons below."
           style={textareaStyle}
         />
         <div style={tagBarStyle}>
-          <span style={tagLabelStyle}>Tag selection as:</span>
+          <span style={tagLabelStyle}>Manual tag (optional) — select text then click a type:</span>
           <div style={tagButtonsStyle}>
             {PRIMITIVE_TYPES.map((type) => (
               <button
@@ -90,13 +120,6 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
             ))}
           </div>
         </div>
-        <button
-          disabled
-          style={aiButtonStyle}
-          title="Future: send source text to AI for automatic extraction"
-        >
-          Extract with AI (coming soon)
-        </button>
       </div>
 
       {/* Right: extractions */}
@@ -108,7 +131,7 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
 
         {state.extractions.length === 0 ? (
           <div style={emptyStyle}>
-            Select text in the source material and click a primitive type button to create extractions.
+            Paste source material on the left. Primitives will be auto-extracted here — you can toggle off any you don't want, or add manual tags by selecting text.
           </div>
         ) : (
           <div style={extractionListStyle}>
@@ -239,18 +262,6 @@ const tagButtonStyle: React.CSSProperties = {
   borderRadius: 4,
   cursor: 'pointer',
   fontFamily: 'ui-monospace, monospace',
-}
-
-const aiButtonStyle: React.CSSProperties = {
-  padding: '8px 16px',
-  fontSize: 12,
-  fontWeight: 500,
-  background: '#1e293b',
-  border: '1px dashed #475569',
-  borderRadius: 6,
-  color: '#475569',
-  cursor: 'not-allowed',
-  fontFamily: '-apple-system, sans-serif',
 }
 
 const emptyStyle: React.CSSProperties = {
