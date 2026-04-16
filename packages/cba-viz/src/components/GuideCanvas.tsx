@@ -5,7 +5,6 @@ import type { GuidePhase, DiscoverState } from './guide/types.ts'
 import { extractionsToDna } from './guide/extraction-utils.ts'
 import { SAMPLE_DISCOVER_STATE } from './guide/sample-data.ts'
 import { GuideDiscover } from './guide/GuideDiscover.tsx'
-import { GuideDefine } from './guide/GuideDefine.tsx'
 import { GuideDesign } from './guide/GuideDesign.tsx'
 
 // The Guide tab is a simulation using the Marshall Fire mass-tort case. It
@@ -20,8 +19,7 @@ interface GuideCanvasProps {
 
 const PHASES: { key: GuidePhase; label: string; description: string }[] = [
   { key: 'discover', label: 'Discover', description: 'Input source material and extract primitives' },
-  { key: 'define', label: 'Define', description: 'Structure and refine Operational DNA' },
-  { key: 'design', label: 'Design', description: 'Generate SOPs, diagrams, and product summaries' },
+  { key: 'design', label: 'Design', description: 'Review DNA summary and generate SOPs, diagrams, and product outputs' },
 ]
 
 export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: GuideCanvasProps) {
@@ -41,10 +39,10 @@ export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: Gui
     return () => { cancelled = true }
   }, [])
 
-  const handleProceedToDefine = useCallback(() => {
+  const handleProceedToDesign = useCallback(() => {
     const merged = extractionsToDna(discoverState.extractions, workingDna)
     setWorkingDna(merged)
-    setPhase('define')
+    setPhase('design')
   }, [discoverState.extractions, workingDna])
 
   const activeDna = workingDna
@@ -73,19 +71,8 @@ export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: Gui
           <GuideDiscover
             state={discoverState}
             onChange={setDiscoverState}
-            onProceed={handleProceedToDefine}
+            onProceed={handleProceedToDesign}
           />
-        )}
-        {phase === 'define' && activeDna && (
-          <GuideDefine
-            dna={activeDna}
-            onChange={setWorkingDna}
-          />
-        )}
-        {phase === 'define' && !activeDna && (
-          <div style={emptyStyle}>
-            {loadError ? `Failed to load Marshall DNA: ${loadError}` : 'Loading Marshall Fire Operational DNA…'}
-          </div>
         )}
         {phase === 'design' && activeDna && (
           <GuideDesign dna={activeDna} />

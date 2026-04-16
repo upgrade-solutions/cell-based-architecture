@@ -1,4 +1,4 @@
-export type GuidePhase = 'discover' | 'define' | 'design'
+export type GuidePhase = 'discover' | 'design'
 
 export type PrimitiveType =
   | 'noun'

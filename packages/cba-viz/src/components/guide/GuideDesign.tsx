@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import type { OperationalDNA } from '../../loaders/operational-loader.ts'
+import { GuideDefine } from './GuideDefine.tsx'
 
 interface GuideDesignProps {
   dna: OperationalDNA
 }
 
-type DesignTab = 'sops' | 'flows' | 'api' | 'ui'
+type DesignTab = 'summary' | 'sops' | 'flows' | 'api' | 'ui'
 
 const TABS: { key: DesignTab; label: string }[] = [
+  { key: 'summary', label: 'Summary' },
   { key: 'sops', label: 'SOPs' },
   { key: 'flows', label: 'Process Flows' },
   { key: 'api', label: 'Product API' },
@@ -15,7 +17,7 @@ const TABS: { key: DesignTab; label: string }[] = [
 ]
 
 export function GuideDesign({ dna }: GuideDesignProps) {
-  const [tab, setTab] = useState<DesignTab>('sops')
+  const [tab, setTab] = useState<DesignTab>('summary')
   const processes = dna.processes ?? []
   const tasks = dna.tasks ?? []
   const positions = dna.positions ?? []
@@ -39,6 +41,11 @@ export function GuideDesign({ dna }: GuideDesignProps) {
       </div>
 
       <div style={tabContentStyle}>
+      {/* Summary (formerly the Define phase) */}
+      {tab === 'summary' && (
+        <GuideDefine dna={dna} onChange={() => { /* read-only in Design phase */ }} />
+      )}
+
       {/* SOPs */}
       {tab === 'sops' && (
       <div style={sectionStyle}>

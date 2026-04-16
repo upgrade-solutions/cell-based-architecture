@@ -138,7 +138,7 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
 
         {approvedCount > 0 && (
           <button onClick={onProceed} style={proceedStyle}>
-            Proceed to Define ({approvedCount} extractions)
+            Proceed to Design ({approvedCount} extractions)
           </button>
         )}
       </div>
