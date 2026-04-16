@@ -62,16 +62,11 @@ import { Layout } from './components/Layout.tsx'
 import { CreatePrimitiveDialog } from './components/CreatePrimitiveDialog.tsx'
 import { DeleteConfirmDialog, type RemovedItem } from './components/DeleteConfirmDialog.tsx'
 import {
-  renameNoun,
-  renameCapability,
   deleteOperationalPrimitive,
   previewCascade,
   type OperationalPrimitiveKind,
 } from './features/operational-mutations.ts'
 import {
-  renameResource,
-  renameResourceUi,
-  renamePage,
   deleteProductApiPrimitive,
   deleteProductUiPrimitive,
   previewCascadeProductApi,
@@ -469,94 +464,17 @@ const App = observer(function App() {
         await saveViews(domain, updatedDna)
       } else if (sub === 'operational') {
         if (!operationalDna) return
-        // Detect pending renames on commit. The Sidebar form stores
-        // in-progress name edits directly on each cell's `dna.source`
-        // without firing the reference-integrity walk on every
-        // keystroke (that caused a canvas-remount loop that killed
-        // typing after one character). Here, we diff each graph
-        // element's pre-edit name (encoded in its stable id) against
-        // the current `dna.source.name` and apply `renameNoun` /
-        // `renameCapability` to the DNA before the mutate-by-id step.
-        //
-        // Applying rename walks before `graphToOperationalDNA` means
-        // the downstream references get rewritten first, then the
-        // mutate-by-id pass just confirms the primary entries. Clean
-        // separation between "walk the whole doc" (rename) and "update
-        // one entry in place" (form edit).
-        let baseDna = operationalDna
-        for (const el of graphModel.graph.getElements()) {
-          const cellDna = el.get('dna') as { layer?: string; kind?: string; source?: Record<string, unknown> } | undefined
-          if (cellDna?.layer !== 'operational') continue
-          const id = el.id as string
-          if (cellDna.kind === 'noun') {
-            const oldName = id.replace(/^noun:/, '')
-            const newName = cellDna.source?.name as string | undefined
-            if (newName && oldName !== newName) {
-              baseDna = renameNoun(baseDna, oldName, newName)
-            }
-          } else if (cellDna.kind === 'capability') {
-            const oldName = id.replace(/^capability:/, '')
-            const source = cellDna.source ?? {}
-            const newName = (source.name as string | undefined)
-              ?? `${source.noun as string | undefined ?? ''}.${source.verb as string | undefined ?? ''}`
-            if (newName && oldName !== newName && !newName.startsWith('.') && !newName.endsWith('.')) {
-              baseDna = renameCapability(baseDna, oldName, newName)
-            }
-          }
-        }
-        const updatedDna = graphToOperationalDNA(graphModel.graph, baseDna)
+        const updatedDna = graphToOperationalDNA(graphModel.graph, operationalDna)
         await saveOperational(domain, updatedDna)
         setOperationalDna(updatedDna)
       } else if (sub === 'product' && productVariant === 'api') {
         if (!productApiDna) return
-        // Detect pending renames before mutate-by-id, same shape as
-        // operational above. Resource renames also cascade into the
-        // companion ProductUiDNA (Page.resource + Block.operation
-        // prefix), so we apply both walks here and save both docs
-        // when the UI doc changed.
-        let baseApiDna = productApiDna
-        let baseUiDna = productUiDna
-        let uiChanged = false
-        for (const el of graphModel.graph.getElements()) {
-          const cellDna = el.get('dna') as { layer?: string; kind?: string; source?: Record<string, unknown> } | undefined
-          if (cellDna?.layer !== 'product-api') continue
-          if (cellDna.kind !== 'resource') continue
-          const id = el.id as string
-          const oldName = id.replace(/^resource:/, '')
-          const newName = cellDna.source?.name as string | undefined
-          if (newName && oldName !== newName) {
-            baseApiDna = renameResource(baseApiDna, oldName, newName)
-            if (baseUiDna) {
-              baseUiDna = renameResourceUi(baseUiDna, oldName, newName)
-              uiChanged = true
-            }
-          }
-        }
-        const updatedDna = graphToProductApiDNA(graphModel.graph, baseApiDna)
+        const updatedDna = graphToProductApiDNA(graphModel.graph, productApiDna)
         await saveProductApi(domain, updatedDna)
         setProductApiDna(updatedDna)
-        if (uiChanged && baseUiDna) {
-          await saveProductUi(domain, baseUiDna)
-          setProductUiDna(baseUiDna)
-        }
       } else if (sub === 'product' && productVariant === 'ui') {
         if (!productUiDna) return
-        // Detect pending Page renames before mutate-by-id. Pages are
-        // the only product-ui primitive whose name identifies cross-
-        // references (Route.page).
-        let baseUiDna = productUiDna
-        for (const el of graphModel.graph.getElements()) {
-          const cellDna = el.get('dna') as { layer?: string; kind?: string; source?: Record<string, unknown> } | undefined
-          if (cellDna?.layer !== 'product-ui') continue
-          if (cellDna.kind !== 'page') continue
-          const id = el.id as string
-          const oldName = id.replace(/^page:/, '')
-          const newName = cellDna.source?.name as string | undefined
-          if (newName && oldName !== newName) {
-            baseUiDna = renamePage(baseUiDna, oldName, newName)
-          }
-        }
-        const updatedDna = graphToProductUiDNA(graphModel.graph, baseUiDna)
+        const updatedDna = graphToProductUiDNA(graphModel.graph, productUiDna)
         await saveProductUi(domain, updatedDna)
         setProductUiDna(updatedDna)
       }
@@ -582,29 +500,6 @@ const App = observer(function App() {
   }, [graphModel.dirty, handleSave])
 
   // ── Phase 5c.4 Chunk 1 — operational CRUD handlers ──
-
-  /**
-   * Rename with referential integrity. The Sidebar form calls this when
-   * the user edits a Noun.name or Capability verb/noun. We compute a new
-   * DNA with all downstream references rewritten, then set it — the
-   * OperationalCanvas's `dna` dep re-runs and re-mounts the graph.
-   *
-   * Name-based identity is the Phase 5c.4 choice; UUID identity is a
-   * future chunk. See packages/cba-viz/src/features/operational-mutations.ts
-   * for the detailed walk.
-   */
-  const handleOperationalRename = useCallback(
-    (kind: 'noun' | 'capability', oldName: string, newName: string) => {
-      if (!operationalDna) return
-      const nextDna =
-        kind === 'noun'
-          ? renameNoun(operationalDna, oldName, newName)
-          : renameCapability(operationalDna, oldName, newName)
-      setOperationalDna(nextDna)
-      graphModel.setDirty(true)
-    },
-    [operationalDna, graphModel],
-  )
 
   /**
    * Create dialog result — swap in the new DNA and close the dialog.
@@ -673,15 +568,9 @@ const App = observer(function App() {
   }, [deleteConfirm, operationalDna, productApiDna, productUiDna, graphModel])
 
   /**
-   * Delete / Backspace keyboard shortcut — only active on Build >
-   * Operational. Reads the selected cell's `dna.kind` + name to
-   * figure out what to delete, computes the cascade preview, and
-   * opens the confirmation dialog. The user has to explicitly confirm
-   * before the DNA is actually mutated.
-   *
-   * Rules handled specially — their "key" is the graph element id
-   * (`rule:<Noun.Verb>:<index>`) not a name, since rules don't have
-   * unique names. Same for outcomes.
+   * Delete / Backspace keyboard shortcut. Reads the selected cell's
+   * `dna.kind` + identity to figure out what to delete, computes the
+   * cascade preview, and opens the confirmation dialog.
    */
   useEffect(() => {
     // Active on Build > Operational and on Build > Product (API/UI
@@ -725,15 +614,9 @@ const App = observer(function App() {
         ) {
           return
         }
-        let key: string
-        let label: string
-        if (kind === 'rule' || kind === 'outcome') {
-          key = cell.id as string
-          label = (cellDna.name as string | undefined) ?? key
-        } else {
-          key = cellDna.name as string
-          label = key
-        }
+        const source = cellDna.source as Record<string, unknown> | undefined
+        const key = source?.id as string | undefined
+        const label = (cellDna.name as string | undefined) ?? key ?? ''
         if (!key) return
         e.preventDefault()
         const removed = previewCascade(operationalDna, kind, key)
@@ -744,18 +627,9 @@ const App = observer(function App() {
       // Product API ────────────────────────────────────────────────
       if (layer === 'product-api' && productApiActive && productApiDna) {
         if (kind !== 'resource' && kind !== 'endpoint') return
-        // Resource uses its name as key; endpoint uses the stable
-        // graph id since (method, path) needs both components.
-        let key: string
-        let label: string
-        if (kind === 'resource') {
-          key = cellDna.name as string
-          label = key
-        } else {
-          key = cell.id as string
-          const source = cellDna.source as { method?: string; path?: string } | undefined
-          label = source?.method && source?.path ? `${source.method} ${source.path}` : key
-        }
+        const source = cellDna.source as Record<string, unknown> | undefined
+        const key = source?.id as string | undefined
+        const label = (cellDna.name as string | undefined) ?? key ?? ''
         if (!key) return
         e.preventDefault()
         const removed = previewCascadeProductApi(productApiDna, kind, key)
@@ -766,18 +640,9 @@ const App = observer(function App() {
       // Product UI ─────────────────────────────────────────────────
       if (layer === 'product-ui' && productUiActive && productUiDna) {
         if (kind !== 'page' && kind !== 'block') return
-        // Pages use their name as key; blocks use the stable graph
-        // id (block:<pageName>:<index>) since they have no unique
-        // cross-page name.
-        let key: string
-        let label: string
-        if (kind === 'page') {
-          key = cellDna.name as string
-          label = key
-        } else {
-          key = cell.id as string
-          label = (cellDna.name as string | undefined) ?? key
-        }
+        const source = cellDna.source as Record<string, unknown> | undefined
+        const key = source?.id as string | undefined
+        const label = (cellDna.name as string | undefined) ?? key ?? ''
         if (!key) return
         e.preventDefault()
         const removed = previewCascadeProductUi(productUiDna, kind, key)
@@ -897,7 +762,6 @@ const App = observer(function App() {
           model={graphModel}
           env={env}
           adapter={adapter}
-          onOperationalRename={handleOperationalRename}
         />
       }
     />

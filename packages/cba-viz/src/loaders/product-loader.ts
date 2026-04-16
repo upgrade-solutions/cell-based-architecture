@@ -34,6 +34,7 @@ import type {
   Task,
   Process,
 } from './operational-loader.ts'
+import { migrateProductApiDNA, migrateProductUiDNA } from './migrate-to-uuid.ts'
 
 // Re-export shared primitives so downstream consumers can import
 // everything product-related from one place.
@@ -92,6 +93,7 @@ export interface Action {
 }
 
 export interface Resource {
+  id?: string
   name: string
   description?: string
   /** Operational Noun this resource maps from. */
@@ -101,6 +103,7 @@ export interface Resource {
 }
 
 export interface Operation {
+  id?: string
   resource: string
   action: string
   /** Canonical `Resource.Action` form. */
@@ -138,6 +141,7 @@ export interface ProductCoreDNA {
 // ── Product API (product.api.json) ───────────────────────────────────────
 
 export interface Namespace {
+  id?: string
   name: string
   path: string
   description?: string
@@ -170,6 +174,7 @@ export interface Schema {
 }
 
 export interface Endpoint {
+  id?: string
   method: HttpMethod
   path: string
   /** Operation this endpoint maps from, as `Resource.Action`. */
@@ -204,6 +209,7 @@ export type BlockType =
   | 'empty-state'
 
 export interface Block {
+  id?: string
   name: string
   type: BlockType
   description?: string
@@ -213,6 +219,7 @@ export interface Block {
 }
 
 export interface Page {
+  id?: string
   name: string
   resource: string
   description?: string
@@ -220,6 +227,7 @@ export interface Page {
 }
 
 export interface Route {
+  id?: string
   path: string
   page: string
   description?: string
@@ -267,7 +275,7 @@ export function parseProductApiDNA(json: unknown): ProductApiDNA {
   if (!data || typeof data !== 'object' || !data.namespace || !Array.isArray(data.endpoints)) {
     throw new Error('Invalid product API DNA: missing required "namespace" and/or "endpoints"')
   }
-  return data
+  return migrateProductApiDNA(data)
 }
 
 export function parseProductUiDNA(json: unknown): ProductUiDNA {
@@ -275,7 +283,7 @@ export function parseProductUiDNA(json: unknown): ProductUiDNA {
   if (!data || typeof data !== 'object' || !data.layout || !Array.isArray(data.pages) || !Array.isArray(data.routes)) {
     throw new Error('Invalid product UI DNA: missing required "layout", "pages", and/or "routes"')
   }
-  return data
+  return migrateProductUiDNA(data)
 }
 
 /**

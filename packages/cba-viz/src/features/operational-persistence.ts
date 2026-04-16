@@ -74,38 +74,25 @@ export function graphToOperationalDNA(
       }
       case 'capability': {
         const updated = dna.source as Capability
-        const idx = next.capabilities!.findIndex(
-          (c) => (c.name ?? `${c.noun}.${c.verb}`) === ((updated.name ?? `${updated.noun}.${updated.verb}`)),
-        )
+        const idx = next.capabilities!.findIndex((c) => c.id === updated.id)
         if (idx >= 0) next.capabilities![idx] = updated
         break
       }
       case 'rule': {
         const updated = dna.source as Rule
-        // Rules aren't uniquely keyed by capability alone — the same
-        // capability can have multiple rules (one access, one condition,
-        // etc.). We match on reference equality first (fast path when
-        // the cell still points at the original entry), then fall back
-        // to matching by shape.
-        const originalRef = original.rules ?? []
-        const idx = originalRef.indexOf(updated) >= 0
-          ? originalRef.indexOf(updated)
-          : next.rules!.findIndex((r) => r.capability === updated.capability && r.type === updated.type)
+        const idx = next.rules!.findIndex((r) => r.id === updated.id)
         if (idx >= 0) next.rules![idx] = updated
         break
       }
       case 'outcome': {
         const updated = dna.source as Outcome
-        const originalRef = original.outcomes ?? []
-        const idx = originalRef.indexOf(updated) >= 0
-          ? originalRef.indexOf(updated)
-          : next.outcomes!.findIndex((o) => o.capability === updated.capability)
+        const idx = next.outcomes!.findIndex((o) => o.id === updated.id)
         if (idx >= 0) next.outcomes![idx] = updated
         break
       }
       case 'signal': {
         const updated = dna.source as Signal
-        const idx = next.signals!.findIndex((s) => s.name === updated.name)
+        const idx = next.signals!.findIndex((s) => s.id === updated.id)
         if (idx >= 0) next.signals![idx] = updated
         break
       }
@@ -180,14 +167,9 @@ function cloneDomain(domain: Domain): Domain {
   }
 }
 
-/**
- * Find a Noun inside a domain hierarchy by name and replace it in place.
- * Mutates the passed-in domain tree (which is already a fresh clone from
- * `cloneDomain`, so this is safe).
- */
 function patchNoun(domain: Domain, updated: Noun): boolean {
   if (domain.nouns) {
-    const idx = domain.nouns.findIndex((n) => n.name === updated.name)
+    const idx = domain.nouns.findIndex((n) => n.id === updated.id)
     if (idx >= 0) {
       domain.nouns[idx] = updated
       return true

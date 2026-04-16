@@ -19,19 +19,18 @@ import { ZoneContainer } from '../shapes/ZoneContainer.ts'
 // ── Stable IDs for graph elements ──────────────────────────────────────
 //
 // Every graph element needs a stable id so drag-persisted layout can be
-// re-applied on reload and so edges can target specific primitives. We
-// use namespaced slug ids rather than UUIDs because Phase 1 writes
-// positions back to operational.json — human-readable keys make the
-// saved layouts[] section diff-friendly. Phase 5c.4 will migrate to
-// opaque UUIDs when rename-safe identity becomes a real concern.
+// re-applied on reload and so edges can target specific primitives.
+// IDs are UUID-based — each primitive carries a stable `id` field
+// assigned on first load by the migration layer. Rename is just a
+// display-name edit; references and layout keys never change.
 
 export const ID = {
   domain: (path: string) => `domain:${path}`,
-  noun: (name: string) => `noun:${name}`,
-  capability: (name: string) => `capability:${name}`,
-  rule: (capability: string, i: number) => `rule:${capability}:${i}`,
-  outcome: (capability: string, i: number) => `outcome:${capability}:${i}`,
-  signal: (name: string) => `signal:${name}`,
+  noun: (uuid: string) => `noun:${uuid}`,
+  capability: (uuid: string) => `capability:${uuid}`,
+  rule: (capUuid: string, i: number) => `rule:${capUuid}:${i}`,
+  outcome: (capUuid: string, i: number) => `outcome:${capUuid}:${i}`,
+  signal: (uuid: string) => `signal:${uuid}`,
 }
 
 // ── Layout geometry ────────────────────────────────────────────────────
@@ -125,7 +124,7 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
   leaf.nouns.forEach((noun, laneIdx) => {
     const laneX = laneIdx * LANE_WIDTH + 24
 
-    const nounId = ID.noun(noun.name)
+    const nounId = ID.noun(noun.id!)
     const nounEl = createNoun(nounId, noun, laneX + NOUN_X, NOUN_Y)
     cells.push(nounEl)
 
@@ -134,11 +133,11 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
       const capY = CAPABILITY_FIRST_Y + capIdx * CAPABILITY_ROW_GAP
       const capX = laneX + CAPABILITY_X
 
-      const rules = rulesByCapability.get(cap.name ?? `${cap.noun}.${cap.verb}`) ?? []
-      const outcomes = outcomesByCapability.get(cap.name ?? `${cap.noun}.${cap.verb}`) ?? []
-
       const capName = cap.name ?? `${cap.noun}.${cap.verb}`
-      const capId = ID.capability(capName)
+      const rules = rulesByCapability.get(capName) ?? []
+      const outcomes = outcomesByCapability.get(capName) ?? []
+
+      const capId = ID.capability(cap.id!)
       const capEl = createCapability(capId, cap, capX, capY, rules.length, outcomes.length)
       cells.push(capEl)
 
@@ -155,7 +154,7 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
 
       rules.forEach((rule, i) => {
         const rx = laneX + SATELLITE_START_X + i * (RULE_SIZE.width + RULE_GAP)
-        const ruleId = ID.rule(capName, i)
+        const ruleId = ID.rule(cap.id!, i)
         cells.push(createRule(ruleId, rule, rx, satY))
       })
 
@@ -165,7 +164,7 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
 
       outcomes.forEach((outcome, i) => {
         const ox = outcomesBaseX + i * (OUTCOME_SIZE.width + RULE_GAP)
-        const outcomeId = ID.outcome(capName, i)
+        const outcomeId = ID.outcome(cap.id!, i)
         cells.push(createOutcome(outcomeId, outcome, ox, satY))
       })
     })
@@ -175,7 +174,7 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
   const signalColumnX = nounCount * LANE_WIDTH + SIGNAL_COLUMN_OFFSET
   signals.forEach((signal, i) => {
     const sy = LANE_TOP_PAD + i * (SIGNAL_SIZE.height + SIGNAL_ROW_GAP)
-    const signalId = ID.signal(signal.name)
+    const signalId = ID.signal(signal.id!)
     cells.push(createSignal(signalId, signal, signalColumnX, sy))
     const bottom = sy + SIGNAL_SIZE.height + 40
     if (bottom > totalHeight) totalHeight = bottom
@@ -207,6 +206,18 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
   // Prepend the zone so it renders first (z-order is also explicit)
   const result: dia.Cell[] = [zoneEl, ...cells]
 
+  // ── Name→graphId lookup maps for edge wiring ──
+  // Edges in DNA reference primitives by name (e.g. outcome.initiates
+  // lists capability names). We resolve names to UUID-based graph IDs.
+  const capGraphId = new Map<string, string>()
+  for (const cap of dna.capabilities ?? []) {
+    capGraphId.set(cap.name ?? `${cap.noun}.${cap.verb}`, ID.capability(cap.id!))
+  }
+  const signalGraphId = new Map<string, string>()
+  for (const signal of signals) {
+    signalGraphId.set(signal.name, ID.signal(signal.id!))
+  }
+
   // ── Edges ──
   // Built after elements so the source/target ids all exist in the graph.
   for (const outcome of dna.outcomes ?? []) {
@@ -214,12 +225,15 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
     const outcomes = outcomesByCapability.get(capName) ?? []
     const idx = outcomes.indexOf(outcome)
     if (idx < 0) continue
-    const fromId = ID.outcome(capName, idx)
+    const ownerCap = (dna.capabilities ?? []).find(c => (c.name ?? `${c.noun}.${c.verb}`) === capName)
+    if (!ownerCap) continue
+    const fromId = ID.outcome(ownerCap.id!, idx)
 
     // initiates → downstream capability (intra-domain, sync)
     for (const initiateName of outcome.initiates ?? []) {
-      if (!hasElement(result, ID.capability(initiateName))) continue
-      result.push(createEdge(fromId, ID.capability(initiateName), {
+      const targetId = capGraphId.get(initiateName)
+      if (!targetId || !hasElement(result, targetId)) continue
+      result.push(createEdge(fromId, targetId, {
         type: 'initiate',
         label: 'initiates',
       }))
@@ -227,8 +241,9 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
 
     // emits → signal (cross-domain, async)
     for (const signalName of outcome.emits ?? []) {
-      if (!hasElement(result, ID.signal(signalName))) continue
-      result.push(createEdge(fromId, ID.signal(signalName), {
+      const targetId = signalGraphId.get(signalName)
+      if (!targetId || !hasElement(result, targetId)) continue
+      result.push(createEdge(fromId, targetId, {
         type: 'emit',
         label: 'emits',
       }))
@@ -245,16 +260,20 @@ export function operationalToGraphCells(dna: OperationalDNA): dia.Cell[] {
   // and the inspector form surfaces them on the target capability itself.
   for (const cause of dna.causes ?? []) {
     if (cause.source === 'signal' && cause.signal) {
-      if (!hasElement(result, ID.signal(cause.signal))) continue
-      if (!hasElement(result, ID.capability(cause.capability))) continue
-      result.push(createEdge(ID.signal(cause.signal), ID.capability(cause.capability), {
+      const sigId = signalGraphId.get(cause.signal)
+      const capId = capGraphId.get(cause.capability)
+      if (!sigId || !capId) continue
+      if (!hasElement(result, sigId) || !hasElement(result, capId)) continue
+      result.push(createEdge(sigId, capId, {
         type: 'trigger',
         label: 'triggers',
       }))
     } else if (cause.source === 'capability' && cause.after) {
-      if (!hasElement(result, ID.capability(cause.after))) continue
-      if (!hasElement(result, ID.capability(cause.capability))) continue
-      result.push(createEdge(ID.capability(cause.after), ID.capability(cause.capability), {
+      const afterId = capGraphId.get(cause.after)
+      const capId = capGraphId.get(cause.capability)
+      if (!afterId || !capId) continue
+      if (!hasElement(result, afterId) || !hasElement(result, capId)) continue
+      result.push(createEdge(afterId, capId, {
         type: 'initiate',
         label: 'after',
       }))

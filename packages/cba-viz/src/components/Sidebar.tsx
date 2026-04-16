@@ -8,17 +8,9 @@ interface SidebarProps {
   model: GraphModel
   env: string
   adapter: string
-  /**
-   * Phase 5c.4 Chunk 1 — hook for rename-with-referential-integrity.
-   * When the user edits a Noun.name or Capability's noun/verb in the
-   * inspector form, App computes a new DNA that rewrites every
-   * downstream reference and re-renders the canvas. Optional so non-
-   * operational layers keep the old "just update dna.source" behavior.
-   */
-  onOperationalRename?: (kind: 'noun' | 'capability', oldName: string, newName: string) => void
 }
 
-export const Sidebar = observer(function Sidebar({ model, env, adapter, onOperationalRename }: SidebarProps) {
+export const Sidebar = observer(function Sidebar({ model, env, adapter }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const cellView = model.selectedCellView
   const cell = cellView?.model
@@ -123,35 +115,6 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter, onOperat
                   cell?.attr({ label: { text: nextObj.name } })
                 }
                 model.setDirty(true)
-
-                // Reference-integrity rewrite on rename does NOT fire here.
-                //
-                // Originally this path called `onOperationalRename` on
-                // every keystroke, which replaced `operationalDna` in App
-                // state, which re-ran OperationalCanvas's effect, which
-                // tore down the paper and rebuilt the graph — losing the
-                // selected cell after a single character. The user could
-                // only ever type one letter before the input disappeared.
-                //
-                // Deferred instead to save-time: App.tsx's `handleSave`
-                // detects renames by diffing each element's current
-                // `dna.source.name` against its graph id (which still
-                // encodes the pre-edit name), applies the matching
-                // `rename*` helper from operational-mutations or
-                // product-mutations, and then persists the rewritten
-                // document. The user types freely, the canvas label
-                // updates live via `cell.attr` above, and the reference
-                // walk runs once on commit.
-                //
-                // This applies to Phase 5c.4 Chunk 2 product renames
-                // too — Resource/Endpoint/Page/Block form edits update
-                // `dna.source` and the handleSave walk picks them up.
-                //
-                // `onOperationalRename` stays wired as a capability for
-                // a future explicit "Rename…" menu action or stable-UUID
-                // migration. For now, it's unused from the per-keystroke
-                // path.
-                void onOperationalRename
               }}
             />
           </Section>

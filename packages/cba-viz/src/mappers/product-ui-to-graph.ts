@@ -13,8 +13,8 @@ import { ZoneContainer } from '../shapes/ZoneContainer.ts'
 
 export const PRODUCT_UI_ID = {
   layout: (name: string) => `layout:${name}`,
-  page: (name: string) => `page:${name}`,
-  block: (pageName: string, i: number) => `block:${pageName}:${i}`,
+  page: (uuid: string) => `page:${uuid}`,
+  block: (pageUuid: string, i: number) => `block:${pageUuid}:${i}`,
 }
 
 // ── Layout geometry ────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export function productUiToGraphCells(dna: ProductUiDNA): dia.Cell[] {
   pages.forEach((page, laneIdx) => {
     const laneX = laneIdx * LANE_WIDTH + 24
 
-    const pageId = PRODUCT_UI_ID.page(page.name)
+    const pageId = PRODUCT_UI_ID.page(page.id!)
     const pageEl = createPage(pageId, page, routesByPage.get(page.name) ?? [], laneX + PAGE_X, PAGE_Y)
     cells.push(pageEl)
 
@@ -81,7 +81,7 @@ export function productUiToGraphCells(dna: ProductUiDNA): dia.Cell[] {
     blocks.forEach((block, i) => {
       const by = BLOCK_FIRST_Y + i * BLOCK_ROW_GAP
       const bx = laneX + BLOCK_X
-      const blockId = PRODUCT_UI_ID.block(page.name, i)
+      const blockId = PRODUCT_UI_ID.block(page.id!, i)
       cells.push(createBlock(blockId, block, bx, by))
 
       const bottom = by + BLOCK_SIZE.height + 40

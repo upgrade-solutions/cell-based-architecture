@@ -10,15 +10,11 @@ import { EndpointShape, METHOD_COLORS } from '../shapes/product/EndpointShape.ts
 import { ZoneContainer } from '../shapes/ZoneContainer.ts'
 
 // ── Stable graph-element IDs ───────────────────────────────────────────
-//
-// Matches the operational mapper's approach: namespaced slug ids so
-// saved layouts in product.api.json stay diff-friendly. Phase 5c.4 will
-// migrate to opaque UUIDs if rename-safe identity becomes a real need.
 
 export const PRODUCT_API_ID = {
-  namespace: (name: string) => `namespace:${name}`,
-  resource: (name: string) => `resource:${name}`,
-  endpoint: (method: string, path: string) => `endpoint:${method}:${path}`,
+  namespace: (uuid: string) => `namespace:${uuid}`,
+  resource: (uuid: string) => `resource:${uuid}`,
+  endpoint: (uuid: string) => `endpoint:${uuid}`,
 }
 
 // ── Layout geometry ────────────────────────────────────────────────────
@@ -76,7 +72,7 @@ export function productApiToGraphCells(dna: ProductApiDNA): dia.Cell[] {
   resources.forEach((resource, laneIdx) => {
     const laneX = laneIdx * LANE_WIDTH + 24
 
-    const resId = PRODUCT_API_ID.resource(resource.name)
+    const resId = PRODUCT_API_ID.resource(resource.id!)
     const resEl = createResource(resId, resource, laneX + RESOURCE_X, RESOURCE_Y)
     cells.push(resEl)
 
@@ -84,7 +80,7 @@ export function productApiToGraphCells(dna: ProductApiDNA): dia.Cell[] {
     resourceEndpoints.forEach((endpoint, i) => {
       const ey = ENDPOINT_FIRST_Y + i * ENDPOINT_ROW_GAP
       const ex = laneX + ENDPOINT_X
-      const epId = PRODUCT_API_ID.endpoint(endpoint.method, endpoint.path)
+      const epId = PRODUCT_API_ID.endpoint(endpoint.id!)
       cells.push(createEndpoint(epId, endpoint, ex, ey))
 
       const bottom = ey + ENDPOINT_SIZE.height + 40
@@ -110,8 +106,9 @@ export function productApiToGraphCells(dna: ProductApiDNA): dia.Cell[] {
 
 function createNamespaceZone(dna: ProductApiDNA, width: number, height: number): dia.Element {
   const ns = dna.namespace
+  const nsId = PRODUCT_API_ID.namespace(ns.id!)
   const el = new ZoneContainer({
-    id: PRODUCT_API_ID.namespace(ns.name),
+    id: nsId,
     position: { x: 0, y: 0 },
     size: { width, height },
     attrs: {
@@ -131,7 +128,7 @@ function createNamespaceZone(dna: ProductApiDNA, width: number, height: number):
   })
   el.set('dna', {
     kind: 'namespace',
-    id: PRODUCT_API_ID.namespace(ns.name),
+    id: nsId,
     layer: 'product-api',
     name: ns.name,
     description: ns.description,

@@ -10,30 +10,57 @@
       "themeToggle": true
     },
     "tenants": [
-      { "id": "acme-lending", "name": "Acme Lending" },
-      { "id": "globex-finance", "name": "Globex Finance" },
-      { "id": "initech-loans", "name": "Initech Loans" }
+      {
+        "id": "acme-lending",
+        "name": "Acme Lending"
+      },
+      {
+        "id": "globex-finance",
+        "name": "Globex Finance"
+      },
+      {
+        "id": "initech-loans",
+        "name": "Initech Loans"
+      }
     ],
     "navigation": [
       {
         "label": "Loans",
         "children": [
-          { "route": "/loans", "label": "All Loans" },
-          { "route": "/loans/apply", "label": "Apply" },
-          { "route": "/review", "label": "Review Queue" }
+          {
+            "route": "/loans",
+            "label": "All Loans"
+          },
+          {
+            "route": "/loans/apply",
+            "label": "Apply"
+          },
+          {
+            "route": "/review",
+            "label": "Review Queue"
+          }
         ]
       },
       {
         "label": "Borrowers",
         "children": [
-          { "route": "/borrowers", "label": "All Borrowers" }
+          {
+            "route": "/borrowers",
+            "label": "All Borrowers"
+          }
         ]
       },
       {
         "label": "Lenders",
         "children": [
-          { "route": "/lenders", "label": "All Lenders" },
-          { "route": "/lenders/onboard", "label": "Onboard" }
+          {
+            "route": "/lenders",
+            "label": "All Lenders"
+          },
+          {
+            "route": "/lenders/onboard",
+            "label": "Onboard"
+          }
         ]
       }
     ],
@@ -94,7 +121,6 @@
       "font": "system-ui, sans-serif"
     }
   },
-
   "pages": [
     {
       "name": "LoanList",
@@ -107,7 +133,20 @@
           "description": "Filter controls for status and date range.",
           "operation": "Loan.List",
           "fields": [
-            { "name": "status", "label": "Status", "type": "enum", "values": ["draft", "under_review", "approved", "rejected", "active", "repaid", "defaulted"] }
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "enum",
+              "values": [
+                "draft",
+                "under_review",
+                "approved",
+                "rejected",
+                "active",
+                "repaid",
+                "defaulted"
+              ]
+            }
           ]
         },
         {
@@ -116,13 +155,41 @@
           "description": "Tabular list of loans with sortable columns and row-level actions.",
           "operation": "Loan.List",
           "fields": [
-            { "name": "id", "label": "Loan ID", "type": "string" },
-            { "name": "borrower_id", "label": "Borrower", "type": "string" },
-            { "name": "lender_id", "label": "Lender", "type": "string" },
-            { "name": "amount", "label": "Amount", "type": "number" },
-            { "name": "term_months", "label": "Term", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "due_date", "label": "Due Date", "type": "date" }
+            {
+              "name": "id",
+              "label": "Loan ID",
+              "type": "string"
+            },
+            {
+              "name": "borrower_id",
+              "label": "Borrower",
+              "type": "string"
+            },
+            {
+              "name": "lender_id",
+              "label": "Lender",
+              "type": "string"
+            },
+            {
+              "name": "amount",
+              "label": "Amount",
+              "type": "number"
+            },
+            {
+              "name": "term_months",
+              "label": "Term",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "due_date",
+              "label": "Due Date",
+              "type": "date"
+            }
           ]
         },
         {
@@ -143,17 +210,61 @@
           "description": "Key loan attributes: amount, status, terms, dates.",
           "operation": "Loan.View",
           "fields": [
-            { "name": "id", "label": "Loan ID", "type": "string" },
-            { "name": "borrower_id", "label": "Borrower", "type": "string" },
-            { "name": "lender_id", "label": "Lender", "type": "string" },
-            { "name": "amount", "label": "Principal", "type": "number" },
-            { "name": "interest_rate", "label": "Interest Rate", "type": "number" },
-            { "name": "term_months", "label": "Term (months)", "type": "number" },
-            { "name": "purpose", "label": "Purpose", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "due_date", "label": "Due Date", "type": "date" },
-            { "name": "approved_at", "label": "Approved At", "type": "datetime" },
-            { "name": "disbursed_at", "label": "Disbursed At", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Loan ID",
+              "type": "string"
+            },
+            {
+              "name": "borrower_id",
+              "label": "Borrower",
+              "type": "string"
+            },
+            {
+              "name": "lender_id",
+              "label": "Lender",
+              "type": "string"
+            },
+            {
+              "name": "amount",
+              "label": "Principal",
+              "type": "number"
+            },
+            {
+              "name": "interest_rate",
+              "label": "Interest Rate",
+              "type": "number"
+            },
+            {
+              "name": "term_months",
+              "label": "Term (months)",
+              "type": "number"
+            },
+            {
+              "name": "purpose",
+              "label": "Purpose",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "due_date",
+              "label": "Due Date",
+              "type": "date"
+            },
+            {
+              "name": "approved_at",
+              "label": "Approved At",
+              "type": "datetime"
+            },
+            {
+              "name": "disbursed_at",
+              "label": "Disbursed At",
+              "type": "datetime"
+            }
           ]
         },
         {
@@ -167,8 +278,16 @@
           "description": "List of all repayments made against this loan.",
           "operation": "Loan.Repay",
           "fields": [
-            { "name": "amount_paid", "label": "Amount Paid", "type": "number" },
-            { "name": "due_date", "label": "Due Date", "type": "date" }
+            {
+              "name": "amount_paid",
+              "label": "Amount Paid",
+              "type": "number"
+            },
+            {
+              "name": "due_date",
+              "label": "Due Date",
+              "type": "date"
+            }
           ]
         }
       ]
@@ -184,10 +303,29 @@
           "description": "Loan application form: amount, term, purpose.",
           "operation": "Loan.Apply",
           "fields": [
-            { "name": "lender_id", "label": "Lender", "type": "string", "required": true },
-            { "name": "amount", "label": "Loan Amount", "type": "number", "required": true },
-            { "name": "term_months", "label": "Repayment Term (months)", "type": "number", "required": true },
-            { "name": "purpose", "label": "Loan Purpose", "type": "string" }
+            {
+              "name": "lender_id",
+              "label": "Lender",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount",
+              "label": "Loan Amount",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "term_months",
+              "label": "Repayment Term (months)",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "purpose",
+              "label": "Loan Purpose",
+              "type": "string"
+            }
           ]
         }
       ]
@@ -203,11 +341,31 @@
           "description": "Loans currently in under_review status, sorted oldest first.",
           "operation": "Loan.List",
           "fields": [
-            { "name": "id", "label": "Loan ID", "type": "string" },
-            { "name": "borrower_id", "label": "Borrower", "type": "string" },
-            { "name": "amount", "label": "Amount", "type": "number" },
-            { "name": "term_months", "label": "Term", "type": "number" },
-            { "name": "purpose", "label": "Purpose", "type": "string" }
+            {
+              "name": "id",
+              "label": "Loan ID",
+              "type": "string"
+            },
+            {
+              "name": "borrower_id",
+              "label": "Borrower",
+              "type": "string"
+            },
+            {
+              "name": "amount",
+              "label": "Amount",
+              "type": "number"
+            },
+            {
+              "name": "term_months",
+              "label": "Term",
+              "type": "number"
+            },
+            {
+              "name": "purpose",
+              "label": "Purpose",
+              "type": "string"
+            }
           ]
         },
         {
@@ -216,8 +374,18 @@
           "description": "Form for underwriter to set interest rate and due date before approving.",
           "operation": "Loan.Approve",
           "fields": [
-            { "name": "interest_rate", "label": "Interest Rate", "type": "number", "required": true },
-            { "name": "due_date", "label": "Final Due Date", "type": "date", "required": true }
+            {
+              "name": "interest_rate",
+              "label": "Interest Rate",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "due_date",
+              "label": "Final Due Date",
+              "type": "date",
+              "required": true
+            }
           ]
         },
         {
@@ -238,7 +406,15 @@
           "description": "Filter controls for borrower status.",
           "operation": "Borrower.List",
           "fields": [
-            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "suspended"] }
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "enum",
+              "values": [
+                "active",
+                "suspended"
+              ]
+            }
           ]
         },
         {
@@ -247,13 +423,41 @@
           "description": "Tabular list of borrowers.",
           "operation": "Borrower.List",
           "fields": [
-            { "name": "id", "label": "Borrower ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "annual_income", "label": "Annual Income", "type": "number" },
-            { "name": "credit_score", "label": "Credit Score", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Borrower ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "annual_income",
+              "label": "Annual Income",
+              "type": "number"
+            },
+            {
+              "name": "credit_score",
+              "label": "Credit Score",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -274,13 +478,41 @@
           "description": "Core borrower information.",
           "operation": "Borrower.View",
           "fields": [
-            { "name": "id", "label": "ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "annual_income", "label": "Annual Income", "type": "number" },
-            { "name": "credit_score", "label": "Credit Score", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "annual_income",
+              "label": "Annual Income",
+              "type": "number"
+            },
+            {
+              "name": "credit_score",
+              "label": "Credit Score",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -289,10 +521,26 @@
           "description": "All loans associated with this borrower.",
           "operation": "Loan.List",
           "fields": [
-            { "name": "id", "label": "Loan ID", "type": "string" },
-            { "name": "amount", "label": "Amount", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "due_date", "label": "Due Date", "type": "date" }
+            {
+              "name": "id",
+              "label": "Loan ID",
+              "type": "string"
+            },
+            {
+              "name": "amount",
+              "label": "Amount",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "due_date",
+              "label": "Due Date",
+              "type": "date"
+            }
           ]
         }
       ]
@@ -308,8 +556,26 @@
           "description": "Filter controls for type and status.",
           "operation": "Lender.List",
           "fields": [
-            { "name": "type", "label": "Type", "type": "enum", "values": ["bank", "credit_union", "private_fund", "peer"] },
-            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "inactive"] }
+            {
+              "name": "type",
+              "label": "Type",
+              "type": "enum",
+              "values": [
+                "bank",
+                "credit_union",
+                "private_fund",
+                "peer"
+              ]
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "enum",
+              "values": [
+                "active",
+                "inactive"
+              ]
+            }
           ]
         },
         {
@@ -318,12 +584,36 @@
           "description": "Tabular list of lenders.",
           "operation": "Lender.List",
           "fields": [
-            { "name": "id", "label": "Lender ID", "type": "string" },
-            { "name": "name", "label": "Name", "type": "string" },
-            { "name": "type", "label": "Type", "type": "string" },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
-            { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Lender ID",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string"
+            },
+            {
+              "name": "type",
+              "label": "Type",
+              "type": "string"
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "funding_capacity",
+              "label": "Funding Capacity",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -344,15 +634,51 @@
           "description": "Core lender attributes.",
           "operation": "Lender.View",
           "fields": [
-            { "name": "id", "label": "Lender ID", "type": "string" },
-            { "name": "name", "label": "Name", "type": "string" },
-            { "name": "type", "label": "Type", "type": "string" },
-            { "name": "license_number", "label": "License Number", "type": "string" },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "phone", "label": "Phone", "type": "string" },
-            { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Lender ID",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string"
+            },
+            {
+              "name": "type",
+              "label": "Type",
+              "type": "string"
+            },
+            {
+              "name": "license_number",
+              "label": "License Number",
+              "type": "string"
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "type": "string"
+            },
+            {
+              "name": "funding_capacity",
+              "label": "Funding Capacity",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -373,28 +699,104 @@
           "description": "Lender onboarding form.",
           "operation": "Lender.Onboard",
           "fields": [
-            { "name": "name", "label": "Name", "type": "string", "required": true },
-            { "name": "type", "label": "Type", "type": "enum", "required": true, "values": ["bank", "credit_union", "private_fund", "peer"] },
-            { "name": "license_number", "label": "License Number", "type": "string" },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "phone", "label": "Phone", "type": "string" },
-            { "name": "funding_capacity", "label": "Funding Capacity", "type": "number" }
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "type",
+              "label": "Type",
+              "type": "enum",
+              "required": true,
+              "values": [
+                "bank",
+                "credit_union",
+                "private_fund",
+                "peer"
+              ]
+            },
+            {
+              "name": "license_number",
+              "label": "License Number",
+              "type": "string"
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "type": "string"
+            },
+            {
+              "name": "funding_capacity",
+              "label": "Funding Capacity",
+              "type": "number"
+            }
           ]
         }
       ]
+    },
+    {
+      "name": "Deal",
+      "resource": "Deal",
+      "blocks": []
     }
   ],
-
   "routes": [
-    { "path": "/loans", "page": "LoanList", "description": "Loan list — filtered by role at runtime." },
-    { "path": "/loans/apply", "page": "LoanApply", "description": "New loan application form." },
-    { "path": "/loans/:id", "page": "LoanDetail", "description": "Full loan detail with actions." },
-    { "path": "/review", "page": "ReviewQueue", "description": "Underwriter review queue." },
-    { "path": "/borrowers", "page": "BorrowerList", "description": "Borrower list." },
-    { "path": "/borrowers/:id", "page": "BorrowerProfile", "description": "Borrower profile and loan history." },
-    { "path": "/lenders", "page": "LenderList", "description": "Lender list." },
-    { "path": "/lenders/onboard", "page": "LenderOnboard", "description": "New lender onboarding form." },
-    { "path": "/lenders/:id", "page": "LenderDetail", "description": "Lender detail with activate/deactivate." }
+    {
+      "path": "/loans",
+      "page": "LoanList",
+      "description": "Loan list — filtered by role at runtime."
+    },
+    {
+      "path": "/loans/apply",
+      "page": "LoanApply",
+      "description": "New loan application form."
+    },
+    {
+      "path": "/loans/:id",
+      "page": "LoanDetail",
+      "description": "Full loan detail with actions."
+    },
+    {
+      "path": "/review",
+      "page": "ReviewQueue",
+      "description": "Underwriter review queue."
+    },
+    {
+      "path": "/borrowers",
+      "page": "BorrowerList",
+      "description": "Borrower list."
+    },
+    {
+      "path": "/borrowers/:id",
+      "page": "BorrowerProfile",
+      "description": "Borrower profile and loan history."
+    },
+    {
+      "path": "/lenders",
+      "page": "LenderList",
+      "description": "Lender list."
+    },
+    {
+      "path": "/lenders/onboard",
+      "page": "LenderOnboard",
+      "description": "New lender onboarding form."
+    },
+    {
+      "path": "/lenders/:id",
+      "page": "LenderDetail",
+      "description": "Lender detail with activate/deactivate."
+    }
   ]
 }

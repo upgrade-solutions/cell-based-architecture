@@ -31,13 +31,13 @@ import { ZoneContainer } from '../shapes/ZoneContainer.ts'
 
 export const XL_ID = {
   band: (name: string) => `xl:band:${name}`,
-  capability: (name: string) => `xl:capability:${name}`,
-  rule: (capName: string, i: number) => `xl:rule:${capName}:${i}`,
-  outcome: (capName: string, i: number) => `xl:outcome:${capName}:${i}`,
-  operation: (name: string) => `xl:operation:${name}`,
-  endpoint: (method: string, path: string) => `xl:endpoint:${method}:${path}`,
-  page: (name: string) => `xl:page:${name}`,
-  block: (pageName: string, i: number) => `xl:block:${pageName}:${i}`,
+  capability: (uuid: string) => `xl:capability:${uuid}`,
+  rule: (capUuid: string, i: number) => `xl:rule:${capUuid}:${i}`,
+  outcome: (capUuid: string, i: number) => `xl:outcome:${capUuid}:${i}`,
+  operation: (uuid: string) => `xl:operation:${uuid}`,
+  endpoint: (uuid: string) => `xl:endpoint:${uuid}`,
+  page: (uuid: string) => `xl:page:${uuid}`,
+  block: (pageUuid: string, i: number) => `xl:block:${pageUuid}:${i}`,
 }
 
 // ── Layout geometry ────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ export function crossLayerToGraphCells(input: CrossLayerInput): dia.Cell[] {
 
     rules.forEach((rule, i) => {
       const rx = satelliteX + i * (RULE_SIZE.width + 8)
-      const el = createRule(rule, capabilityName, i, rx, satelliteY)
+      const el = createRule(rule, capability.id!, i, rx, satelliteY)
       cells.push(el)
       opBand.embed(el)
     })
@@ -131,7 +131,7 @@ export function crossLayerToGraphCells(input: CrossLayerInput): dia.Cell[] {
     const outcomeStartX = satelliteX + rules.length * (RULE_SIZE.width + 8) + (rules.length > 0 ? 16 : 0)
     outcomes.forEach((outcome, i) => {
       const ox = outcomeStartX + i * (OUTCOME_SIZE.width + 8)
-      const el = createOutcome(outcome, capabilityName, i, ox, satelliteY)
+      const el = createOutcome(outcome, capability.id!, i, ox, satelliteY)
       cells.push(el)
       opBand.embed(el)
     })
@@ -168,7 +168,8 @@ export function crossLayerToGraphCells(input: CrossLayerInput): dia.Cell[] {
       // usually one), render the first and annotate the count.
       const primary = matchingOperations[0]
       const primaryName = primary?.name ?? (matchingEndpoints[0]?.operation ?? capabilityName)
-      operationEl = createOperation(primaryName, matchingOperations.length, 24, PRODUCT_API_Y + BAND_TOP_PAD)
+      const primaryUuid = primary?.id ?? primaryName
+      operationEl = createOperation(primaryUuid, primaryName, matchingOperations.length, 24, PRODUCT_API_Y + BAND_TOP_PAD)
       cells.push(operationEl)
       apiBand.embed(operationEl)
 
@@ -249,7 +250,7 @@ export function crossLayerToGraphCells(input: CrossLayerInput): dia.Cell[] {
           const originalIdx = (page.blocks ?? []).findIndex((b) => b === block)
           const bx = pageX + i * (PAGE_SIZE.width + 40) + 10
           const by = PRODUCT_UI_Y + BAND_TOP_PAD + PAGE_SIZE.height + 16 + bi * (BLOCK_SIZE.height + 6)
-          const el = createBlock(block, page.name, originalIdx, bx, by)
+          const el = createBlock(block, page.id!, originalIdx, bx, by)
           cells.push(el)
           blockEls.push(el)
           uiBand.embed(el)
@@ -285,10 +286,7 @@ export function crossLayerToGraphCells(input: CrossLayerInput): dia.Cell[] {
   // thin internal link so the canvas reads "this block lives on this
   // page".
   for (const blockEl of blockEls) {
-    const bdna = blockEl.get('dna') as { source?: { name?: string } } | undefined
-    const blockName = bdna?.source?.name
-    // Find the page that embeds it — we stored that in createBlock via
-    // the page-name portion of the id (`xl:block:<pageName>:<i>`).
+    // The block id encodes the page UUID: `xl:block:<pageUuid>:<i>`
     const id = blockEl.id as string
     const m = id.match(/^xl:block:(.+):\d+$/)
     if (!m) continue
@@ -297,7 +295,6 @@ export function crossLayerToGraphCells(input: CrossLayerInput): dia.Cell[] {
     if (pageEl) {
       cells.push(createCrossEdge(pageEl.id as string, blockEl.id as string))
     }
-    void blockName
   }
 
   return cells
@@ -345,8 +342,9 @@ function createCapability(
   const badges: string[] = []
   if (ruleCount > 0) badges.push(`R:${ruleCount}`)
   if (outcomeCount > 0) badges.push(`O:${outcomeCount}`)
+  const xlId = XL_ID.capability(cap.id!)
   const el = new CapabilityShape({
-    id: XL_ID.capability(capName),
+    id: xlId,
     position: { x, y },
     size: CAPABILITY_SIZE,
     attrs: {
@@ -357,7 +355,7 @@ function createCapability(
   el.set('z', 2)
   el.set('dna', {
     kind: 'capability',
-    id: XL_ID.capability(capName),
+    id: xlId,
     layer: 'operational',
     name: capName,
     description: cap.description,
@@ -366,10 +364,11 @@ function createCapability(
   return el
 }
 
-function createRule(rule: Rule, capName: string, idx: number, x: number, y: number): dia.Element {
+function createRule(rule: Rule, capUuid: string, idx: number, x: number, y: number): dia.Element {
   const colors = RULE_COLORS[rule.type ?? 'access']
+  const xlId = XL_ID.rule(capUuid, idx)
   const el = new RuleShape({
-    id: XL_ID.rule(capName, idx),
+    id: xlId,
     position: { x, y },
     size: RULE_SIZE,
     attrs: {
@@ -380,7 +379,7 @@ function createRule(rule: Rule, capName: string, idx: number, x: number, y: numb
   el.set('z', 2)
   el.set('dna', {
     kind: 'rule',
-    id: XL_ID.rule(capName, idx),
+    id: xlId,
     layer: 'operational',
     name: `${rule.capability} ${rule.type ?? 'access'}`,
     description: rule.description,
@@ -389,16 +388,17 @@ function createRule(rule: Rule, capName: string, idx: number, x: number, y: numb
   return el
 }
 
-function createOutcome(outcome: Outcome, capName: string, idx: number, x: number, y: number): dia.Element {
+function createOutcome(outcome: Outcome, capUuid: string, idx: number, x: number, y: number): dia.Element {
+  const xlId = XL_ID.outcome(capUuid, idx)
   const el = new OutcomeShape({
-    id: XL_ID.outcome(capName, idx),
+    id: xlId,
     position: { x, y },
     size: OUTCOME_SIZE,
   })
   el.set('z', 2)
   el.set('dna', {
     kind: 'outcome',
-    id: XL_ID.outcome(capName, idx),
+    id: xlId,
     layer: 'operational',
     name: `${outcome.capability} outcome`,
     description: outcome.description,
@@ -407,14 +407,11 @@ function createOutcome(outcome: Outcome, capName: string, idx: number, x: number
   return el
 }
 
-function createOperation(name: string, count: number, x: number, y: number): dia.Element {
-  // Operations don't have their own shape — they're represented with a
-  // ResourceShape (indigo card) since conceptually an Operation is a
-  // Resource+Action pairing. Single-line label shows the canonical
-  // Resource.Action form.
+function createOperation(uuid: string, name: string, count: number, x: number, y: number): dia.Element {
   const badge = count > 1 ? `${count} ops` : ''
+  const xlId = XL_ID.operation(uuid)
   const el = new ResourceShape({
-    id: XL_ID.operation(name),
+    id: xlId,
     position: { x, y },
     size: OPERATION_SIZE,
     attrs: {
@@ -425,21 +422,18 @@ function createOperation(name: string, count: number, x: number, y: number): dia
   el.set('z', 2)
   el.set('dna', {
     kind: 'operation',
-    id: XL_ID.operation(name),
+    id: xlId,
     layer: 'product-api',
     name,
-    // Operation schema isn't in our lookupSchema map (operations are
-    // typically rendered via their containing resource); leaving the
-    // source out means the sidebar falls back to the read-only Identity
-    // panel when this node is clicked, which is fine for now.
   })
   return el
 }
 
 function createEndpoint(endpoint: Endpoint, x: number, y: number): dia.Element {
   const methodColor = METHOD_COLORS[endpoint.method] ?? '#64748b'
+  const xlId = XL_ID.endpoint(endpoint.id!)
   const el = new EndpointShape({
-    id: XL_ID.endpoint(endpoint.method, endpoint.path),
+    id: xlId,
     position: { x, y },
     size: ENDPOINT_SIZE,
     attrs: {
@@ -451,7 +445,7 @@ function createEndpoint(endpoint: Endpoint, x: number, y: number): dia.Element {
   el.set('z', 2)
   el.set('dna', {
     kind: 'endpoint',
-    id: XL_ID.endpoint(endpoint.method, endpoint.path),
+    id: xlId,
     layer: 'product-api',
     name: `${endpoint.method} ${endpoint.path}`,
     description: endpoint.description,
@@ -461,8 +455,9 @@ function createEndpoint(endpoint: Endpoint, x: number, y: number): dia.Element {
 }
 
 function createPage(page: Page, x: number, y: number): dia.Element {
+  const xlId = XL_ID.page(page.id!)
   const el = new PageShape({
-    id: XL_ID.page(page.name),
+    id: xlId,
     position: { x, y },
     size: PAGE_SIZE,
     attrs: {
@@ -473,7 +468,7 @@ function createPage(page: Page, x: number, y: number): dia.Element {
   el.set('z', 2)
   el.set('dna', {
     kind: 'page',
-    id: XL_ID.page(page.name),
+    id: xlId,
     layer: 'product-ui',
     name: page.name,
     description: page.description,
@@ -482,10 +477,11 @@ function createPage(page: Page, x: number, y: number): dia.Element {
   return el
 }
 
-function createBlock(block: Block, pageName: string, originalIdx: number, x: number, y: number): dia.Element {
+function createBlock(block: Block, pageUuid: string, originalIdx: number, x: number, y: number): dia.Element {
   const typeLabel = BLOCK_TYPE_LABELS[block.type] ?? block.type.slice(0, 4).toUpperCase()
+  const xlId = XL_ID.block(pageUuid, originalIdx)
   const el = new BlockShape({
-    id: XL_ID.block(pageName, originalIdx),
+    id: xlId,
     position: { x, y },
     size: BLOCK_SIZE,
     attrs: {
@@ -496,7 +492,7 @@ function createBlock(block: Block, pageName: string, originalIdx: number, x: num
   el.set('z', 2)
   el.set('dna', {
     kind: 'block',
-    id: XL_ID.block(pageName, originalIdx),
+    id: xlId,
     layer: 'product-ui',
     name: block.name,
     description: block.description,

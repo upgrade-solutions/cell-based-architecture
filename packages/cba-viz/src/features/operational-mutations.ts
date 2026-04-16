@@ -1,35 +1,16 @@
 /**
- * Operational DNA mutations — Phase 5c.4 Chunk 1.
+ * Operational DNA mutations.
  *
  * Pure helpers that take an OperationalDNA and return a new document
- * with a primitive added, renamed, or deleted. No JointJS, no React —
- * just data-in / data-out so they stay trivially unit-testable.
+ * with a primitive added or deleted. No JointJS, no React — just
+ * data-in / data-out so they stay trivially unit-testable.
  *
- * ─── Identity caveat ────────────────────────────────────────────────
- *
- * THIS CHUNK USES NAME-BASED REFERENCES throughout. A Capability refers
- * to its Noun by `noun: "Loan"`; a Rule refers to its Capability by
- * `capability: "Loan.Approve"`. Rename works by walking the document
- * and rewriting every field that carries one of these references.
- *
- * The downside is obvious: a user-visible string is also the identity,
- * and anything pointing at it has to know. The rename walk below has to
- * be kept in lockstep with the operational schema — adding a new field
- * that carries a Noun or Capability name means updating `renameNoun`
- * and/or `renameCapability`.
- *
- * Stable UUID identity is a future chunk. When it lands:
- *   - Add a `__uuid` to each primitive on load
- *   - Refs become `capabilityId` / `nounId` instead of `capability` /
- *     `noun`
- *   - Rename collapses to "edit the display name, leave refs alone"
- *   - This file's rename helpers become no-ops except for lifecycle
- *     `steps[]` and equation `input[]` which encode semantic meaning
- *     beyond pure identity (still rewrite those).
- *
- * Until then, all rename logic lives here and nowhere else.
+ * Identity is UUID-based — every primitive carries a stable `id` field
+ * assigned on first load. Rename is a display-name edit; references and
+ * layout keys are UUID-stable and never need rewriting.
  */
 
+import { generateId } from '../utils/uuid.ts'
 import type {
   OperationalDNA,
   Domain,
@@ -102,6 +83,7 @@ export function addNoun(dna: OperationalDNA, input: AddNounInput): OperationalDN
   const leaf = findTargetLeafDomain(next.domain)
   leaf.nouns = leaf.nouns ?? []
   leaf.nouns.push({
+    id: generateId(),
     name: input.name,
     description: input.description,
     domain: leaf.path ?? leaf.name,
@@ -122,6 +104,7 @@ export function addCapability(dna: OperationalDNA, input: AddCapabilityInput): O
   next.capabilities = next.capabilities ?? []
   const name = `${input.noun}.${input.verb}`
   next.capabilities.push({
+    id: generateId(),
     noun: input.noun,
     verb: input.verb,
     name,
@@ -140,6 +123,7 @@ export function addRule(dna: OperationalDNA, input: AddRuleInput): OperationalDN
   const next = clone(dna)
   next.rules = next.rules ?? []
   const rule: Rule = {
+    id: generateId(),
     capability: input.capability,
     type: input.type,
     description: input.description,
@@ -162,217 +146,12 @@ export function addOutcome(dna: OperationalDNA, input: AddOutcomeInput): Operati
   const next = clone(dna)
   next.outcomes = next.outcomes ?? []
   const outcome: Outcome = {
+    id: generateId(),
     capability: input.capability,
     description: input.description,
     changes: [{ attribute: 'status', set: 'new' }],
   }
   next.outcomes.push(outcome)
-  return next
-}
-
-// ── Rename with referential integrity ──────────────────────────────────
-
-/**
- * Rewrite every reference to a Noun when its name changes. The canvas
- * cells reference primitives by name (not by stable UUID), so this
- * walk touches every field that could carry the old name:
- *
- *   - Noun.name itself
- *   - Capability.noun, Capability.name (prefix of `Noun.Verb`)
- *   - Rule.capability (prefix via `Noun.Verb`)
- *   - Outcome.capability + Outcome.initiates[]
- *   - Cause.capability + Cause.after
- *   - Signal.capability
- *   - Task.capability (each is `Noun.Verb`)
- *   - Relationship.from + Relationship.to
- *   - Attribute.noun on reference attributes (on ALL nouns across the doc)
- *   - OperationalLayout.elements keyed by `noun:<name>` /
- *     `capability:<Noun.Verb>`
- *
- * Safe to call with `oldName === newName` — just returns a clone.
- */
-export function renameNoun(dna: OperationalDNA, oldName: string, newName: string): OperationalDNA {
-  if (oldName === newName) return clone(dna)
-  const next = clone(dna)
-
-  // Helper — rewrite a capability string "OldNoun.Verb" → "NewNoun.Verb"
-  const rewriteCap = (capName: string): string => {
-    const idx = capName.indexOf('.')
-    if (idx < 0) return capName
-    const nounPart = capName.slice(0, idx)
-    if (nounPart !== oldName) return capName
-    return `${newName}.${capName.slice(idx + 1)}`
-  }
-
-  // 1. The Noun itself — walk the domain tree
-  walkNouns(next.domain, (noun) => {
-    if (noun.name === oldName) noun.name = newName
-    // Also rewrite any reference attribute on any noun that points to
-    // the old name — this is the only Noun → Noun cross-reference we
-    // support in schema.
-    for (const attr of noun.attributes ?? []) {
-      if (attr.type === 'reference' && attr.noun === oldName) {
-        attr.noun = newName
-      }
-    }
-  })
-
-  // 2. Capabilities — noun field + redundant name prefix
-  for (const cap of next.capabilities ?? []) {
-    if (cap.noun === oldName) cap.noun = newName
-    if (cap.name) cap.name = rewriteCap(cap.name)
-  }
-
-  // 3. Rules — capability prefix
-  for (const rule of next.rules ?? []) {
-    rule.capability = rewriteCap(rule.capability)
-  }
-
-  // 4. Outcomes — capability prefix + initiates[]
-  for (const outcome of next.outcomes ?? []) {
-    outcome.capability = rewriteCap(outcome.capability)
-    if (outcome.initiates) {
-      outcome.initiates = outcome.initiates.map(rewriteCap)
-    }
-  }
-
-  // 5. Causes — capability + after prefix
-  for (const cause of next.causes ?? []) {
-    cause.capability = rewriteCap(cause.capability)
-    if (cause.after) cause.after = rewriteCap(cause.after)
-  }
-
-  // 6. Signals — capability prefix (signals also encode Noun in their
-  // fully-qualified name like `domain.Noun.PastVerb`, but that's a
-  // display convention, not a schema reference — leave names untouched).
-  for (const signal of next.signals ?? []) {
-    signal.capability = rewriteCap(signal.capability)
-  }
-
-  // 7. Tasks — capability references
-  for (const task of next.tasks ?? []) {
-    task.capability = rewriteCap(task.capability)
-  }
-
-  // 8. Relationships — from + to are noun names
-  for (const rel of next.relationships ?? []) {
-    if (rel.from === oldName) rel.from = newName
-    if (rel.to === oldName) rel.to = newName
-  }
-
-  // 9. Layout overlay keys
-  for (const layout of next.layouts ?? []) {
-    const rewritten: typeof layout.elements = {}
-    for (const [key, val] of Object.entries(layout.elements)) {
-      if (key === `noun:${oldName}`) {
-        rewritten[`noun:${newName}`] = val
-      } else if (key.startsWith('capability:')) {
-        const capName = key.slice('capability:'.length)
-        const nextCap = rewriteCap(capName)
-        rewritten[`capability:${nextCap}`] = val
-      } else if (key.startsWith('rule:') || key.startsWith('outcome:')) {
-        // rule:<Noun.Verb>:<i> / outcome:<Noun.Verb>:<i>
-        const [prefix, ...rest] = key.split(':')
-        // rest might contain further colons (unlikely) — join back
-        const suffix = rest.join(':')
-        const lastColon = suffix.lastIndexOf(':')
-        if (lastColon < 0) {
-          rewritten[key] = val
-          continue
-        }
-        const capPart = suffix.slice(0, lastColon)
-        const idxPart = suffix.slice(lastColon + 1)
-        rewritten[`${prefix}:${rewriteCap(capPart)}:${idxPart}`] = val
-      } else {
-        rewritten[key] = val
-      }
-    }
-    layout.elements = rewritten
-  }
-
-  return next
-}
-
-/**
- * Rewrite every reference to a Capability when its `Noun.Verb` name
- * changes. Capabilities are referenced via the same `Noun.Verb` string
- * everywhere, so this is a simpler walk than renameNoun — no field-
- * specific logic, just "anywhere that stores a capability name".
- *
- * Note: if the caller is renaming because they changed the Verb, they
- * should pass the old and new full `Noun.Verb` names, not the verb
- * alone. If they changed the Noun, they should call `renameNoun`
- * instead (which handles the cascade through the Noun field too).
- */
-export function renameCapability(dna: OperationalDNA, oldName: string, newName: string): OperationalDNA {
-  if (oldName === newName) return clone(dna)
-  const next = clone(dna)
-
-  // Parse the new name to update noun/verb fields on the Capability itself
-  const [newNoun, ...verbRest] = newName.split('.')
-  const newVerb = verbRest.join('.')
-
-  for (const cap of next.capabilities ?? []) {
-    const capName = cap.name ?? `${cap.noun}.${cap.verb}`
-    if (capName === oldName) {
-      cap.noun = newNoun ?? cap.noun
-      cap.verb = newVerb ?? cap.verb
-      cap.name = newName
-    }
-  }
-
-  for (const rule of next.rules ?? []) {
-    if (rule.capability === oldName) rule.capability = newName
-  }
-
-  for (const outcome of next.outcomes ?? []) {
-    if (outcome.capability === oldName) outcome.capability = newName
-    if (outcome.initiates) {
-      outcome.initiates = outcome.initiates.map((c) => (c === oldName ? newName : c))
-    }
-  }
-
-  for (const cause of next.causes ?? []) {
-    if (cause.capability === oldName) cause.capability = newName
-    if (cause.after === oldName) cause.after = newName
-  }
-
-  for (const signal of next.signals ?? []) {
-    if (signal.capability === oldName) signal.capability = newName
-  }
-
-  for (const task of next.tasks ?? []) {
-    if (task.capability === oldName) task.capability = newName
-  }
-
-  // Layout overlay keys
-  for (const layout of next.layouts ?? []) {
-    const rewritten: typeof layout.elements = {}
-    for (const [key, val] of Object.entries(layout.elements)) {
-      if (key === `capability:${oldName}`) {
-        rewritten[`capability:${newName}`] = val
-      } else if (key.startsWith('rule:') || key.startsWith('outcome:')) {
-        const [prefix, ...rest] = key.split(':')
-        const suffix = rest.join(':')
-        const lastColon = suffix.lastIndexOf(':')
-        if (lastColon < 0) {
-          rewritten[key] = val
-          continue
-        }
-        const capPart = suffix.slice(0, lastColon)
-        const idxPart = suffix.slice(lastColon + 1)
-        if (capPart === oldName) {
-          rewritten[`${prefix}:${newName}:${idxPart}`] = val
-        } else {
-          rewritten[key] = val
-        }
-      } else {
-        rewritten[key] = val
-      }
-    }
-    layout.elements = rewritten
-  }
-
   return next
 }
 
@@ -385,15 +164,9 @@ export interface RemovedPrimitive {
 
 /**
  * Compute which primitives would be removed by deleting (kind, key)
- * without actually mutating anything. Drives the confirmation dialog
- * so users can see the blast radius before committing.
+ * without actually mutating anything. Drives the confirmation dialog.
  *
- * `key` is the primary string identity of the primitive:
- *   - noun       → Noun.name
- *   - capability → `Noun.Verb`
- *   - rule       → unique id `rule:<Noun.Verb>:<index>`
- *   - outcome    → unique id `outcome:<Noun.Verb>:<index>`
- *   - signal     → Signal.name (fully qualified)
+ * `key` is the primitive's UUID `id`.
  */
 export function previewCascade(
   dna: OperationalDNA,
@@ -403,20 +176,22 @@ export function previewCascade(
   const removed: RemovedPrimitive[] = []
 
   if (kind === 'noun') {
-    removed.push({ kind: 'noun', name: key })
-    const doomedCaps = (dna.capabilities ?? []).filter((c) => c.noun === key)
-    for (const cap of doomedCaps) {
-      const capName = cap.name ?? `${cap.noun}.${cap.verb}`
-      removed.push({ kind: 'capability', name: capName })
-      // Each doomed capability cascades its rules + outcomes
-      for (const rule of dna.rules ?? []) {
-        if (rule.capability === capName) {
-          removed.push({ kind: 'rule', name: `${capName} ${rule.type ?? 'access'}` })
+    const noun = findNounById(dna.domain, key)
+    removed.push({ kind: 'noun', name: noun?.name ?? key })
+    if (noun) {
+      const doomedCaps = (dna.capabilities ?? []).filter((c) => c.noun === noun.name)
+      for (const cap of doomedCaps) {
+        const capName = cap.name ?? `${cap.noun}.${cap.verb}`
+        removed.push({ kind: 'capability', name: capName })
+        for (const rule of dna.rules ?? []) {
+          if (rule.capability === capName) {
+            removed.push({ kind: 'rule', name: `${capName} ${rule.type ?? 'access'}` })
+          }
         }
-      }
-      for (const outcome of dna.outcomes ?? []) {
-        if (outcome.capability === capName) {
-          removed.push({ kind: 'outcome', name: `${capName} outcome` })
+        for (const outcome of dna.outcomes ?? []) {
+          if (outcome.capability === capName) {
+            removed.push({ kind: 'outcome', name: `${capName} outcome` })
+          }
         }
       }
     }
@@ -424,32 +199,37 @@ export function previewCascade(
   }
 
   if (kind === 'capability') {
-    removed.push({ kind: 'capability', name: key })
+    const cap = (dna.capabilities ?? []).find((c) => c.id === key)
+    const capName = cap ? (cap.name ?? `${cap.noun}.${cap.verb}`) : key
+    removed.push({ kind: 'capability', name: capName })
     for (const rule of dna.rules ?? []) {
-      if (rule.capability === key) {
-        removed.push({ kind: 'rule', name: `${key} ${rule.type ?? 'access'}` })
+      if (rule.capability === capName) {
+        removed.push({ kind: 'rule', name: `${capName} ${rule.type ?? 'access'}` })
       }
     }
     for (const outcome of dna.outcomes ?? []) {
-      if (outcome.capability === key) {
-        removed.push({ kind: 'outcome', name: `${key} outcome` })
+      if (outcome.capability === capName) {
+        removed.push({ kind: 'outcome', name: `${capName} outcome` })
       }
     }
     return removed
   }
 
   if (kind === 'rule') {
-    removed.push({ kind: 'rule', name: key })
+    const rule = (dna.rules ?? []).find((r) => r.id === key)
+    removed.push({ kind: 'rule', name: rule ? `${rule.capability} ${rule.type ?? 'access'}` : key })
     return removed
   }
 
   if (kind === 'outcome') {
-    removed.push({ kind: 'outcome', name: key })
+    const outcome = (dna.outcomes ?? []).find((o) => o.id === key)
+    removed.push({ kind: 'outcome', name: outcome ? `${outcome.capability} outcome` : key })
     return removed
   }
 
   if (kind === 'signal') {
-    removed.push({ kind: 'signal', name: key })
+    const signal = (dna.signals ?? []).find((s) => s.id === key)
+    removed.push({ kind: 'signal', name: signal?.name ?? key })
     return removed
   }
 
@@ -457,22 +237,8 @@ export function previewCascade(
 }
 
 /**
- * Remove a primitive (and its cascades) from the DNA. Returns both the
- * new document and the list of what got removed so the caller can
- * surface an undo hint or a toast if it wants to.
- *
- * Cascade rules — narrow on purpose for this chunk:
- *   - noun → its capabilities → their rules + outcomes
- *   - capability → its rules + outcomes + causes that reference it
- *     (either `capability` or `after`)
- *   - rule / outcome / signal → just the one entity, no cascade
- *
- * `key` format matches `previewCascade`:
- *   - noun: Noun.name
- *   - capability: `Noun.Verb`
- *   - rule: `rule:<Noun.Verb>:<idx>` (matches operational-to-graph ID)
- *   - outcome: `outcome:<Noun.Verb>:<idx>`
- *   - signal: Signal.name
+ * Remove a primitive (and its cascades) from the DNA.
+ * `key` is the primitive's UUID `id`.
  */
 export function deleteOperationalPrimitive(
   dna: OperationalDNA,
@@ -483,95 +249,90 @@ export function deleteOperationalPrimitive(
   const removed: RemovedPrimitive[] = []
 
   if (kind === 'noun') {
-    // Remove the noun from wherever it lives in the domain tree
+    let nounName: string | undefined
     walkDomains(next.domain, (domain) => {
       if (domain.nouns) {
-        domain.nouns = domain.nouns.filter((n) => n.name !== key)
+        const found = domain.nouns.find((n) => n.id === key)
+        if (found) nounName = found.name
+        domain.nouns = domain.nouns.filter((n) => n.id !== key)
       }
     })
-    removed.push({ kind: 'noun', name: key })
+    removed.push({ kind: 'noun', name: nounName ?? key })
 
-    // Cascade: find all capabilities on this noun
-    const doomedCapNames = new Set<string>()
-    next.capabilities = (next.capabilities ?? []).filter((cap) => {
-      if (cap.noun === key) {
-        const name = cap.name ?? `${cap.noun}.${cap.verb}`
-        doomedCapNames.add(name)
-        removed.push({ kind: 'capability', name })
-        return false
-      }
-      return true
-    })
-
-    // Cascade: rules + outcomes whose capability is in the doomed set
-    next.rules = (next.rules ?? []).filter((rule) => {
-      if (doomedCapNames.has(rule.capability)) {
-        removed.push({ kind: 'rule', name: `${rule.capability} ${rule.type ?? 'access'}` })
-        return false
-      }
-      return true
-    })
-    next.outcomes = (next.outcomes ?? []).filter((outcome) => {
-      if (doomedCapNames.has(outcome.capability)) {
-        removed.push({ kind: 'outcome', name: `${outcome.capability} outcome` })
-        return false
-      }
-      return true
-    })
-
-    // Cascade: causes anchored on doomed capabilities
-    next.causes = (next.causes ?? []).filter((cause) => {
-      if (doomedCapNames.has(cause.capability)) return false
-      if (cause.after && doomedCapNames.has(cause.after)) return false
-      return true
-    })
-
-    // Also prune dangling reference attributes on surviving nouns
-    walkNouns(next.domain, (noun) => {
-      for (const attr of noun.attributes ?? []) {
-        if (attr.type === 'reference' && attr.noun === key) {
-          // Drop the `noun` reference but keep the attribute shell —
-          // leaving a broken ref would fail schema validation. The
-          // user can reassign or delete the attribute via the form.
-          delete attr.noun
+    if (nounName) {
+      const doomedCapNames = new Set<string>()
+      next.capabilities = (next.capabilities ?? []).filter((cap) => {
+        if (cap.noun === nounName) {
+          const name = cap.name ?? `${cap.noun}.${cap.verb}`
+          doomedCapNames.add(name)
+          removed.push({ kind: 'capability', name })
+          return false
         }
-      }
-    })
+        return true
+      })
+
+      next.rules = (next.rules ?? []).filter((rule) => {
+        if (doomedCapNames.has(rule.capability)) {
+          removed.push({ kind: 'rule', name: `${rule.capability} ${rule.type ?? 'access'}` })
+          return false
+        }
+        return true
+      })
+      next.outcomes = (next.outcomes ?? []).filter((outcome) => {
+        if (doomedCapNames.has(outcome.capability)) {
+          removed.push({ kind: 'outcome', name: `${outcome.capability} outcome` })
+          return false
+        }
+        return true
+      })
+      next.causes = (next.causes ?? []).filter((cause) => {
+        if (doomedCapNames.has(cause.capability)) return false
+        if (cause.after && doomedCapNames.has(cause.after)) return false
+        return true
+      })
+
+      walkNouns(next.domain, (noun) => {
+        for (const attr of noun.attributes ?? []) {
+          if (attr.type === 'reference' && attr.noun === nounName) {
+            delete attr.noun
+          }
+        }
+      })
+    }
 
     return { dna: next, removed }
   }
 
   if (kind === 'capability') {
-    next.capabilities = (next.capabilities ?? []).filter((cap) => {
-      const name = cap.name ?? `${cap.noun}.${cap.verb}`
-      return name !== key
-    })
-    removed.push({ kind: 'capability', name: key })
+    const cap = (next.capabilities ?? []).find((c) => c.id === key)
+    const capName = cap ? (cap.name ?? `${cap.noun}.${cap.verb}`) : undefined
+    next.capabilities = (next.capabilities ?? []).filter((c) => c.id !== key)
+    if (capName) removed.push({ kind: 'capability', name: capName })
 
-    next.rules = (next.rules ?? []).filter((rule) => {
-      if (rule.capability === key) {
-        removed.push({ kind: 'rule', name: `${key} ${rule.type ?? 'access'}` })
-        return false
-      }
-      return true
-    })
-    next.outcomes = (next.outcomes ?? []).filter((outcome) => {
-      if (outcome.capability === key) {
-        removed.push({ kind: 'outcome', name: `${key} outcome` })
-        return false
-      }
-      return true
-    })
-    next.causes = (next.causes ?? []).filter((cause) => {
-      if (cause.capability === key) return false
-      if (cause.after === key) return false
-      return true
-    })
-    // Outcomes from other capabilities may initiate this one —
-    // strip the dangling reference rather than cascading further.
-    for (const outcome of next.outcomes ?? []) {
-      if (outcome.initiates) {
-        outcome.initiates = outcome.initiates.filter((c) => c !== key)
+    if (capName) {
+      next.rules = (next.rules ?? []).filter((rule) => {
+        if (rule.capability === capName) {
+          removed.push({ kind: 'rule', name: `${capName} ${rule.type ?? 'access'}` })
+          return false
+        }
+        return true
+      })
+      next.outcomes = (next.outcomes ?? []).filter((outcome) => {
+        if (outcome.capability === capName) {
+          removed.push({ kind: 'outcome', name: `${capName} outcome` })
+          return false
+        }
+        return true
+      })
+      next.causes = (next.causes ?? []).filter((cause) => {
+        if (cause.capability === capName) return false
+        if (cause.after === capName) return false
+        return true
+      })
+      for (const outcome of next.outcomes ?? []) {
+        if (outcome.initiates) {
+          outcome.initiates = outcome.initiates.filter((c) => c !== capName)
+        }
       }
     }
 
@@ -579,60 +340,46 @@ export function deleteOperationalPrimitive(
   }
 
   if (kind === 'rule') {
-    // key format: `rule:<Noun.Verb>:<index>`
-    const parsed = parseIndexedId(key, 'rule')
-    if (!parsed) return { dna: next, removed }
-    const { capability, index } = parsed
-    const matching = (next.rules ?? []).filter((r) => r.capability === capability)
-    const target = matching[index]
+    const target = (next.rules ?? []).find((r) => r.id === key)
     if (target) {
-      next.rules = (next.rules ?? []).filter((r) => r !== target)
-      removed.push({ kind: 'rule', name: `${capability} ${target.type ?? 'access'}` })
+      next.rules = (next.rules ?? []).filter((r) => r.id !== key)
+      removed.push({ kind: 'rule', name: `${target.capability} ${target.type ?? 'access'}` })
     }
     return { dna: next, removed }
   }
 
   if (kind === 'outcome') {
-    const parsed = parseIndexedId(key, 'outcome')
-    if (!parsed) return { dna: next, removed }
-    const { capability, index } = parsed
-    const matching = (next.outcomes ?? []).filter((o) => o.capability === capability)
-    const target = matching[index]
+    const target = (next.outcomes ?? []).find((o) => o.id === key)
     if (target) {
-      next.outcomes = (next.outcomes ?? []).filter((o) => o !== target)
-      removed.push({ kind: 'outcome', name: `${capability} outcome` })
+      next.outcomes = (next.outcomes ?? []).filter((o) => o.id !== key)
+      removed.push({ kind: 'outcome', name: `${target.capability} outcome` })
     }
     return { dna: next, removed }
   }
 
   if (kind === 'signal') {
-    next.signals = (next.signals ?? []).filter((s) => s.name !== key)
-    removed.push({ kind: 'signal', name: key })
+    const target = (next.signals ?? []).find((s) => s.id === key)
+    if (target) {
+      next.signals = (next.signals ?? []).filter((s) => s.id !== key)
+      removed.push({ kind: 'signal', name: target.name })
+    }
     return { dna: next, removed }
   }
 
   return { dna: next, removed }
 }
 
-// ── Parsing helpers ────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────
 
-/**
- * Parse an id like `rule:Loan.Approve:0` → { capability: 'Loan.Approve', index: 0 }
- * Capability names contain at most one dot but rule ids put the cap in the
- * middle, so we split on the FIRST and LAST colons.
- */
-function parseIndexedId(id: string, expectedPrefix: 'rule' | 'outcome'): { capability: string; index: number } | null {
-  const firstColon = id.indexOf(':')
-  if (firstColon < 0) return null
-  const prefix = id.slice(0, firstColon)
-  if (prefix !== expectedPrefix) return null
-  const rest = id.slice(firstColon + 1)
-  const lastColon = rest.lastIndexOf(':')
-  if (lastColon < 0) return null
-  const capability = rest.slice(0, lastColon)
-  const index = Number(rest.slice(lastColon + 1))
-  if (!Number.isFinite(index)) return null
-  return { capability, index }
+function findNounById(domain: Domain, id: string): Noun | null {
+  for (const noun of domain.nouns ?? []) {
+    if (noun.id === id) return noun
+  }
+  for (const child of domain.domains ?? []) {
+    const found = findNounById(child, id)
+    if (found) return found
+  }
+  return null
 }
 
 function walkNouns(domain: Domain, fn: (noun: Noun) => void): void {

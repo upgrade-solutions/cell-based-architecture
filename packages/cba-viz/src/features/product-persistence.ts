@@ -52,34 +52,14 @@ export function graphToProductApiDNA(
       }
       case 'resource': {
         const updated = dna.source as Resource
-        const idx = next.resources!.findIndex((r) => r.name === updated.name)
+        const idx = next.resources!.findIndex((r) => r.id === updated.id)
         if (idx >= 0) next.resources![idx] = updated
         break
       }
       case 'endpoint': {
         const updated = dna.source as Endpoint
-        // Endpoints are keyed on method+path since those are the only
-        // unique identifiers in the JSON array. We look up by the
-        // ORIGINAL method+path (the cell id was assigned at mapper
-        // time) rather than the updated values — otherwise renaming
-        // the path would orphan the old entry instead of updating it.
-        const originalRef = original.endpoints
-        const byRef = originalRef.indexOf(updated)
-        if (byRef >= 0) {
-          next.endpoints[byRef] = updated
-          break
-        }
-        // Fall back to id parsing when the user edited the endpoint
-        // body (which replaced dna.source with a new object reference).
-        const id = el.id as string
-        const m = id.match(/^endpoint:([^:]+):(.+)$/)
-        if (m) {
-          const [, origMethod, origPath] = m
-          const idx = next.endpoints.findIndex(
-            (e) => e.method === origMethod && e.path === origPath,
-          )
-          if (idx >= 0) next.endpoints[idx] = updated
-        }
+        const idx = next.endpoints.findIndex((e) => e.id === updated.id)
+        if (idx >= 0) next.endpoints[idx] = updated
         break
       }
     }
@@ -130,12 +110,8 @@ export function graphToProductUiDNA(
       }
       case 'page': {
         const updated = dna.source as Page
-        const idx = next.pages.findIndex((p) => p.name === updated.name)
+        const idx = next.pages.findIndex((p) => p.id === updated.id)
         if (idx >= 0) {
-          // Preserve the existing blocks array — blocks are edited as
-          // their own graph elements (handled in the `block` case
-          // below), so we don't want to overwrite them from the page's
-          // source (which may be stale).
           const existingBlocks = next.pages[idx].blocks ?? []
           next.pages[idx] = { ...updated, blocks: existingBlocks }
         }
@@ -146,15 +122,14 @@ export function graphToProductUiDNA(
       }
       case 'block': {
         const updated = dna.source as Block
-        // Parse block id to find (pageName, index) — the id encodes
-        // both. Without this, blocks with shared names across pages
-        // (e.g. "List" on two resources) would collide.
+        // Parse block id to find (pageUuid, index). The graph element
+        // id is `block:<pageUuid>:<i>`.
         const id = el.id as string
         const m = id.match(/^block:(.+):(\d+)$/)
         if (!m) break
-        const pageName = m[1]
+        const pageUuid = m[1]
         const blockIdx = parseInt(m[2], 10)
-        const pageIdx = next.pages.findIndex((p) => p.name === pageName)
+        const pageIdx = next.pages.findIndex((p) => p.id === pageUuid)
         if (pageIdx < 0) break
         const blocks = next.pages[pageIdx].blocks ?? []
         if (blockIdx >= 0 && blockIdx < blocks.length) {

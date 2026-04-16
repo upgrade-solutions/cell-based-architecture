@@ -7,6 +7,8 @@
  * a schema, update the corresponding interface here and re-run tsc.
  */
 
+import { migrateOperationalDNA } from './migrate-to-uuid.ts'
+
 // ── Primitive types (mirror operational/schemas/*.json) ─────────────────
 
 export interface Attribute {
@@ -29,6 +31,7 @@ export interface Verb {
 }
 
 export interface Noun {
+  id?: string
   name: string
   description?: string
   /** Dot-separated domain path this noun lives in. */
@@ -47,6 +50,7 @@ export interface Domain {
 }
 
 export interface Capability {
+  id?: string
   /** Noun this capability applies to. */
   noun: string
   /** Verb performed on the noun. */
@@ -59,6 +63,7 @@ export interface Capability {
 export type CauseSource = 'user' | 'schedule' | 'webhook' | 'capability' | 'signal'
 
 export interface Cause {
+  id?: string
   capability: string
   description?: string
   source: CauseSource
@@ -87,6 +92,7 @@ export interface RuleCondition {
 }
 
 export interface Rule {
+  id?: string
   capability: string
   description?: string
   type?: RuleType
@@ -102,6 +108,7 @@ export interface OutcomeChange {
 }
 
 export interface Outcome {
+  id?: string
   capability: string
   description?: string
   changes: OutcomeChange[]
@@ -118,6 +125,7 @@ export interface SignalPayloadField {
 }
 
 export interface Signal {
+  id?: string
   /** Fully qualified name: `domain.Noun.PastTenseVerb`. */
   name: string
   /** The `Noun.Verb` capability whose success publishes this signal. */
@@ -169,6 +177,7 @@ export interface Process {
 }
 
 export interface Relationship {
+  id?: string
   name: string
   from: string
   to: string
@@ -184,6 +193,7 @@ export interface EquationOutput {
 }
 
 export interface Equation {
+  id?: string
   name: string
   description?: string
   input: string[]
@@ -236,7 +246,7 @@ export function parseOperationalDNA(json: unknown): OperationalDNA {
   if (!data || typeof data !== 'object' || !data.domain) {
     throw new Error('Invalid operational DNA: missing "domain" at document root')
   }
-  return data
+  return migrateOperationalDNA(data)
 }
 
 /**
