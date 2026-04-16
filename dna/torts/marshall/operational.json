@@ -771,41 +771,212 @@
       ]
     }
   ],
-  "lifecycles": [
+  "positions": [
     {
-      "noun": "IntakeSubmission",
-      "description": "An intake submission moves from public submission through staff review to qualified (creating a Claimant) or rejected.",
-      "steps": ["IntakeSubmission.Submit", "IntakeSubmission.Qualify"],
-      "branches": [
-        { "from": "IntakeSubmission.Submit", "to": "IntakeSubmission.Qualify", "description": "Submission enters staff review queue." }
+      "name": "IntakeSpecialist",
+      "description": "Reviews public intake submissions and qualifies or rejects them.",
+      "domain": "justice.masstort.marshall",
+      "reports_to": "CaseManager",
+      "roles": ["intake_staff"]
+    },
+    {
+      "name": "Paralegal",
+      "description": "Manages evidence, files claims, and handles case status updates.",
+      "domain": "justice.masstort.marshall",
+      "reports_to": "CaseManager",
+      "roles": ["paralegal", "editor"]
+    },
+    {
+      "name": "CaseManager",
+      "description": "Oversees the intake-to-resolution process and manages staff assignments.",
+      "domain": "justice.masstort.marshall",
+      "reports_to": "PartnerAttorney",
+      "roles": ["admin", "paralegal"]
+    },
+    {
+      "name": "PartnerAttorney",
+      "description": "Senior attorney overseeing the Marshall Fire mass-tort case.",
+      "domain": "justice.masstort.marshall",
+      "roles": ["attorney", "admin"]
+    },
+    {
+      "name": "AssociateAttorney",
+      "description": "Attorney assigned to represent individual claimants.",
+      "domain": "justice.masstort.marshall",
+      "reports_to": "PartnerAttorney",
+      "roles": ["attorney"]
+    },
+    {
+      "name": "FirmAdmin",
+      "description": "Manages firm entities and attorney roster on the platform.",
+      "domain": "justice.masstort.marshall",
+      "reports_to": "PartnerAttorney",
+      "roles": ["admin"]
+    }
+  ],
+  "persons": [
+    {
+      "name": "lisa-martinez",
+      "display_name": "Lisa Martinez",
+      "position": "IntakeSpecialist",
+      "email": "lisa.martinez@marshall.legal",
+      "domain": "justice.masstort.marshall",
+      "active": true
+    },
+    {
+      "name": "david-kim",
+      "display_name": "David Kim",
+      "position": "CaseManager",
+      "email": "david.kim@marshall.legal",
+      "domain": "justice.masstort.marshall",
+      "active": true
+    },
+    {
+      "name": "rachel-torres",
+      "display_name": "Rachel Torres",
+      "position": "AssociateAttorney",
+      "email": "rachel.torres@marshall.legal",
+      "domain": "justice.masstort.marshall",
+      "active": true
+    },
+    {
+      "name": "james-worthington",
+      "display_name": "James Worthington",
+      "position": "PartnerAttorney",
+      "email": "james.worthington@marshall.legal",
+      "domain": "justice.masstort.marshall",
+      "active": true
+    }
+  ],
+  "tasks": [
+    {
+      "name": "qualify-intake",
+      "description": "Intake specialist reviews a public submission and qualifies or rejects it.",
+      "position": "IntakeSpecialist",
+      "capability": "IntakeSubmission.Qualify",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "assign-claimant",
+      "description": "Case manager assigns a qualified claimant to an attorney.",
+      "position": "CaseManager",
+      "capability": "Claimant.Assign",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "file-claim",
+      "description": "Paralegal formally files a claim on behalf of a claimant.",
+      "position": "Paralegal",
+      "capability": "Claim.File",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "review-claim",
+      "description": "Attorney reviews the filed claim for legal sufficiency.",
+      "position": "AssociateAttorney",
+      "capability": "Claim.Review",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "update-claim-status",
+      "description": "Attorney or paralegal updates the claim disposition (settled or dismissed).",
+      "position": "Paralegal",
+      "capability": "Claim.UpdateStatus",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "upload-evidence",
+      "description": "Paralegal or attorney uploads supporting evidence for a claim.",
+      "position": "Paralegal",
+      "capability": "Evidence.Upload",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "verify-evidence",
+      "description": "Case manager verifies uploaded evidence for authenticity and relevance.",
+      "position": "CaseManager",
+      "capability": "Evidence.Verify",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "advance-case-status",
+      "description": "Paralegal advances the case through milestones.",
+      "position": "Paralegal",
+      "capability": "CaseStatus.Advance",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "onboard-firm",
+      "description": "Admin registers a new firm on the platform.",
+      "position": "FirmAdmin",
+      "capability": "Firm.Onboard",
+      "domain": "justice.masstort.marshall"
+    },
+    {
+      "name": "assign-attorney",
+      "description": "Admin assigns an attorney to a firm.",
+      "position": "FirmAdmin",
+      "capability": "Attorney.Assign",
+      "domain": "justice.masstort.marshall"
+    }
+  ],
+  "processes": [
+    {
+      "name": "ClaimantIntake",
+      "description": "End-to-end process from public intake submission through qualification, claimant registration (system-triggered), and attorney assignment.",
+      "domain": "justice.masstort.marshall",
+      "operator": "CaseManager",
+      "steps": [
+        {
+          "id": "qualify",
+          "task": "qualify-intake",
+          "description": "Intake specialist reviews the submission and decides qualification."
+        },
+        {
+          "id": "assign",
+          "task": "assign-claimant",
+          "depends_on": ["qualify"],
+          "branch": { "when": "intake_submission.status == 'qualified'", "else": "abort" },
+          "description": "Case manager assigns qualified claimant to an attorney."
+        }
       ]
     },
     {
-      "noun": "Claimant",
-      "description": "A claimant record progresses from registration through attorney assignment, active litigation, and ultimately settlement or withdrawal.",
-      "steps": ["Claimant.Register", "Claimant.Assign", "Claimant.View"],
-      "branches": [
-        { "from": "Claimant.Register", "to": "Claimant.Assign", "description": "Claimant assigned an attorney." }
+      "name": "ClaimResolution",
+      "description": "Process for taking a claim from filing through legal review to resolution (settlement or dismissal).",
+      "domain": "justice.masstort.marshall",
+      "operator": "PartnerAttorney",
+      "steps": [
+        {
+          "id": "file",
+          "task": "file-claim",
+          "description": "Paralegal formally files the claim."
+        },
+        {
+          "id": "collect-evidence",
+          "task": "upload-evidence",
+          "depends_on": ["file"],
+          "description": "Paralegal uploads supporting evidence."
+        },
+        {
+          "id": "verify",
+          "task": "verify-evidence",
+          "depends_on": ["collect-evidence"],
+          "description": "Case manager verifies evidence authenticity."
+        },
+        {
+          "id": "review",
+          "task": "review-claim",
+          "depends_on": ["verify"],
+          "description": "Attorney reviews the filed claim with verified evidence."
+        },
+        {
+          "id": "resolve",
+          "task": "update-claim-status",
+          "depends_on": ["review"],
+          "description": "Claim disposition updated to settled or dismissed."
+        }
       ]
-    },
-    {
-      "noun": "Claim",
-      "description": "A claim moves from draft through formal filing, staff review, and resolution by settlement or dismissal.",
-      "steps": ["Claim.File", "Claim.Review", "Claim.UpdateStatus"],
-      "branches": [
-        { "from": "Claim.File", "to": "Claim.Review", "description": "Claim enters legal review." },
-        { "from": "Claim.Review", "to": "Claim.UpdateStatus", "description": "Review complete; status updated to settled or dismissed." }
-      ]
-    },
-    {
-      "noun": "Evidence",
-      "description": "Evidence is uploaded by a claimant or attorney, then reviewed and verified (or rejected) by staff.",
-      "steps": ["Evidence.Upload", "Evidence.Verify"]
-    },
-    {
-      "noun": "CaseStatus",
-      "description": "A case status record is advanced through milestones by legal staff.",
-      "steps": ["CaseStatus.Advance"]
     }
   ],
   "signals": [

@@ -1400,74 +1400,13 @@
       ]
     }
   ],
-  "lifecycles": [
-    {
-      "noun": "IntakeSubmission",
-      "description": "An intake submission moves from public submission through staff review to qualified (creating a Claimant) or rejected.",
-      "steps": [
-        "IntakeSubmission.Submit",
-        "IntakeSubmission.Qualify"
-      ],
-      "branches": [
-        {
-          "from": "IntakeSubmission.Submit",
-          "to": "IntakeSubmission.Qualify",
-          "description": "Submission enters staff review queue."
-        }
-      ]
-    },
-    {
-      "noun": "Claimant",
-      "description": "A claimant record progresses from registration through attorney assignment, active litigation, and ultimately settlement or withdrawal.",
-      "steps": [
-        "Claimant.Register",
-        "Claimant.Assign",
-        "Claimant.View"
-      ],
-      "branches": [
-        {
-          "from": "Claimant.Register",
-          "to": "Claimant.Assign",
-          "description": "Claimant assigned an attorney."
-        }
-      ]
-    },
-    {
-      "noun": "Claim",
-      "description": "A claim moves from draft through formal filing, staff review, and resolution by settlement or dismissal.",
-      "steps": [
-        "Claim.File",
-        "Claim.Review",
-        "Claim.UpdateStatus"
-      ],
-      "branches": [
-        {
-          "from": "Claim.File",
-          "to": "Claim.Review",
-          "description": "Claim enters legal review."
-        },
-        {
-          "from": "Claim.Review",
-          "to": "Claim.UpdateStatus",
-          "description": "Review complete; status updated to settled or dismissed."
-        }
-      ]
-    },
-    {
-      "noun": "Evidence",
-      "description": "Evidence is uploaded by a claimant or attorney, then reviewed and verified (or rejected) by staff.",
-      "steps": [
-        "Evidence.Upload",
-        "Evidence.Verify"
-      ]
-    },
-    {
-      "noun": "CaseStatus",
-      "description": "A case status record is advanced through milestones by legal staff.",
-      "steps": [
-        "CaseStatus.Advance"
-      ]
-    }
+  "roles": [
+    { "name": "intake_staff", "description": "May review and qualify intake submissions." },
+    { "name": "paralegal", "description": "May file claims, upload evidence, and update case status." },
+    { "name": "attorney", "description": "May review claims, represent claimants, and make legal decisions." },
+    { "name": "admin", "description": "Full system access — manage firms, attorneys, and platform settings." },
+    { "name": "editor", "description": "May edit records (claimant profiles, claim details)." },
+    { "name": "public", "description": "Unauthenticated public user submitting intake forms." }
   ],
   "equations": [
     {
