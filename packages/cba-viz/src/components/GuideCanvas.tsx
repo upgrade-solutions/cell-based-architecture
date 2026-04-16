@@ -1,12 +1,18 @@
 import { useState, useCallback, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
-import type { OperationalDNA } from '../loaders/operational-loader.ts'
+import { loadOperationalDNA, type OperationalDNA } from '../loaders/operational-loader.ts'
 import type { GuidePhase, DiscoverState } from './guide/types.ts'
 import { extractionsToDna } from './guide/extraction-utils.ts'
 import { SAMPLE_DISCOVER_STATE } from './guide/sample-data.ts'
 import { GuideDiscover } from './guide/GuideDiscover.tsx'
 import { GuideDefine } from './guide/GuideDefine.tsx'
 import { GuideDesign } from './guide/GuideDesign.tsx'
+
+// The Guide tab is a simulation using the Marshall Fire mass-tort case. It
+// always loads marshall DNA regardless of the current domain — Discover shows
+// the sample transcript + extractions, Define/Design render the full marshall
+// DNA so all three phases tell the same story.
+const GUIDE_DOMAIN = 'torts/marshall'
 
 interface GuideCanvasProps {
   operationalDna: OperationalDNA | null
@@ -21,13 +27,19 @@ const PHASES: { key: GuidePhase; label: string; description: string }[] = [
 export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: GuideCanvasProps) {
   const [phase, setPhase] = useState<GuidePhase>('discover')
   const [discoverState, setDiscoverState] = useState<DiscoverState>(SAMPLE_DISCOVER_STATE)
-  const [workingDna, setWorkingDna] = useState<OperationalDNA | null>(operationalDna)
+  const [workingDna, setWorkingDna] = useState<OperationalDNA | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
+  // Always load marshall DNA for the Guide simulation. If the current domain
+  // already IS marshall, we could reuse the prop — but loading fresh keeps
+  // the Guide isolated from edits in other tabs during the session.
   useEffect(() => {
-    if (operationalDna && !workingDna) {
-      setWorkingDna(operationalDna)
-    }
-  }, [operationalDna, workingDna])
+    let cancelled = false
+    loadOperationalDNA(GUIDE_DOMAIN)
+      .then((dna) => { if (!cancelled) setWorkingDna(dna) })
+      .catch((err) => { if (!cancelled) setLoadError(String(err?.message ?? err)) })
+    return () => { cancelled = true }
+  }, [])
 
   const handleProceedToDefine = useCallback(() => {
     const merged = extractionsToDna(discoverState.extractions, workingDna)
@@ -35,7 +47,8 @@ export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: Gui
     setPhase('define')
   }, [discoverState.extractions, workingDna])
 
-  const activeDna = workingDna ?? operationalDna
+  const activeDna = workingDna
+  void operationalDna
 
   return (
     <div style={containerStyle}>
@@ -71,7 +84,7 @@ export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: Gui
         )}
         {phase === 'define' && !activeDna && (
           <div style={emptyStyle}>
-            No DNA loaded. Use the Discover phase to extract primitives from source material, or load a domain with existing Operational DNA.
+            {loadError ? `Failed to load Marshall DNA: ${loadError}` : 'Loading Marshall Fire Operational DNA…'}
           </div>
         )}
         {phase === 'design' && activeDna && (
@@ -79,7 +92,7 @@ export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: Gui
         )}
         {phase === 'design' && !activeDna && (
           <div style={emptyStyle}>
-            No DNA to design from. Define your Operational DNA first.
+            {loadError ? `Failed to load Marshall DNA: ${loadError}` : 'Loading Marshall Fire Operational DNA…'}
           </div>
         )}
       </div>
