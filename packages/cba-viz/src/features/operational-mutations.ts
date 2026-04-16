@@ -183,7 +183,7 @@ export function addOutcome(dna: OperationalDNA, input: AddOutcomeInput): Operati
  *   - Outcome.capability + Outcome.initiates[]
  *   - Cause.capability + Cause.after
  *   - Signal.capability
- *   - Lifecycle.noun + Lifecycle.steps[] (each step is `Noun.Verb`)
+ *   - Task.capability (each is `Noun.Verb`)
  *   - Relationship.from + Relationship.to
  *   - Attribute.noun on reference attributes (on ALL nouns across the doc)
  *   - OperationalLayout.elements keyed by `noun:<name>` /
@@ -249,16 +249,9 @@ export function renameNoun(dna: OperationalDNA, oldName: string, newName: string
     signal.capability = rewriteCap(signal.capability)
   }
 
-  // 7. Lifecycles — noun + steps[]
-  for (const lifecycle of next.lifecycles ?? []) {
-    if (lifecycle.noun === oldName) lifecycle.noun = newName
-    if (lifecycle.steps) {
-      lifecycle.steps = lifecycle.steps.map(rewriteCap)
-    }
-    for (const branch of lifecycle.branches ?? []) {
-      // Branches carry state names, not Noun names — no rewrite
-      void branch
-    }
+  // 7. Tasks — capability references
+  for (const task of next.tasks ?? []) {
+    task.capability = rewriteCap(task.capability)
   }
 
   // 8. Relationships — from + to are noun names
@@ -348,10 +341,8 @@ export function renameCapability(dna: OperationalDNA, oldName: string, newName: 
     if (signal.capability === oldName) signal.capability = newName
   }
 
-  for (const lifecycle of next.lifecycles ?? []) {
-    if (lifecycle.steps) {
-      lifecycle.steps = lifecycle.steps.map((s) => (s === oldName ? newName : s))
-    }
+  for (const task of next.tasks ?? []) {
+    if (task.capability === oldName) task.capability = newName
   }
 
   // Layout overlay keys

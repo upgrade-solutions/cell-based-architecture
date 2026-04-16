@@ -13,7 +13,7 @@
  * change a schema, update the matching interface here and re-run tsc.
  *
  * Product core shares its top-level primitives (capabilities, causes,
- * rules, outcomes, lifecycles, equations, signals, relationships,
+ * rules, outcomes, equations, signals, relationships,
  * nouns) with Operational DNA. We re-export those types from
  * `operational-loader` so there's exactly one source of truth for
  * shared primitives — materialization flattens the domain hierarchy
@@ -26,10 +26,13 @@ import type {
   Cause,
   Rule,
   Outcome,
-  Lifecycle,
   Equation,
   Signal,
   Relationship,
+  Position,
+  Person,
+  Task,
+  Process,
 } from './operational-loader.ts'
 
 // Re-export shared primitives so downstream consumers can import
@@ -40,7 +43,6 @@ export type {
   Cause,
   Rule,
   Outcome,
-  Lifecycle,
   Equation,
   Signal,
   Relationship,
@@ -127,10 +129,10 @@ export interface ProductCoreDNA {
   causes?: Cause[]
   rules?: Rule[]
   outcomes?: Outcome[]
-  lifecycles?: Lifecycle[]
   equations?: Equation[]
   signals?: Signal[]
   relationships?: Relationship[]
+  roles?: { name: string; description?: string }[]
 }
 
 // ── Product API (product.api.json) ───────────────────────────────────────

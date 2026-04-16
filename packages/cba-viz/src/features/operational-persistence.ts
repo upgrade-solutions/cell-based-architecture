@@ -18,7 +18,7 @@ import { ID } from '../mappers/operational-to-graph.ts'
  * than rebuilding from scratch. Two reasons:
  *
  *   1. The mapper only surfaces a subset of primitives on the canvas
- *      (we don't render Relationships, Equations, Lifecycles as shapes
+ *      (we don't render Relationships, Equations, Positions, Persons, Tasks, Processes as shapes
  *      in Phase 1). Rebuilding would silently drop them.
  *   2. RJSF form edits live in `dna.source` on the cell — which is a
  *      reference to the primitive *within the original document*. Walking
@@ -43,9 +43,12 @@ export function graphToOperationalDNA(
     outcomes: (original.outcomes ?? []).slice(),
     signals: (original.signals ?? []).slice(),
     causes: (original.causes ?? []).slice(),
-    lifecycles: (original.lifecycles ?? []).slice(),
     relationships: (original.relationships ?? []).slice(),
     equations: (original.equations ?? []).slice(),
+    positions: (original.positions ?? []).slice(),
+    persons: (original.persons ?? []).slice(),
+    tasks: (original.tasks ?? []).slice(),
+    processes: (original.processes ?? []).slice(),
     layouts: (original.layouts ?? []).slice(),
   }
 

@@ -8,7 +8,7 @@ import { operationalToGraphCells } from './operational-to-graph.ts'
  *
  * Product core is a materialized slice of Operational DNA — the
  * per-primitive shapes (Noun, Capability, Rule, Outcome, Signal,
- * Cause, Lifecycle, Relationship, Equation) are all identical. The
+ * Cause, Relationship, Equation) are all identical. The
  * only structural difference is the domain wrapper: operational uses
  * a nested `Domain { domains[], nouns[] }` hierarchy, while product
  * core flattens everything — `nouns[]` lives at the document root.
@@ -47,7 +47,6 @@ export function productCoreToOperational(dna: ProductCoreDNA): OperationalDNA {
     causes: dna.causes,
     rules: dna.rules,
     outcomes: dna.outcomes,
-    lifecycles: dna.lifecycles,
     equations: dna.equations,
     signals: dna.signals,
     relationships: dna.relationships,

@@ -126,17 +126,46 @@ export interface Signal {
   payload: SignalPayloadField[]
 }
 
-export interface LifecycleBranch {
-  from: string
-  to: string
+export interface Position {
+  name: string
   description?: string
+  domain?: string
+  reports_to?: string
+  roles?: string[]
 }
 
-export interface Lifecycle {
-  noun: string
+export interface Person {
+  name: string
+  display_name?: string
+  position: string
+  email?: string
+  domain?: string
+  active?: boolean
+}
+
+export interface Task {
+  name: string
   description?: string
-  steps: string[]
-  branches?: LifecycleBranch[]
+  position: string
+  capability: string
+  domain?: string
+}
+
+export interface ProcessStep {
+  id: string
+  task: string
+  description?: string
+  depends_on?: string[]
+  branch?: { when: string; else?: string }
+}
+
+export interface Process {
+  name: string
+  description?: string
+  domain?: string
+  operator: string
+  steps: ProcessStep[]
+  emits?: string[]
 }
 
 export interface Relationship {
@@ -186,10 +215,13 @@ export interface OperationalDNA {
   causes?: Cause[]
   rules?: Rule[]
   outcomes?: Outcome[]
-  lifecycles?: Lifecycle[]
   equations?: Equation[]
   signals?: Signal[]
   relationships?: Relationship[]
+  positions?: Position[]
+  persons?: Person[]
+  tasks?: Task[]
+  processes?: Process[]
   /** Phase 1 layout overlay — non-canonical, rides alongside content. */
   layouts?: OperationalLayout[]
 }
