@@ -1,7 +1,6 @@
-import { useRef, useCallback, useEffect } from 'react'
+import { useRef, useCallback } from 'react'
 import type { Extraction, PrimitiveType, DiscoverState } from './types.ts'
 import { PRIMITIVE_TYPES, PRIMITIVE_COLORS } from './types.ts'
-import { autoExtract } from './extraction-utils.ts'
 
 interface GuideDiscoverProps {
   state: DiscoverState
@@ -11,35 +10,6 @@ interface GuideDiscoverProps {
 
 export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Auto-extract on text change (debounced 400ms). Replaces prior 'suggested'
-  // extractions but preserves 'manual' ones the user added by selection.
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      const autoExtractions = autoExtract({ text: state.sourceText })
-      const manualExtractions = state.extractions.filter((e) => e.confidence === 'manual')
-
-      // Preserve user approval/rejection decisions on auto extractions by key
-      const previousByKey = new Map(
-        state.extractions
-          .filter((e) => e.confidence === 'suggested')
-          .map((e) => [`${e.primitiveType}:${e.text.toLowerCase()}`, e]),
-      )
-      const mergedAuto = autoExtractions.map((e) => {
-        const prev = previousByKey.get(`${e.primitiveType}:${e.text.toLowerCase()}`)
-        return prev ? { ...e, id: prev.id, approved: prev.approved, parentNoun: prev.parentNoun ?? e.parentNoun } : e
-      })
-
-      // Only update if the result actually changed — avoid render loops
-      const prevIds = state.extractions.filter((e) => e.confidence === 'suggested').map((e) => e.id).sort().join(',')
-      const nextIds = mergedAuto.map((e) => e.id).sort().join(',')
-      if (prevIds === nextIds && mergedAuto.length === state.extractions.filter((e) => e.confidence === 'suggested').length) return
-
-      onChange({ ...state, extractions: [...manualExtractions, ...mergedAuto] })
-    }, 400)
-    return () => clearTimeout(handle)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.sourceText])
 
   const handleTag = useCallback((type: PrimitiveType) => {
     const ta = textareaRef.current
@@ -103,7 +73,7 @@ export function GuideDiscover({ state, onChange, onProceed }: GuideDiscoverProps
           ref={textareaRef}
           value={state.sourceText}
           onChange={(e) => onChange({ ...state, sourceText: e.target.value })}
-          placeholder="Paste meeting notes, requirements documents, transcripts, or any source material here. Primitives will be auto-extracted as you type. You can also select text and tag it manually using the buttons below."
+          placeholder="Paste meeting notes, requirements documents, transcripts, or any source material here."
           style={textareaStyle}
         />
         <div style={tagBarStyle}>

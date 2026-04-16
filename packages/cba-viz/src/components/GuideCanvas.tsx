@@ -3,6 +3,7 @@ import { observer } from 'mobx-react-lite'
 import type { OperationalDNA } from '../loaders/operational-loader.ts'
 import type { GuidePhase, DiscoverState } from './guide/types.ts'
 import { extractionsToDna } from './guide/extraction-utils.ts'
+import { SAMPLE_DISCOVER_STATE } from './guide/sample-data.ts'
 import { GuideDiscover } from './guide/GuideDiscover.tsx'
 import { GuideDefine } from './guide/GuideDefine.tsx'
 import { GuideDesign } from './guide/GuideDesign.tsx'
@@ -19,7 +20,7 @@ const PHASES: { key: GuidePhase; label: string; description: string }[] = [
 
 export const GuideCanvas = observer(function GuideCanvas({ operationalDna }: GuideCanvasProps) {
   const [phase, setPhase] = useState<GuidePhase>('discover')
-  const [discoverState, setDiscoverState] = useState<DiscoverState>({ sourceText: '', extractions: [] })
+  const [discoverState, setDiscoverState] = useState<DiscoverState>(SAMPLE_DISCOVER_STATE)
   const [workingDna, setWorkingDna] = useState<OperationalDNA | null>(operationalDna)
 
   useEffect(() => {
