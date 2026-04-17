@@ -1,6 +1,6 @@
 # Operational Layer Agents
 
-Agents scoped to the Operational DNA layer. Operational DNA is the pure business-logic layer: the Nouns, Verbs, Capabilities, Attributes, Domains, Causes, Rules, Outcomes, Lifecycles, Signals, Equations, and Relationships that describe *what the business does* — independent of how it's surfaced or deployed.
+Agents scoped to the Operational DNA layer. Operational DNA is the pure business-logic layer: the Nouns, Verbs, Capabilities, Attributes, Domains, Relationships, Causes, Rules, Outcomes, Signals, Equations, and SOP primitives (Positions, Persons, Tasks, Processes) that describe *what the business does* — independent of how it's surfaced or deployed.
 
 ## Agent: `operational-dna-architect`
 
@@ -27,9 +27,13 @@ Owns authoring and evolving a domain's `operational.json`. Available as a Claude
 
 ### Primitives owned
 
-All twelve Operational primitives — see `@dna/core/schemas/operational/*.json` for the canonical list:
+All fifteen Operational primitives — see `@dna/core/schemas/operational/*.json` for the canonical list:
 
-`Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Cause`, `Rule`, `Outcome`, `Lifecycle`, `Signal`, `Equation`, `Relationship`
+- **Structure**: `Noun`, `Verb`, `Capability`, `Attribute`, `Domain`, `Relationship`
+- **Behavior**: `Cause`, `Rule`, `Outcome`, `Signal`, `Equation`
+- **SOP**: `Position`, `Person`, `Task`, `Process`
+
+`Lifecycle` was removed in favor of explicit `Capability` state transitions expressed through `Outcome.changes`.
 
 ### Must not touch
 

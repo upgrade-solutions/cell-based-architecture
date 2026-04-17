@@ -4,7 +4,7 @@ USAGE
   cba <command> [args] [--flags]
 
 DNA LAYERS
-  operational    Nouns, Verbs, Capabilities, Causes, Rules, Outcomes, Lifecycles, discover
+  operational    Nouns, Verbs, Capabilities, Causes, Rules, Outcomes, Signals, SOPs (Positions, Tasks, Processes)
   product        Product surface — api (Resources, Endpoints) or ui (Pages, Routes, Blocks)
   technical      Environments, Constructs, Cells, Variables, Providers, Views
 
@@ -53,7 +53,7 @@ USAGE
   cba operational <command> <domain> [args]
 
 Operational DNA captures pure business logic: domain concepts, processes,
-rules, and lifecycle. It is technology-agnostic and owned by the business.
+rules, and SOPs. It is technology-agnostic and owned by the business.
 
 COMMANDS
   discover       Launch or resume an agent-driven discovery session
@@ -65,7 +65,8 @@ COMMANDS
   validate       Validate the operational layer
 
 PRIMITIVES
-  Noun, Verb, Attribute, Capability, Cause, Rule, Outcome, Lifecycle, Equation
+  Noun, Verb, Attribute, Capability, Domain, Relationship, Cause, Rule, Outcome,
+  Signal, Equation, Position, Person, Task, Process
 
 EXAMPLES
   cba operational list lending
