@@ -15,6 +15,7 @@ This repo ships two brands that can coexist or be used independently:
 |---------|-----------|-------|
 | `@dna/core` | JSON schemas, TS bindings, and layer docs for the DNA description language | [`packages/dna/`](./packages/dna/) |
 | `@dna/validator` | Per-layer + cross-layer validator for DNA documents | [`packages/dna-validator/`](./packages/dna-validator/) |
+| `@dna/to-markdown` | Render DNA as markdown — summary, domain model, capabilities, SOPs, process flows | [`packages/tools/to-markdown/`](./packages/tools/to-markdown/) |
 | `@cell/cba` | Unified CLI for the full cell-based-architecture lifecycle | [`packages/cba/`](./packages/cba/) |
 | `@cell/cba-viz` | Interactive architecture viewer (Vite + React + JointJS) | [`packages/cba-viz/`](./packages/cba-viz/) |
 | `@cell/{api,ui,db,event-bus}-cell` | Cells that consume DNA and produce code or infra | [`technical/cells/`](./technical/cells/) |
