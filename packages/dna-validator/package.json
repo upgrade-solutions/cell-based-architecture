@@ -1,5 +1,5 @@
 {
-  "name": "@cell/dna-validator",
+  "name": "@dna/validator",
   "version": "0.0.1",
   "private": true,
   "main": "dist/index.js",

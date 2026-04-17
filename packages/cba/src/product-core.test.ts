@@ -1,5 +1,5 @@
 import { materializeProductCore } from './product-core'
-import { DnaValidator } from '@cell/dna-validator'
+import { DnaValidator } from '@dna/validator'
 import * as fs from 'fs'
 import * as path from 'path'
 

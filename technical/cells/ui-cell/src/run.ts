@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { DnaValidator } from '@cell/dna-validator'
+import { DnaValidator } from '@dna/validator'
 import { ProductUiDNA, ProductCoreDNA, UiCellContext, UiCellAdapter } from './types'
 import * as viteReactAdapter from './adapters/vite/react'
 import * as viteVueAdapter from './adapters/vite/vue'

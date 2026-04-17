@@ -11,7 +11,7 @@
     "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json event-bus-cell ../../../output/lending-event-bus"
   },
   "dependencies": {
-    "@cell/dna-validator": "*"
+    "@dna/validator": "*"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -26,7 +26,7 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@cell/dna-validator$": "<rootDir>/../../../packages/dna-validator/src/index.ts"
+      "^@dna/validator$": "<rootDir>/../../../packages/dna-validator/src/index.ts"
     }
   }
 }

@@ -17,7 +17,7 @@
     "generate": "ts-node -r tsconfig-paths/register src/index.ts"
   },
   "dependencies": {
-    "@cell/dna-validator": "*",
+    "@dna/validator": "*",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-collapsible": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.0",
@@ -40,7 +40,7 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@cell/dna-validator$": "<rootDir>/../../../packages/dna-validator/src/index.ts"
+      "^@dna/validator$": "<rootDir>/../../../packages/dna-validator/src/index.ts"
     }
   }
 }

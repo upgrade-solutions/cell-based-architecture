@@ -14,7 +14,7 @@
     "typecheck:lending": "npm run generate:lending && npm install --prefix ../../../output/lending-api && npx tsc --noEmit --project ../../../output/lending-api/tsconfig.json"
   },
   "dependencies": {
-    "@cell/dna-validator": "*"
+    "@dna/validator": "*"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -30,7 +30,7 @@
     "testEnvironment": "node",
     "testPathIgnorePatterns": ["/node_modules/", "/dist/"],
     "moduleNameMapper": {
-      "^@cell/dna-validator$": "<rootDir>/../../../packages/dna-validator/src/index.ts"
+      "^@dna/validator$": "<rootDir>/../../../packages/dna-validator/src/index.ts"
     }
   }
 }

@@ -956,7 +956,7 @@ DNA validation operates at two levels:
 
 ## Per-layer schema validation
 
-Each DNA document is validated against its JSON schema using `@cell/dna-validator`. This catches structural errors — missing required fields, invalid types, malformed primitives.
+Each DNA document is validated against its JSON schema using `@dna/validator`. This catches structural errors — missing required fields, invalid types, malformed primitives.
 
 ```bash
 npx cba validate lending --layer operational   # validate one layer
@@ -982,7 +982,7 @@ Cross-layer validation checks that references between DNA layers are consistent:
 Cross-layer runs automatically as part of `cba validate` (unless scoped to a single layer with `--layer`). Programmatic access:
 
 ```typescript
-import { DnaValidator } from '@cell/dna-validator'
+import { DnaValidator } from '@dna/validator'
 
 const validator = new DnaValidator()
 const result = validator.validateCrossLayer({ operational, productApi, productUi, technical })
@@ -1001,7 +1001,7 @@ npm test                    # runs all workspace tests
 
 | Package | Tests | Coverage |
 |---------|-------|----------|
-| `@cell/dna-validator` | 42 | Per-schema validation, composite documents, cross-layer validation (12 tests covering all reference types) |
+| `@dna/validator` | 42 | Per-schema validation, composite documents, cross-layer validation (12 tests covering all reference types) |
 | `@cell/api-cell` | 68 | NestJS generators (schema, DTO, controller, service, module), Express integration (scaffold, DNA bundling, auth config), NestJS integration (full generation pipeline), **adapter conformance** (10 tests) |
 | `@cell/ui-cell` | 14 | **Adapter conformance** (14 tests) |
 

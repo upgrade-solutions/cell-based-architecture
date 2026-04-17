@@ -6,7 +6,7 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import { DnaValidator } from '@cell/dna-validator'
+import { DnaValidator } from '@dna/validator'
 import { generate } from './adapters/vite/react'
 import { ProductUiDNA } from './types'
 

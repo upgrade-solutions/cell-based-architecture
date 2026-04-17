@@ -1,5 +1,5 @@
 import * as fs from 'fs'
-import { DnaValidator } from '@cell/dna-validator'
+import { DnaValidator } from '@dna/validator'
 import { Layer, LAYERS, resolveDomain, loadLayer } from './context'
 import { ParsedArgs, flag, boolFlag } from './args'
 import { emitError } from './output'

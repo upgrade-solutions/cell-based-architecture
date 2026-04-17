@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { DnaValidator } from '@cell/dna-validator'
+import { DnaValidator } from '@dna/validator'
 import { ProductCoreDNA, EventBusCellAdapter, EventBusAdapterConfig } from './types'
 import * as nodeEventBusAdapter from './adapters/node/event-bus'
 
