@@ -10,7 +10,8 @@
  * Usage:
  *   cba agent list                     # list every AGENTS.md in the repo
  *   cba agent <name-or-path>           # show the contract for a concern
- *   cba agent operational              # shorthand for operational/AGENTS.md
+ *   cba agent dna-core                 # shorthand for @dna/core's AGENTS.md (dispatcher)
+ *   cba agent operational              # shorthand for @dna/core/docs/operational.md
  *   cba agent api-cell                 # shorthand for technical/cells/api-cell/AGENTS.md
  *   cba agent dna                      # shorthand for dna/AGENTS.md (DNA generator meta-agent)
  *
@@ -32,6 +33,7 @@ import { AGENT_HELP } from './help'
  */
 const DNA_CORE_ROOT = path.dirname(require.resolve('@dna/core/package.json'))
 const DNA_DOCS_ROOT = path.join(DNA_CORE_ROOT, 'docs')
+const DNA_CORE_AGENTS = path.join(DNA_CORE_ROOT, 'AGENTS.md')
 const DNA_LAYERS = ['operational', 'product', 'technical'] as const
 type DnaLayer = (typeof DNA_LAYERS)[number]
 
@@ -178,6 +180,11 @@ function resolveAgentFile(
     if (fs.existsSync(f)) return { concern: nameOrPath, file: f }
   }
 
+  // @dna/core package-level contract (dispatcher across the three layers)
+  if (nameOrPath === 'dna-core' || nameOrPath === '@dna/core') {
+    if (fs.existsSync(DNA_CORE_AGENTS)) return { concern: 'dna-core', file: DNA_CORE_AGENTS }
+  }
+
   // Short name resolution
   const candidates = [
     path.join(root, nameOrPath, 'AGENTS.md'),
@@ -197,6 +204,8 @@ function resolveAgentFile(
  * Used for listing and error messages.
  */
 function concernFor(file: string, root: string): string {
+  // @dna/core package-level contract
+  if (file === DNA_CORE_AGENTS) return 'dna-core'
   // DNA layer docs shipped inside @dna/core
   if (file.startsWith(DNA_DOCS_ROOT + path.sep)) {
     const base = path.basename(file, '.md')
@@ -215,6 +224,10 @@ function concernFor(file: string, root: string): string {
  */
 function findAllAgentsFiles(root: string): AgentContract[] {
   const candidates: string[] = []
+
+  // @dna/core package-level contract — listed before the per-layer docs so
+  // a reader scanning top-down gets the dispatcher first.
+  if (fs.existsSync(DNA_CORE_AGENTS)) candidates.push(DNA_CORE_AGENTS)
 
   // Layer-level — shipped inside @dna/core
   for (const layer of DNA_LAYERS) {

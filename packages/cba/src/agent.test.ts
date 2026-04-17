@@ -23,6 +23,7 @@ describe('cba agent', () => {
   it('lists every AGENTS.md contract', () => {
     const r = cba(['agent', 'list'])
     expect(r.code).toBe(0)
+    expect(r.stdout).toContain('dna-core')
     expect(r.stdout).toContain('operational')
     expect(r.stdout).toContain('product')
     expect(r.stdout).toContain('technical')
@@ -33,6 +34,13 @@ describe('cba agent', () => {
     expect(r.stdout).toContain('dna')
     // No per-domain AGENTS.md — dna/AGENTS.md is the meta-agent
     expect(r.stdout).not.toContain('domain:')
+  })
+
+  it('resolves the @dna/core package-level contract', () => {
+    const r = cba(['agent', 'dna-core'])
+    expect(r.code).toBe(0)
+    expect(r.stdout).toContain('AGENTS.md: dna-core')
+    expect(r.stdout).toContain('@dna/core — Agent Contract')
   })
 
   it('resolves layer shorthand', () => {

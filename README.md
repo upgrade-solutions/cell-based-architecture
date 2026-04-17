@@ -7,6 +7,20 @@ Cell-based architecture is a philosophy for building applications by injecting *
 
 The relationship: DNA describes *what* the business is and does; cells decide *how* to implement it.
 
+## Package docs
+
+This repo ships two brands that can coexist or be used independently:
+
+| Package | What it is | Where |
+|---------|-----------|-------|
+| `@dna/core` | JSON schemas, TS bindings, and layer docs for the DNA description language | [`packages/dna/`](./packages/dna/) |
+| `@dna/validator` | Per-layer + cross-layer validator for DNA documents | [`packages/dna-validator/`](./packages/dna-validator/) |
+| `@cell/cba` | Unified CLI for the full cell-based-architecture lifecycle | [`packages/cba/`](./packages/cba/) |
+| `@cell/cba-viz` | Interactive architecture viewer (Vite + React + JointJS) | [`packages/cba-viz/`](./packages/cba-viz/) |
+| `@cell/{api,ui,db,event-bus}-cell` | Cells that consume DNA and produce code or infra | [`technical/cells/`](./technical/cells/) |
+
+Start in [`packages/dna/README.md`](./packages/dna/README.md) if you only want to author and validate DNA; come back here for the cell-based-architecture reference runtime on top of it.
+
 # The Three Layers of DNA
 
 ## 1. Operational DNA
