@@ -1086,7 +1086,7 @@ cell-based-architecture/
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
     dna/                            # @dna/core — JSON schemas for all three layers + TS bindings + layer docs
-    dna-validator/                  # Validates DNA documents against @dna/core schemas (per-layer + cross-layer)
+    dna-validator/                  # @dna/validator — validates DNA documents against @dna/core schemas (per-layer + cross-layer)
     cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)
     cba-viz/                        # Interactive architecture viewer (Vite + React + JointJS)
 ```
