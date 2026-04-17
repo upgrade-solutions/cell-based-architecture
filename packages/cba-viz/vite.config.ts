@@ -695,20 +695,21 @@ function resolveDnaFile(domain: string, layer: string): string | null {
 }
 
 /**
- * Schema families map to top-level schema directories at the repo root.
- * Phase 1 only needs `operational`; product/technical are wired up so the
- * Phase 2 editor can reuse the same endpoint without another config pass.
+ * Schema families map to layer roots inside the `@dna/core` package. The dev
+ * server streams schemas back to the RJSF-driven inspector forms, so there's
+ * one source of truth across CLI, validator, and viewer.
  */
+const DNA_CORE_ROOT = path.dirname(require.resolve('@dna/core/package.json'))
 const SCHEMA_DIRS: Record<string, string> = {
-  'operational': 'operational/schemas',
-  'product': 'product/schemas',
-  'technical': 'technical/schemas',
+  'operational': path.join(DNA_CORE_ROOT, 'schemas/operational'),
+  'product': path.join(DNA_CORE_ROOT, 'schemas/product'),
+  'technical': path.join(DNA_CORE_ROOT, 'schemas/technical'),
 }
 
 function resolveSchemaFile(family: string, name: string): string | null {
   const dir = SCHEMA_DIRS[family]
   if (!dir) return null
-  return path.resolve(__dirname, '../..', dir, `${name}.json`)
+  return path.join(dir, `${name}.json`)
 }
 
 /**

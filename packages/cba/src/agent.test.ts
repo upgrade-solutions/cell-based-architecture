@@ -67,7 +67,7 @@ describe('cba agent', () => {
     expect(r.code).toBe(0)
     const parsed = JSON.parse(r.stdout)
     expect(parsed.concern).toBe('operational')
-    expect(parsed.file).toBe('operational/AGENTS.md')
+    expect(parsed.file).toBe('packages/dna/docs/operational.md')
     expect(typeof parsed.content).toBe('string')
     expect(parsed.content.length).toBeGreaterThan(100)
   })

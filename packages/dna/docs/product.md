@@ -32,7 +32,7 @@ Produces `product.core.json` from `operational.json` + the references in `produc
 ### Outputs
 
 - **`product.core.json`** at the target domain directory
-- Must validate against `product/schemas/product.core.json`
+- Must validate against `@dna/core/schemas/product/product.core.json`
 
 ### When it runs
 
@@ -68,7 +68,7 @@ Produces `product.api.json` from `product.core.json`.
 ### Outputs
 
 - **`product.api.json`** at the target domain directory
-- Must validate against `product/schemas/product.api.json`
+- Must validate against `@dna/core/schemas/product/product.api.json`
 - Cross-layer validation: every `endpoint.operation` resolves to a Capability in `product.core.json`
 
 ### Must not touch
@@ -97,12 +97,12 @@ Produces `product.ui.json` from `product.core.json`.
 
 - `product.core.json`
 - Domain-specific prompt describing UI surfaces, layouts, and route structure
-- Layout catalog from `product/schemas/web/layout.json`
+- Layout catalog from `@dna/core/schemas/product/web/layout.json`
 
 ### Outputs
 
 - **`product.ui.json`** at the target domain directory (may contain one or more surfaces)
-- Must validate against `product/schemas/product.ui.json`
+- Must validate against `@dna/core/schemas/product/product.ui.json`
 
 ### Hand-off
 

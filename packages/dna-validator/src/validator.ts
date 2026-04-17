@@ -1,48 +1,5 @@
 import Ajv, { ValidateFunction, ErrorObject } from 'ajv'
-import * as attributeSchema from '../../../operational/schemas/attribute.json'
-import * as verbSchema from '../../../operational/schemas/verb.json'
-import * as nounSchema from '../../../operational/schemas/noun.json'
-import * as capabilitySchema from '../../../operational/schemas/capability.json'
-import * as domainSchema from '../../../operational/schemas/domain.json'
-import * as causeSchema from '../../../operational/schemas/cause.json'
-import * as ruleSchema from '../../../operational/schemas/rule.json'
-import * as outcomeSchema from '../../../operational/schemas/outcome.json'
-import * as equationSchema from '../../../operational/schemas/equation.json'
-import * as positionSchema from '../../../operational/schemas/position.json'
-import * as personSchema from '../../../operational/schemas/person.json'
-import * as taskSchema from '../../../operational/schemas/task.json'
-import * as processSchema from '../../../operational/schemas/process.json'
-import * as signalSchema from '../../../operational/schemas/signal.json'
-import * as relationshipSchema from '../../../operational/schemas/relationship.json'
-import * as roleSchema from '../../../product/schemas/core/role.json'
-import * as fieldSchema from '../../../product/schemas/core/field.json'
-import * as actionSchema from '../../../product/schemas/core/action.json'
-import * as resourceSchema from '../../../product/schemas/core/resource.json'
-import * as operationSchema from '../../../product/schemas/core/operation.json'
-import * as paramSchema from '../../../product/schemas/api/param.json'
-import * as schemaSchema from '../../../product/schemas/api/schema.json'
-import * as endpointSchema from '../../../product/schemas/api/endpoint.json'
-import * as namespaceSchema from '../../../product/schemas/api/namespace.json'
-import * as layoutSchema from '../../../product/schemas/web/layout.json'
-import * as routeSchema from '../../../product/schemas/web/route.json'
-import * as pageSchema from '../../../product/schemas/web/page.json'
-import * as blockSchema from '../../../product/schemas/web/block.json'
-import * as constructSchema from '../../../technical/schemas/construct.json'
-import * as providerSchema from '../../../technical/schemas/provider.json'
-import * as variableSchema from '../../../technical/schemas/variable.json'
-import * as outputSchema from '../../../technical/schemas/output.json'
-import * as environmentSchema from '../../../technical/schemas/environment.json'
-import * as cellSchema from '../../../technical/schemas/cell.json'
-import * as scriptSchema from '../../../technical/schemas/script.json'
-import * as operationalDnaSchema from '../../../operational/schemas/operational.json'
-import * as productCoreDnaSchema from '../../../product/schemas/product.core.json'
-import * as productApiDnaSchema from '../../../product/schemas/product.api.json'
-import * as productUiDnaSchema from '../../../product/schemas/product.ui.json'
-import * as technicalDnaSchema from '../../../technical/schemas/technical.json'
-import * as nodeSchema from '../../../technical/schemas/node.json'
-import * as connectionSchema from '../../../technical/schemas/connection.json'
-import * as zoneSchema from '../../../technical/schemas/zone.json'
-import * as viewSchema from '../../../technical/schemas/view.json'
+import { allSchemas } from '@dna/core'
 
 export interface ValidationResult {
   valid: boolean
@@ -117,63 +74,18 @@ export class DnaValidator {
   }
 
   private registerSchemas(): void {
-    const schemas = [
-      attributeSchema,
-      verbSchema,
-      nounSchema,
-      capabilitySchema,
-      domainSchema,
-      causeSchema,
-      ruleSchema,
-      outcomeSchema,
-      equationSchema,
-      positionSchema,
-      personSchema,
-      taskSchema,
-      processSchema,
-      roleSchema,
-      fieldSchema,
-      actionSchema,
-      resourceSchema,
-      operationSchema,
-      paramSchema,
-      schemaSchema,
-      endpointSchema,
-      namespaceSchema,
-      layoutSchema,
-      routeSchema,
-      pageSchema,
-      blockSchema,
-      constructSchema,
-      providerSchema,
-      variableSchema,
-      outputSchema,
-      environmentSchema,
-      cellSchema,
-      scriptSchema,
-      signalSchema,
-      relationshipSchema,
-      nodeSchema,
-      connectionSchema,
-      zoneSchema,
-      viewSchema,
-      operationalDnaSchema,
-      productCoreDnaSchema,
-      productApiDnaSchema,
-      productUiDnaSchema,
-      technicalDnaSchema,
-    ]
+    const schemas = allSchemas()
 
     for (const schema of schemas) {
       this.ajv.addSchema(schema)
     }
 
     for (const schema of schemas) {
-      const s = schema as { $id: string }
-      this.validators.set(s.$id, this.ajv.getSchema(s.$id)!)
+      const id = schema.$id as string
+      this.validators.set(id, this.ajv.getSchema(id)!)
       // Also register by short ID (e.g. "operational/noun") for convenience
-      const shortId = s.$id.replace('https://dna.local/', '')
-      this.validators.set(shortId, this.ajv.getSchema(s.$id)!)
+      const shortId = id.replace('https://dna.local/', '')
+      this.validators.set(shortId, this.ajv.getSchema(id)!)
     }
   }
 

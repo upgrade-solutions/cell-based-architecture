@@ -1,5 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import { resolveSchemaFile as resolveDnaSchemaFile } from '@dna/core'
 import { DnaValidator } from '@cell/dna-validator'
 import { Layer, LAYERS, resolveDomain, loadLayer, saveLayer } from './context'
 import {
@@ -182,23 +183,21 @@ function cmdSchema(layer: Layer, type: string | undefined, opts: { json: boolean
 }
 
 function findSchemaFile(type: string, layer: Layer): string | undefined {
-  const { findRepoRoot } = require('./context')
-  const root = findRepoRoot()
   const lowerType = type.toLowerCase()
 
-  const candidates: string[] = []
+  const candidates: (string | null)[] = []
   if (layer === 'operational') {
-    candidates.push(path.join(root, 'operational/schemas', `${lowerType}.json`))
+    candidates.push(resolveDnaSchemaFile('operational', lowerType))
   } else if (layer === 'product.api' || layer === 'product.ui') {
     candidates.push(
-      path.join(root, 'product/schemas/core', `${lowerType}.json`),
-      path.join(root, 'product/schemas/api', `${lowerType}.json`),
-      path.join(root, 'product/schemas/web', `${lowerType}.json`),
+      resolveDnaSchemaFile('product', `core/${lowerType}`),
+      resolveDnaSchemaFile('product', `api/${lowerType}`),
+      resolveDnaSchemaFile('product', `web/${lowerType}`),
     )
   } else if (layer === 'technical') {
-    candidates.push(path.join(root, 'technical/schemas', `${lowerType}.json`))
+    candidates.push(resolveDnaSchemaFile('technical', lowerType))
   }
-  return candidates.find((c) => fs.existsSync(c))
+  return candidates.find((c): c is string => !!c)
 }
 
 function cmdAdd(layer: Layer, domain: string, args: ParsedArgs, opts: { json: boolean }): void {

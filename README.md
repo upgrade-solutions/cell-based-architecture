@@ -47,7 +47,7 @@ Cause → Rule → [Capability executes] → Outcome (→ Signal)
 | `Task` | The atomic reusable unit of human activity: a Position performing exactly one Capability (e.g. `ClosingSpecialist does Loan.Close`) |
 | `Process` | A Standard Operating Procedure: a named, owned, ordered DAG of Steps that accomplishes a business goal. Each Step references a Task. Purely descriptive — runtime orchestration deferred to workflow-cell |
 
-Schemas live in `../operational/schemas/` or https://github.com/upgrade-solutions/cell-based-architecture/tree/main/operational/schemas
+Schemas ship with the [`@dna/core`](./packages/dna/) package — `packages/dna/schemas/operational/*.json` — or the canonical source at https://github.com/upgrade-solutions/cell-based-architecture/tree/main/packages/dna/schemas/operational
 
 ### SOPs in Operational DNA
 
@@ -213,7 +213,7 @@ Phase + sub are selectable in the two-row toolbar at runtime. `env` and `adapter
 - **Discovery workspace (Guide tab)** — 3-phase pipeline from source material to generated outputs. **Discover**: paste meeting notes, transcripts, or requirements docs and tag text fragments as DNA primitives (nouns, capabilities, positions, etc.). **Define**: browse and refine the structured Operational DNA in a categorized accordion with a live preview grid. **Design**: auto-generates formatted SOP documents (numbered steps with resolved Task references, branch conditions, applicable Rules), process flow DAG diagrams, and a Product DNA summary (suggested Roles, REST endpoints, UI pages) — all derived from the working DNA. The workspace is a local scratchpad; it does not overwrite loaded DNA.
 - **Cross-layer view** — a single-capability lens spanning Operational → Product API → Product UI. Pick a capability from the floating chip in the top-left; the canvas renders three horizontal bands with the capability + its rules/outcomes on top, matching endpoints in the middle, matching pages/blocks on the bottom, and dashed cross-layer edges linking them. Clicking any node opens its home-layer RJSF form in the sidebar.
 - **Multi-layer editing** — Build sub-tabs switch between the **Operational** (Nouns, Capabilities, Rules, Outcomes, Signals), **Product Core / API / UI** (Resources, Endpoints, Pages, Blocks), and **Technical** (deployment graph) DNA layers. Each layer has its own canvas, shape palette, and save pipeline.
-- **Schema-driven inspector** — operational nodes surface a live RJSF form generated from `operational/schemas/*.json`, so editing a Capability or Rule round-trips cleanly through the same JSON Schema the CLI and validator use. Edits stream through `onChange` and mark the graph dirty for Ctrl+S.
+- **Schema-driven inspector** — operational nodes surface a live RJSF form generated from `@dna/core`'s `schemas/operational/*.json`, so editing a Capability or Rule round-trips cleanly through the same JSON Schema the CLI and validator use. Edits stream through `onChange` and mark the graph dirty for Ctrl+S.
 - **View switching** — dropdown to switch between views in the architecture DNA (technical layer)
 - **Editable** — drag nodes to reposition, inspector panel to edit properties
 - **Collapsible inspector** — the right-hand inspector panel can collapse to a thin strip to reclaim canvas space; click the caret to expand/collapse
@@ -1060,12 +1060,7 @@ cell-based-architecture/
                                     #             db-cell (postgres), event-bus-cell (eventbridge).
                                     # Profiles: 'marketing-only' (Phase 1) and 'default' (Phases 2+3)
       prompt.md                     # Source prompt — Sections 1–3 all reflected in DNA
-  operational/
-    schemas/                        # JSON schemas for Operational primitives
-  product/
-    schemas/                        # JSON schemas for Product primitives
   technical/
-    schemas/                        # JSON schemas for Technical primitives
     cells/
       api-cell/                     # Consumes Product API DNA → containerized REST API
         src/
@@ -1090,8 +1085,10 @@ cell-based-architecture/
       event-bus-cell/               # Consumes Signals across domains → schema registry, publishers, routing
       workflow-cell/                # (planned) Consumes Technical DNA → event workflows
   packages/                         # Shared utilities across all layers
+    dna/                            # @dna/core — JSON schemas for all three layers + TS bindings + layer docs
+    dna-validator/                  # Validates DNA documents against @dna/core schemas (per-layer + cross-layer)
     cba/                            # Unified CLI for the full lifecycle (discover, design, develop, deliver)
-    dna-validator/                  # Validates DNA documents against JSON schemas (per-layer + cross-layer)
+    cba-viz/                        # Interactive architecture viewer (Vite + React + JointJS)
 ```
 
 # Key Principles

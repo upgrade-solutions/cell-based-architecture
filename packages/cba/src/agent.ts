@@ -25,6 +25,20 @@ import { emit, emitError, emitOk } from './output'
 import { findRepoRoot } from './context'
 import { AGENT_HELP } from './help'
 
+/**
+ * The three DNA layer docs (operational, product, technical) live inside the
+ * @dna/core package now, not at the repo root. This resolver points lookups
+ * at the installed package so agent-mode resolution still works.
+ */
+const DNA_CORE_ROOT = path.dirname(require.resolve('@dna/core/package.json'))
+const DNA_DOCS_ROOT = path.join(DNA_CORE_ROOT, 'docs')
+const DNA_LAYERS = ['operational', 'product', 'technical'] as const
+type DnaLayer = (typeof DNA_LAYERS)[number]
+
+function dnaLayerDoc(layer: DnaLayer): string {
+  return path.join(DNA_DOCS_ROOT, `${layer}.md`)
+}
+
 interface AgentContract {
   concern: string
   file: string
@@ -158,6 +172,12 @@ function resolveAgentFile(
     }
   }
 
+  // DNA layer docs — shipped inside @dna/core
+  if ((DNA_LAYERS as readonly string[]).includes(nameOrPath)) {
+    const f = dnaLayerDoc(nameOrPath as DnaLayer)
+    if (fs.existsSync(f)) return { concern: nameOrPath, file: f }
+  }
+
   // Short name resolution
   const candidates = [
     path.join(root, nameOrPath, 'AGENTS.md'),
@@ -177,10 +197,12 @@ function resolveAgentFile(
  * Used for listing and error messages.
  */
 function concernFor(file: string, root: string): string {
+  // DNA layer docs shipped inside @dna/core
+  if (file.startsWith(DNA_DOCS_ROOT + path.sep)) {
+    const base = path.basename(file, '.md')
+    if ((DNA_LAYERS as readonly string[]).includes(base)) return base
+  }
   const rel = path.relative(root, file).replace(/\\/g, '/')
-  if (rel === 'operational/AGENTS.md') return 'operational'
-  if (rel === 'product/AGENTS.md') return 'product'
-  if (rel === 'technical/AGENTS.md') return 'technical'
   if (rel === 'dna/AGENTS.md') return 'dna'
   const cellMatch = rel.match(/^technical\/cells\/([^/]+)\/AGENTS\.md$/)
   if (cellMatch) return `cell:${cellMatch[1]}`
@@ -194,9 +216,9 @@ function concernFor(file: string, root: string): string {
 function findAllAgentsFiles(root: string): AgentContract[] {
   const candidates: string[] = []
 
-  // Layer-level
-  for (const layer of ['operational', 'product', 'technical']) {
-    const f = path.join(root, layer, 'AGENTS.md')
+  // Layer-level — shipped inside @dna/core
+  for (const layer of DNA_LAYERS) {
+    const f = dnaLayerDoc(layer)
     if (fs.existsSync(f)) candidates.push(f)
   }
 
