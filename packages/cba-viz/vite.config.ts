@@ -5,7 +5,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
 import https from 'node:https'
+import { createRequire } from 'node:module'
 import { exec, execFile } from 'node:child_process'
+
+// Vite loads this config as ESM, so `require` isn't in scope — use
+// createRequire to resolve @dna/core's on-disk location for schema serving.
+const requireFromHere = createRequire(import.meta.url)
 
 /** Path to the cba CLI binary, resolved from the monorepo root. */
 const CBA_BIN = path.resolve(__dirname, '../cba/bin/cba')
@@ -699,7 +704,7 @@ function resolveDnaFile(domain: string, layer: string): string | null {
  * server streams schemas back to the RJSF-driven inspector forms, so there's
  * one source of truth across CLI, validator, and viewer.
  */
-const DNA_CORE_ROOT = path.dirname(require.resolve('@dna/core/package.json'))
+const DNA_CORE_ROOT = path.dirname(requireFromHere.resolve('@dna/core/package.json'))
 const SCHEMA_DIRS: Record<string, string> = {
   'operational': path.join(DNA_CORE_ROOT, 'schemas/operational'),
   'product': path.join(DNA_CORE_ROOT, 'schemas/product'),
