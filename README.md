@@ -33,40 +33,9 @@ Layers flow one-way downstream — Operational → Product → Technical — wit
 
 ## How DNA flows into cells
 
-```mermaid
-flowchart LR
-    subgraph DNA["DNA — Source of Truth (JSON)"]
-        direction TB
-        OP["Operational DNA"]
-        PROD["Product DNA"]
-        TECH["Technical DNA"]
-        OP -->|"maps to"| PROD
-        PROD -->|"configures"| TECH
-    end
+<img width="888" height="485" alt="image" src="https://github.com/user-attachments/assets/d948aa6d-ca92-425b-8026-af50ace624f8" />
 
-    subgraph CellRuntime["Cell Runtime"]
-        direction TB
-        CELL["Cell\nTypeScript engine"]
-        ADAPTER["Adapter\ne.g. node/nestjs · ruby/rails · react · vue"]
-        SUBADAPTER["Sub-adapter\ne.g. drizzle ORM · auth0 · stripe"]
-        CELL -->|"dispatches to"| ADAPTER
-        ADAPTER -->|"optional plugin"| SUBADAPTER
-    end
 
-    TECH -->|"cell definition +\nconstructs + providers"| CELL
-    PROD -->|"API or UI DNA"| CELL
-    OP -.->|"secondary input\n(e.g. schema generation)"| CELL
-
-    subgraph Artifacts["Output Artifacts"]
-        API["REST API"]
-        UI["UI App"]
-        DB["DB Schema"]
-        INFRA["Infrastructure"]
-    end
-
-    ADAPTER --> Artifacts
-    SUBADAPTER --> Artifacts
-```
 
 Operational DNA has no cell — it is validated JSON injected into Product and Technical cells as input.
 
