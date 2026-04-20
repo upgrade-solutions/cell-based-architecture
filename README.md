@@ -33,11 +33,7 @@ Layers flow one-way downstream — Operational → Product → Technical — wit
 
 ## How DNA flows into cells
 
-<img width="888" height="485" alt="image" src="https://github.com/user-attachments/assets/d948aa6d-ca92-425b-8026-af50ace624f8" />
-
-
-
-Operational DNA has no cell — it is validated JSON injected into Product and Technical cells as input.
+<img width="2816" height="1536" alt="Gemini_Generated_Image_rfxxq4rfxxq4rfxx" src="https://github.com/user-attachments/assets/3d38e3d8-39b6-4850-9a0b-f15a34062e5a" />
 
 ---
 
