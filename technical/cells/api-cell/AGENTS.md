@@ -16,7 +16,7 @@ Agent responsible for generating the API layer for a platform. Owns invocation o
 
 ## Outputs
 
-- A generated application directory under `output/<platform>-api/` (or a name derived from the cell name)
+- A generated application directory under `output/<platform>/<env>/api/` (or a name derived from the cell name)
 - Contains: app source, DNA copied to `src/dna/`, Dockerfile, package manifest, migrations (if Postgres), signal middleware, signal receiver
 
 ## Adapters

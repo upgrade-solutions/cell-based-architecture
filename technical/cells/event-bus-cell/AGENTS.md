@@ -16,7 +16,7 @@ Agent responsible for generating the event bus client, schema registry, and subs
 
 ## Outputs
 
-- A generated directory under `output/<platform>-event-bus/`
+- A generated directory under `output/<platform>/<env>/event-bus/`
 - Contains: schema registry (JSON), typed publisher (TypeScript), subscriber routing config, optional worker skeleton
 
 The event bus cell is a **code generator**, not a runtime service. At deployment time, the delivery adapter (`docker-compose` or `terraform/aws`) provisions the actual transport:

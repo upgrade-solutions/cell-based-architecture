@@ -312,7 +312,7 @@ function saveViewsPlugin() {
  *
  * Matching strategy (uses docker-compose labels, not brittle name substring checks):
  * 1. Filter containers whose `com.docker.compose.project.working_dir` points at
- *    this domain's deploy dir: `<repo>/output/<domain>-deploy`
+ *    this domain's deploy dir: `<repo>/output/<domain>/<env>/deploy`
  * 2. For each match, read `com.docker.compose.service` to get the service name
  * 3. Map service → DNA node id:
  *      a) direct match on a construct id     (e.g. `primary-db` → primary-db)
@@ -338,15 +338,17 @@ function probeDockerStatusAsync(domain: string, env: string): Promise<Record<str
         const technical = loadTechnical(domain)
         if (!technical) { resolve({}); return }
 
-        const cells: Array<{ name: string }> = technical.cells ?? []
-        // Apply env overlay so we only match the constructs that belong to this
-        // environment (e.g. dev → local postgres/RabbitMQ, prod → RDS/EventBridge).
+        // Apply env overlay to both cells and constructs so we only match the
+        // entries that belong to this environment (e.g. dev → local postgres +
+        // RabbitMQ, prod → RDS + EventBridge).
+        const cells = overlayByName<{ name: string }>(technical.cells ?? [], env)
         const constructs = overlayByName<{ name: string }>(technical.constructs ?? [], env)
         const constructIds = new Set<string>(constructs.map((c) => c.name))
         const cellIds = new Set<string>(cells.map((c) => c.name))
 
-        // Compute the expected deploy dir (absolute path) for this domain
-        const expectedDeployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
+        // Compute the expected deploy dir (absolute path) for this domain.
+        // Paths are env-scoped: output/<domain>/<env>/deploy.
+        const expectedDeployDir = path.resolve(__dirname, '../../output', domain, env, 'deploy')
 
         const result: Record<string, string> = {}
 
@@ -456,12 +458,12 @@ function fetchDockerLogs(
         const technical = loadTechnical(domain)
         if (!technical) { finish({ lines: [] }); return }
 
-        const cells: Array<{ name: string }> = technical.cells ?? []
+        const cells: Array<{ name: string }> = overlayByName<{ name: string }>(technical.cells ?? [], env)
         const constructs = overlayByName<{ name: string }>(technical.constructs ?? [], env)
         const constructIds = new Set<string>(constructs.map((c) => c.name))
         const cellIds = new Set<string>(cells.map((c) => c.name))
 
-        const expectedDeployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
+        const expectedDeployDir = path.resolve(__dirname, '../../output', domain, env, 'deploy')
 
         // Build (containerName, cellId) pairs for containers belonging to
         // this domain's compose project, matched by the same rules as
@@ -605,7 +607,7 @@ function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<
     const cells = overlayByName<any>(technical.cells ?? [], env)
     const constructs = overlayByName<any>(technical.constructs ?? [], env)
 
-    const deployDir = path.resolve(__dirname, '../../output', `${domain}-deploy`)
+    const deployDir = path.resolve(__dirname, '../../output', domain, env, 'deploy')
     const tf = readTfState(deployDir)
 
     const result: Record<string, string> = {}

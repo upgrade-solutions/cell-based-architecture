@@ -1,3 +1,4 @@
+import * as fs from 'fs'
 import * as path from 'path'
 import { spawnSync } from 'child_process'
 import { resolveDomain, loadLayer } from './context'
@@ -29,21 +30,93 @@ function workspaceForAdapter(adapterType: string): string | undefined {
 }
 
 /**
- * Output directory convention: output/<domain>-<cell-suffix>/
+ * Output directory convention: output/<domain>/<env>/<cell-suffix>/
  * where cell-suffix = cell.name with "-cell" suffix stripped.
- *   api-cell         → output/<domain>-api
- *   api-cell-nestjs  → output/<domain>-api-nestjs
- *   db-cell          → output/<domain>-db
- *   ui-cell          → output/<domain>-ui
+ *   api-cell         → output/<domain>/<env>/api
+ *   api-cell-nestjs  → output/<domain>/<env>/api-nestjs
+ *   db-cell          → output/<domain>/<env>/db
+ *   ui-cell          → output/<domain>/<env>/ui
+ *
+ * Env-scoping lets dev and prod generate independently — e.g. dev api-cell
+ * can be built against SQLite + RabbitMQ while prod is Postgres + EventBridge.
  */
-function outputDirFor(cellName: string, domain: string, root: string): string {
+function outputDirFor(cellName: string, domain: string, root: string, environment: string): string {
   const suffix = cellName.replace(/-cell/g, '').replace(/^-|-$/g, '')
-  return path.join(root, 'output', `${domain}-${suffix}`)
+  return path.join(root, 'output', domain, environment, suffix)
 }
 
-function planCells(domain: string, cellFilter?: string): { plans: CellPlan[]; paths: ReturnType<typeof resolveDomain> } {
-  const paths = resolveDomain(domain)
+/**
+ * Resolve the environment from --env or fall back to the first one declared
+ * in technical.json. Mirrors `cba views`' fallback so `cba develop` and
+ * `cba views` land on the same default when invoked without --env.
+ */
+function resolveEnvironment(paths: ReturnType<typeof resolveDomain>, envArg: string | undefined): string {
+  if (envArg) return envArg
   const technical = loadLayer(paths, 'technical')
+  const envs = (technical.environments ?? []) as Array<{ name: string }>
+  return envs[0]?.name ?? 'dev'
+}
+
+/**
+ * Apply the same `environment` overlay rule as `buildPlan`: entries with a
+ * matching `environment` field override entries with no `environment` field.
+ * Kept local to develop.ts so this command doesn't depend on deliver/plan.ts,
+ * which would drag the deploy-adapter graph in.
+ */
+function overlayByEnv<T extends { name: string; environment?: string }>(items: T[], environment: string): T[] {
+  const byName = new Map<string, T>()
+  for (const item of items) {
+    if (item.environment && item.environment !== environment) continue
+    const existing = byName.get(item.name)
+    if (!existing || (item.environment && !existing.environment)) {
+      byName.set(item.name, item)
+    }
+  }
+  return Array.from(byName.values())
+}
+
+/**
+ * Materialize an env-resolved technical.json for the cell generators to read.
+ *
+ * Cell generators are spawned as child processes and find their cell by name
+ * via `technical.cells.find(c => c.name === cellName)`. With env-scoped
+ * duplicates in source technical.json, that lookup would find the first entry
+ * (the default) and miss the env-specific override. Rather than teach every
+ * generator about overlays, we resolve once here and hand them a flat copy.
+ *
+ * Written inside the env's output dir so it's discoverable when debugging a
+ * generator run — "what exact config was the api-cell built with?" answers
+ * with one file read.
+ */
+function writeResolvedTechnical(
+  sourcePath: string,
+  domain: string,
+  environment: string,
+  root: string,
+): string {
+  const raw = JSON.parse(fs.readFileSync(sourcePath, 'utf-8'))
+  const resolved = {
+    ...raw,
+    cells: overlayByEnv(raw.cells ?? [], environment),
+    constructs: overlayByEnv(raw.constructs ?? [], environment),
+    variables: overlayByEnv(raw.variables ?? [], environment),
+    scripts: overlayByEnv(raw.scripts ?? [], environment),
+  }
+  const envDir = path.join(root, 'output', domain, environment)
+  fs.mkdirSync(envDir, { recursive: true })
+  const outPath = path.join(envDir, 'technical.resolved.json')
+  fs.writeFileSync(outPath, JSON.stringify(resolved, null, 2) + '\n', 'utf-8')
+  return outPath
+}
+
+function planCells(
+  domain: string,
+  environment: string,
+  cellFilter?: string,
+): { plans: CellPlan[]; paths: ReturnType<typeof resolveDomain>; resolvedTechnical: string } {
+  const paths = resolveDomain(domain)
+  const resolvedTechnical = writeResolvedTechnical(paths.files.technical, domain, environment, paths.root)
+  const technical = JSON.parse(fs.readFileSync(resolvedTechnical, 'utf-8'))
   const cells = technical.cells ?? []
 
   const plans = cells
@@ -59,12 +132,12 @@ function planCells(domain: string, cellFilter?: string): { plans: CellPlan[]; pa
         name: cell.name,
         adapter: cell.adapter.type,
         workspace,
-        outputDir: outputDirFor(cell.name, domain, paths.root),
-        technicalPath: paths.files.technical,
+        outputDir: outputDirFor(cell.name, domain, paths.root, environment),
+        technicalPath: resolvedTechnical,
       }
     })
 
-  return { plans, paths }
+  return { plans, paths, resolvedTechnical }
 }
 
 export function runDevelop(argv: string[], args: ParsedArgs): void {
@@ -78,17 +151,21 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
 
   const [domain] = argv
   if (!domain) {
-    emitError('Usage: cba develop <domain> [--cell <name>] [--dry-run]', opts)
+    emitError('Usage: cba develop <domain> [--env <environment>] [--cell <name>] [--dry-run]', opts)
     process.exit(1)
   }
 
   const cellFilter = flag(args, 'cell')
   const dryRun = boolFlag(args, 'dry-run')
+  const envArg = flag(args, 'env')
 
   let plans: CellPlan[]
   let paths: ReturnType<typeof resolveDomain>
+  let environment: string
   try {
-    ;({ plans, paths } = planCells(domain, cellFilter))
+    const paths0 = resolveDomain(domain)
+    environment = resolveEnvironment(paths0, envArg)
+    ;({ plans, paths } = planCells(domain, environment, cellFilter))
   } catch (err) {
     emitError((err as Error).message, opts)
     process.exit(1)
@@ -105,8 +182,8 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
   }
 
   if (dryRun) {
-    emit({ domain, dryRun: true, plans }, opts, () => {
-      const lines = [`cba develop ${domain} — dry run (${plans.length} cell(s))`]
+    emit({ domain, environment, dryRun: true, plans }, opts, () => {
+      const lines = [`cba develop ${domain} --env ${environment} — dry run (${plans.length} cell(s))`]
       for (const p of plans) {
         lines.push(``, `  ${p.name}  (${p.adapter})`)
         lines.push(`    workspace : ${p.workspace}`)
@@ -127,7 +204,11 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
     process.exit(1)
   }
 
-  // Execute each cell's generator
+  // Execute each cell's generator. CBA_DNA_BASE tells the generator where to
+  // find referenced DNA files — the resolved technical.json we pass lives
+  // under output/, so the generator's own `dna/` ancestor-walk wouldn't find
+  // the source tree.
+  const dnaRoot = findDnaRoot(paths.files.technical)
   const results: Array<{ cell: string; ok: boolean; code: number }> = []
   for (const p of plans) {
     if (!json) console.log(`→ ${p.name} (${p.adapter}) → ${path.relative(process.cwd(), p.outputDir)}`)
@@ -145,7 +226,7 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
       {
         cwd: workspaceDir(p.workspace),
         stdio: json ? 'pipe' : 'inherit',
-        env: process.env,
+        env: { ...process.env, CBA_DNA_BASE: dnaRoot },
       },
     )
     results.push({ cell: p.name, ok: result.status === 0, code: result.status ?? 1 })
@@ -172,4 +253,20 @@ function workspaceDir(workspace: string): string {
     return path.join(root, 'packages', name)
   }
   return path.join(root, 'technical/cells', name)
+}
+
+/**
+ * Walk up from a source technical.json path to find the `dna/` ancestor
+ * directory. Mirrors the logic in each cell generator's `findDnaBase`, but
+ * runs against the source path (not the resolved one under output/), so
+ * it's guaranteed to hit the real source tree.
+ */
+function findDnaRoot(sourceTechnicalPath: string): string {
+  let dir = path.dirname(path.resolve(sourceTechnicalPath))
+  const root = path.parse(dir).root
+  while (dir !== root) {
+    if (path.basename(dir) === 'dna') return dir
+    dir = path.dirname(dir)
+  }
+  throw new Error(`No "dna" ancestor directory found for ${sourceTechnicalPath}`)
 }

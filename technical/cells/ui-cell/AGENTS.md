@@ -17,7 +17,7 @@ Agent responsible for generating the UI layer for a platform. Owns invocation of
 
 ## Outputs
 
-- A generated application directory under `output/<platform>-ui[-<surface>]/`
+- A generated application directory under `output/<platform>/<env>/ui[-<surface>]/`
 - Contains: app source, layout shell, pages per route, blocks, DNA copied to `src/dna/`, Dockerfile, build manifest
 
 ## Adapters

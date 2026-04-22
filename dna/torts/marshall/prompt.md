@@ -30,8 +30,8 @@ The technical DNA declares two profiles:
 
 ```bash
 npx cba validate torts/marshall
-npx cba develop torts/marshall --profile marketing-only
-cd output/torts/marshall-ui
+npx cba develop torts/marshall --env dev --profile marketing-only
+cd output/torts/marshall/dev/ui
 npm install
 npm run dev
 ```
@@ -44,18 +44,18 @@ The `/intake` route runs in **mock-submit mode** — submissions log to the brow
 # 1. Validate
 npx cba validate torts/marshall
 
-# 2. Generate every cell in the default profile
-npx cba develop torts/marshall
+# 2. Generate every cell in the default profile (dev env → RabbitMQ + local Postgres)
+npx cba develop torts/marshall --env dev
 
 # 3. Compose the docker-compose deployment
 npx cba deploy torts/marshall --env dev
 
 # 4. Bring up Postgres + RabbitMQ + api + ui + admin-ui
-cd output/torts/marshall-deploy
+cd output/torts/marshall/dev/deploy
 docker compose up -d
 
 # 5. Apply api-cell schema migrations and seed (drizzle)
-cd ../marshall-api
+cd ../api
 npm install
 npm run db:migrate
 npm run db:seed
@@ -71,7 +71,7 @@ Once everything is healthy:
 | Postgres | `localhost:5432` (`postgres` / `postgres`) |
 | RabbitMQ management | `http://localhost:15672` (`guest` / `guest`) |
 
-To switch the marketing intake from mock-submit to real submissions, edit `dna/torts/marshall/technical.json` — set the `ui-cell.adapter.config.api_base` to `"http://localhost:3001"` and regenerate (`npx cba develop torts/marshall --cell ui-cell`). Submissions then POST to `/marshall/intake` and fire the `marshall.IntakeSubmission.Received` signal through RabbitMQ.
+To switch the marketing intake from mock-submit to real submissions, edit `dna/torts/marshall/technical.json` — set the `ui-cell.adapter.config.api_base` to `"http://localhost:3001"` and regenerate (`npx cba develop torts/marshall --env dev --cell ui-cell`). Submissions then POST to `/marshall/intake` and fire the `marshall.IntakeSubmission.Received` signal through RabbitMQ.
 
 ---
 
@@ -94,7 +94,7 @@ prompt.md
                                      │
                                      ├─► agent: technical-stack-designer (see technical/AGENTS.md)
                                      │
-                                     └─► cba develop torts/marshall
+                                     └─► cba develop torts/marshall --env prod
                                          cba deploy  torts/marshall --env prod --adapter terraform/aws
                                              │
                                              └─► per-cell agents dispatch the actual work:
@@ -314,11 +314,11 @@ Use `email`, `phone`, `text`, `enum` field types where they apply. The generated
 
 ### Phase 1 — Marketing-Only Preview *(current state)*
 1. **Prompt to DNA** — `npx cba validate torts/marshall` reports `✓` on all five layers (operational, product.core, product.api, product.ui, technical, cross-layer).
-2. **DNA to code** — `npx cba develop torts/marshall --cell ui-cell` generates `output/torts/marshall-ui` without errors, including a `SurveyBlock.tsx` and a marketing layout reading brand/hero/footer/theme from `product.ui.json`.
-3. **Local preview** — `cd output/torts/marshall-ui && npm install && npm run dev` boots vite. The `/intake` route shows the SurveyJS form, branding matches the Marshall theme, submission logs to the console and shows the preview-mode success state.
+2. **DNA to code** — `npx cba develop torts/marshall --env dev --cell ui-cell` generates `output/torts/marshall/dev/ui` without errors, including a `SurveyBlock.tsx` and a marketing layout reading brand/hero/footer/theme from `product.ui.json`.
+3. **Local preview** — `cd output/torts/marshall/dev/ui && npm install && npm run dev` boots vite. The `/intake` route shows the SurveyJS form, branding matches the Marshall theme, submission logs to the console and shows the preview-mode success state.
 
 ### Phase 2 — Live Intake
-4. **DNA to Code (full stack)** — `cba develop torts/marshall` generates a Django (or NestJS) API, the React app, an event-bus client, and a Postgres schema without errors.
+4. **DNA to Code (full stack)** — `cba develop torts/marshall --env dev` generates an Express API (amqplib + RabbitMQ), the React app, an event-bus client, and a Postgres schema without errors.
 5. **Code to Cloud** — `cba deploy torts/marshall --env prod --adapter terraform/aws` provisions the full stack on AWS and returns a public URL for the intake form.
 6. **Live intake** — audience members can submit a real intake from their phones; the submission lands in Postgres; a `marshall.IntakeSubmission.Received` signal fires through the event bus.
 
@@ -326,7 +326,7 @@ Use `email`, `phone`, `text`, `enum` field types where they apply. The generated
 7. **Admin app** — staff can browse the intake queue, qualify or reject, and assign attorneys; second `ui-cell-admin` deploys to its own CDN.
 
 ### Phase 4 — The Swap
-8. **The swap** — change one line in `technical.json` (`node/express` → another adapter), rerun `cba develop` + `cba deploy`, demonstrate the same functional system on a different stack.
+8. **The swap** — change one line in `technical.json` (`node/express` → another adapter), rerun `cba develop --env <env>` + `cba deploy --env <env>`, demonstrate the same functional system on a different stack.
 
 ---
 

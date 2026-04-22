@@ -167,18 +167,27 @@ FLAGS (vary by command)
 export const DEVELOP_HELP = `cba develop — run cells: DNA -> generated code
 
 USAGE
-  cba develop <domain> [--cell <name>] [--dry-run]
+  cba develop <domain> [--env <environment>] [--cell <name>] [--dry-run]
 
 Reads the domain's technical DNA to find declared cells, then invokes each
 cell's generator. By default runs ALL cells defined for the domain.
 
+Generation is environment-scoped: each cell is written to
+\`output/<domain>/<env>/<cell-suffix>/\`. Cells, constructs, variables, and
+scripts with an \`environment\` field override the default entry of the same
+name — so dev can generate against SQLite + RabbitMQ while prod generates
+against Postgres + EventBridge from the same technical.json. When --env is
+omitted, the first environment declared in technical.json is used.
+
 EXAMPLES
-  cba develop lending                        # run all cells for lending
-  cba develop lending --cell api-cell        # run only api-cell
+  cba develop lending --env dev              # run all cells for lending/dev
+  cba develop lending --env prod             # run all cells for lending/prod
+  cba develop lending --cell api-cell        # run only api-cell (default env)
   cba develop lending --cell db-cell
   cba develop lending --dry-run              # show what would be generated
 
 FLAGS
+  --env <name>      Target environment (defaults to first in technical DNA)
   --cell <name>     Run only the named cell (as declared in technical DNA)
   --dry-run         Print plan without generating (shows cell, adapter, output path)
   --json            Machine-readable output
@@ -227,7 +236,7 @@ FLAGS
   --json              Machine-readable output
 
 OUTPUT
-  output/<domain>-deploy/    # compose file, README, deployment manifests
+  output/<domain>/<env>/deploy/    # compose file, README, deployment manifests
 `
 
 export const UP_HELP = `cba up — validate, develop, deploy, and launch the stack

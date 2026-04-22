@@ -238,6 +238,29 @@
       ]
     },
     {
+      "name": "event-bus-cell",
+      "environment": "dev",
+      "description": "Dev overlay — generates amqplib publisher/subscriber stubs bound to the dev RabbitMQ broker.",
+      "dna": "torts/marshall/product.core",
+      "adapter": {
+        "type": "node/event-bus",
+        "config": {
+          "engine": "rabbitmq"
+        }
+      },
+      "constructs": [
+        "event-bus"
+      ],
+      "variables": [
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "secret",
+          "description": "AMQP connection URL for the dev RabbitMQ broker.",
+          "required": true
+        }
+      ]
+    },
+    {
       "name": "api-cell",
       "description": "Reads Product API DNA and generates a dynamic Express + drizzle interpreter for all Marshall endpoints (intake, claimants, claims, evidence, firms, attorneys).",
       "dna": "torts/marshall/product.api",
@@ -263,6 +286,50 @@
           "name": "EVENT_BUS_NAME",
           "source": "secret",
           "required": false
+        },
+        {
+          "name": "JWT_SECRET",
+          "source": "secret",
+          "description": "Secret key for signing built-in JWT tokens.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "api_url",
+          "cell": "api-cell",
+          "value": "http://localhost:3001"
+        }
+      ]
+    },
+    {
+      "name": "api-cell",
+      "environment": "dev",
+      "description": "Dev overlay — builds the Express interpreter against amqplib + RabbitMQ instead of EventBridge. Matches the dev event-bus construct and the rabbitmq service in docker-compose.",
+      "dna": "torts/marshall/product.api",
+      "adapter": {
+        "type": "node/express",
+        "config": {
+          "core_dna": "torts/marshall/product.core",
+          "port": 3001,
+          "event_bus_engine": "rabbitmq"
+        }
+      },
+      "constructs": [
+        "primary-db",
+        "event-bus"
+      ],
+      "variables": [
+        {
+          "name": "DATABASE_URL",
+          "source": "secret",
+          "required": true
+        },
+        {
+          "name": "EVENT_BUS_URL",
+          "source": "secret",
+          "description": "AMQP connection URL for the dev RabbitMQ broker.",
+          "required": true
         },
         {
           "name": "JWT_SECRET",

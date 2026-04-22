@@ -89,21 +89,26 @@ cba technical remove lending --type Variable --name OLD_FLAG
 cba technical schema Construct
 ```
 
-### `cba develop <domain>` — run cells (DNA → code)
+### `cba develop <domain> [--env <env>]` — run cells (DNA → code)
 
 Reads the domain's technical DNA to find declared cells, then invokes each
-cell's generator.
+cell's generator. Generation is environment-scoped: cells, constructs,
+variables, and scripts with an `environment` field override the default
+entry of the same name — so dev can generate against SQLite + RabbitMQ
+while prod generates against Postgres + EventBridge from the same
+`technical.json`. When `--env` is omitted, the first environment declared
+in `technical.json` is used.
 
 ```bash
-cba develop lending                        # run all cells
-cba develop lending --cell api-cell        # run just one
-cba develop lending --dry-run              # print plan, don't generate
+cba develop lending --env dev                        # all cells, dev env
+cba develop lending --env prod                       # all cells, prod env
+cba develop lending --env dev --cell api-cell        # run just one
+cba develop lending --env dev --dry-run              # print plan, don't generate
 ```
 
-Output convention: `output/<domain>-<suffix>/` where suffix is the cell
-name with `-cell` stripped (`api-cell` → `<domain>-api`, `api-cell-nestjs`
-→ `<domain>-api-nestjs`, `db-cell` → `<domain>-db`, `ui-cell` →
-`<domain>-ui`).
+Output convention: `output/<domain>/<env>/<suffix>/` where suffix is the
+cell name with `-cell` stripped (`api-cell` → `api`, `api-cell-nestjs` →
+`api-nestjs`, `db-cell` → `db`, `ui-cell` → `ui`).
 
 ### `cba deploy <domain> --env <env> [--adapter <name>] [--cells <list>] [--profile <name>]` — compose cells into a deployable topology
 
@@ -127,8 +132,8 @@ cba deploy lending --env prod --adapter terraform/aws # AWS IaC
 
 | Adapter | Status | Output |
 |---------|--------|--------|
-| `docker-compose` | built | `output/<domain>-deploy/docker-compose.yml` + README |
-| `terraform/aws` | built | `output/<domain>-deploy/*.tf` — VPC, RDS, ECS, ALB, S3+CloudFront |
+| `docker-compose` | built | `output/<domain>/<env>/deploy/docker-compose.yml` + README |
+| `terraform/aws` | built | `output/<domain>/<env>/deploy/*.tf` — VPC, RDS, ECS, ALB, S3+CloudFront |
 | `aws-sam` | planned | AWS serverless |
 
 The `docker-compose` adapter maps storage Constructs (postgres, redis) to
@@ -184,8 +189,8 @@ cba operational schema Noun --json                    # learn the primitive shap
 cba operational add lending --type Noun --at acme.finance.lending \
   --file /tmp/draft-noun.json --json                  # commit a draft
 cba validate lending --json                           # catch cross-layer errors
-cba develop lending --dry-run --json                  # preview generation
-cba develop lending --json                            # commit the generation
+cba develop lending --env dev --dry-run --json        # preview generation
+cba develop lending --env dev --json                  # commit the generation
 ```
 
 The `--json` output always includes an `ok` field and a structured

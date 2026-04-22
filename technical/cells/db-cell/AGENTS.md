@@ -15,7 +15,7 @@ Agent responsible for generating the database layer for a platform. Owns invocat
 
 ## Outputs
 
-- A generated directory under `output/<platform>-db/`
+- A generated directory under `output/<platform>/<env>/db/`
 - Contains: SQL schema, migration files, optional seed data, role/grant statements, and a Dockerfile or init-script artifact
 
 ## Adapters

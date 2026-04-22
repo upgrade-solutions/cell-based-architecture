@@ -212,6 +212,10 @@
         {
           "name": "Assign",
           "description": "Assign an attorney to represent this claimant."
+        },
+        {
+          "name": "Withdraw",
+          "description": "Claimant voluntarily exits the case."
         }
       ],
       "examples": [
@@ -753,7 +757,12 @@
           "description": "Whether this address falls within the verified Marshall Fire damage perimeter."
         }
       ],
-      "verbs": [],
+      "verbs": [
+        {
+          "name": "Assess",
+          "description": "Record or update the official damage assessment for this property."
+        }
+      ],
       "examples": [
         {
           "id": "property-1",
@@ -857,6 +866,18 @@
       "verb": "Assign",
       "name": "Attorney.Assign",
       "description": "Assign an attorney to represent a Claimant."
+    },
+    {
+      "noun": "Claimant",
+      "verb": "Withdraw",
+      "name": "Claimant.Withdraw",
+      "description": "A claimant voluntarily exits the case. All open claims are dismissed and the claimant record is marked withdrawn."
+    },
+    {
+      "noun": "Property",
+      "verb": "Assess",
+      "name": "Property.Assess",
+      "description": "Record or update the official damage assessment for a property, sourced from county records, insurance reports, or on-site inspection."
     }
   ],
   "causes": [
@@ -926,6 +947,16 @@
       "source": "signal",
       "signal": "marshall.Claimant.Registered",
       "description": "Triggered by the Claimant.Registered signal to prompt attorney assignment workflow."
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "source": "user",
+      "description": "Claimant or case manager initiates voluntary withdrawal from the case."
+    },
+    {
+      "capability": "Property.Assess",
+      "source": "user",
+      "description": "Paralegal records damage assessment from county records, insurance report, or site visit."
     }
   ],
   "rules": [
@@ -1213,6 +1244,48 @@
         }
       ],
       "description": "Only active attorneys may be assigned to claimants."
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "type": "access",
+      "allow": [
+        {
+          "role": "attorney"
+        },
+        {
+          "role": "admin"
+        }
+      ],
+      "description": "Only the assigned attorney or an admin may process a withdrawal."
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "claimant.status",
+          "operator": "in",
+          "value": [
+            "registered",
+            "assigned",
+            "active"
+          ]
+        }
+      ],
+      "description": "Only claimants who have not already settled or withdrawn may withdraw."
+    },
+    {
+      "capability": "Property.Assess",
+      "type": "access",
+      "allow": [
+        {
+          "role": "paralegal"
+        },
+        {
+          "role": "admin"
+        }
+      ],
+      "description": "Paralegals and admins may record property damage assessments."
     }
   ],
   "outcomes": [
@@ -1398,15 +1471,31 @@
           "set": "now"
         }
       ]
+    },
+    {
+      "capability": "Claimant.Withdraw",
+      "description": "Marks the claimant as withdrawn. Open claims should be dismissed as a downstream effect.",
+      "changes": [
+        {
+          "attribute": "claimant.status",
+          "set": "withdrawn"
+        }
+      ]
+    },
+    {
+      "capability": "Property.Assess",
+      "description": "Records the damage assessment level for the property.",
+      "changes": [
+        {
+          "attribute": "property.damage_assessment",
+          "set": "input.damage_assessment"
+        },
+        {
+          "attribute": "property.assessed_at",
+          "set": "now"
+        }
+      ]
     }
-  ],
-  "roles": [
-    { "name": "intake_staff", "description": "May review and qualify intake submissions." },
-    { "name": "paralegal", "description": "May file claims, upload evidence, and update case status." },
-    { "name": "attorney", "description": "May review claims, represent claimants, and make legal decisions." },
-    { "name": "admin", "description": "Full system access — manage firms, attorneys, and platform settings." },
-    { "name": "editor", "description": "May edit records (claimant profiles, claim details)." },
-    { "name": "public", "description": "Unauthenticated public user submitting intake forms." }
   ],
   "equations": [
     {

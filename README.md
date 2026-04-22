@@ -69,10 +69,10 @@ The `api-cell` supports multiple adapters that produce the same API surface from
 
 | Adapter | Approach | Port | Output |
 |---------|----------|------|--------|
-| `node/nestjs` | Static code generation — typed controllers, services, DTOs | 3000 | `output/lending-api-nestjs/` |
-| `node/express` | Dynamic runtime interpreter — reads DNA at startup, hot-reloads on DNA file changes | 3001 | `output/lending-api/` |
-| `ruby/rails` | Static code generation — Rails API-mode app with controllers, models, migrations | 3000 | `output/lending-api-rails/` |
-| `python/fastapi` | Static code generation — FastAPI app with Pydantic schemas, SQLAlchemy models, APIRouters | 8000 | `output/lending-api-fastapi/` |
+| `node/nestjs` | Static code generation — typed controllers, services, DTOs | 3000 | `output/lending/<env>/api-nestjs/` |
+| `node/express` | Dynamic runtime interpreter — reads DNA at startup, hot-reloads on DNA file changes | 3001 | `output/lending/<env>/api/` |
+| `ruby/rails` | Static code generation — Rails API-mode app with controllers, models, migrations | 3000 | `output/lending/<env>/api-rails/` |
+| `python/fastapi` | Static code generation — FastAPI app with Pydantic schemas, SQLAlchemy models, APIRouters | 8000 | `output/lending/<env>/api-fastapi/` |
 
 The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON (`/api-json`).
 
@@ -148,13 +148,13 @@ Both modes share the same middleware pipeline:
 ### Generate and run
 
 ```bash
-# Generate outputs from DNA
-npm run generate:lending          # Express → output/lending-api/
-npm run generate:lending-nestjs   # NestJS  → output/lending-api-nestjs/
+# Generate outputs from DNA (env-scoped — dev by default, override with --env)
+npx cba develop lending --env dev --cell api-cell        # Express → output/lending/dev/api/
+npx cba develop lending --env dev --cell api-cell-nestjs # NestJS  → output/lending/dev/api-nestjs/
 
 # Install deps (first time or after regeneration)
-npm install --prefix output/lending-api
-npm install --prefix output/lending-api-nestjs
+npm install --prefix output/lending/dev/api
+npm install --prefix output/lending/dev/api-nestjs
 
 # Run side-by-side (in separate terminals)
 npm run start:nestjs    # http://localhost:3000/api
@@ -164,9 +164,9 @@ npm run start:express   # http://localhost:3001/api
 ### Rails adapter
 
 ```bash
-cba develop lending --cell api-cell-rails
+cba develop lending --env dev --cell api-cell-rails
 
-cd output/lending-api-rails
+cd output/lending/dev/api-rails
 bundle install
 bin/rails db:create db:migrate db:seed
 bin/rails server
@@ -183,9 +183,9 @@ Generated structure:
 ### FastAPI adapter
 
 ```bash
-cba develop lending --cell api-cell-fastapi
+cba develop lending --env dev --cell api-cell-fastapi
 
-cd output/lending-api-fastapi
+cd output/lending/dev/api-fastapi
 pip install -r requirements.txt
 uvicorn app.main:app --reload    # http://localhost:8000/docs
 ```
@@ -204,12 +204,12 @@ The `db-cell` provisions the database + app role. The `api-cell` owns migrations
 
 ```bash
 # 1. Generate and start the database
-npx cba develop lending --cell db-cell
-cd output/lending-db
+npx cba develop lending --env dev --cell db-cell
+cd output/lending/dev/db
 docker compose up -d         # Postgres on port 5433, creates lending DB + lending_app role
 
 # 2. Generate drizzle migrations, apply, and seed
-cd ../lending-api
+cd ../api
 npm install
 npm run db:generate
 DATABASE_URL=postgresql://lending_app:lending_app@localhost:5433/lending npm run db:migrate
@@ -227,9 +227,9 @@ Or — use `cba deploy` to run the whole stack as one compose file (see Deployme
 
 | Adapter | Approach | Port | Output |
 |---------|----------|------|--------|
-| `vite/react` | DNA-driven React SPA — React Router, React Context, hooks | 5173 | `output/lending-ui/` |
-| `vite/vue` | DNA-driven Vue 3 app — Vue Router, provide/inject, Composition API | 5174 | `output/lending-vue-ui/` |
-| `next/react` | DNA-driven Next.js App Router app — client-side DNA loading with SSR-ready structure | 5175 | `output/lending-ui-next/` |
+| `vite/react` | DNA-driven React SPA — React Router, React Context, hooks | 5173 | `output/lending/<env>/ui/` |
+| `vite/vue` | DNA-driven Vue 3 app — Vue Router, provide/inject, Composition API | 5174 | `output/lending/<env>/vue-ui/` |
+| `next/react` | DNA-driven Next.js App Router app — client-side DNA loading with SSR-ready structure | 5175 | `output/lending/<env>/ui-next/` |
 
 All adapters fetch all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from Product API DNA.
 
@@ -292,12 +292,12 @@ The **universal layout** is the recommended default — built on **Radix UI** + 
 ### Generate and run
 
 ```bash
-npx cba develop lending --cell ui-cell         # React
-npx cba develop lending --cell vue-ui-cell     # Vue
-npx cba develop lending --cell ui-cell-next    # Next.js
+npx cba develop lending --env dev --cell ui-cell         # React
+npx cba develop lending --env dev --cell vue-ui-cell     # Vue
+npx cba develop lending --env dev --cell ui-cell-next    # Next.js
 
-npm install --prefix output/lending-ui
-cd output/lending-ui && npx vite               # http://localhost:5173
+npm install --prefix output/lending/dev/ui
+cd output/lending/dev/ui && npx vite                     # http://localhost:5173
 ```
 
 ### Next.js adapter
@@ -314,7 +314,7 @@ Key differences from the Vite adapter:
 
 | Adapter | Approach | Output |
 |---------|----------|--------|
-| `postgres` | Generates Docker Compose + init SQL (DB, roles, permissions) | `output/lending-db/` |
+| `postgres` | Generates Docker Compose + init SQL (DB, roles, permissions) | `output/lending/<env>/db/` |
 
 The `db-cell` is **infrastructure-only** — it provisions the Postgres instance, the application role, and permissions. Schema migrations, seeds, and queries are owned by `api-cell` via drizzle, connecting as the app role created by db-cell.
 
@@ -438,7 +438,7 @@ npx cba domains                                     # list domains under dna/
 | `cba operational <cmd> <domain>` | Work with Operational DNA: `discover`, `list`, `show`, `add`, `remove`, `schema`, `validate` |
 | `cba product <api\|ui> <cmd> <domain>` | Work with Product DNA (API or UI surface): `list`, `show`, `add`, `remove`, `schema`, `validate` |
 | `cba technical <cmd> <domain>` | Work with Technical DNA: `list`, `show`, `add`, `remove`, `schema`, `validate` |
-| `cba develop <domain> [--cell X]` | Reads technical DNA, invokes each declared cell's generator |
+| `cba develop <domain> [--env X] [--cell Y]` | Reads technical DNA, invokes each declared cell's generator into `output/<domain>/<env>/<cell-suffix>/` |
 | `cba deploy <domain> --env <env> [--adapter X]` | Composes generated cells into a deployable topology (default: `docker-compose`) |
 | `cba up <domain> --env <env> [--adapter X]` | Full pipeline: `validate` → `develop` → `deploy` → launch the stack |
 | `cba down <domain> --env <env> [--adapter X]` | Tear down a deployed stack |
@@ -466,14 +466,14 @@ npx cba operational discover lending
 npx cba operational discover lending --from notes.md
 
 # Generate + run
-npx cba develop lending --dry-run                   # preview all cells
-npx cba develop lending --cell api-cell             # run one cell
-npx cba run lending --adapter express               # start generated API
+npx cba develop lending --env dev --dry-run                   # preview all cells for dev
+npx cba develop lending --env dev --cell api-cell             # run one cell
+npx cba run lending --env dev --adapter express               # start generated API
 
 # Deploy
 npx cba deploy lending --env dev --plan             # preview
 npx cba deploy lending --env dev                    # write compose file
-cd output/lending-deploy && docker compose up -d
+cd output/lending/dev/deploy && docker compose up -d
 
 # Up / Down
 npx cba up torts/marshall --env dev --seed --build
@@ -494,8 +494,8 @@ Every command supports `--json` for machine-parseable output. An agent's typical
 2. `cba operational schema Noun --json` — learn the primitive shape
 3. `cba operational add lending --type Noun --at … --file draft.json --json` — draft
 4. `cba validate lending --json` — catch cross-layer errors, loop back to conversation
-5. `cba develop lending --dry-run --json` — show stakeholder the diff
-6. `cba develop lending` — ship it
+5. `cba develop lending --env dev --dry-run --json` — show stakeholder the diff
+6. `cba develop lending --env dev` — ship it
 
 See [`packages/cba/README.md`](./packages/cba/README.md) for full command reference and flags.
 
@@ -507,8 +507,8 @@ See [`packages/cba/README.md`](./packages/cba/README.md) for full command refere
 
 | Adapter | Status | Output |
 |---------|--------|--------|
-| `docker-compose` | **Built** | `output/<domain>-deploy/docker-compose.yml` |
-| `terraform/aws` | **Built** | `output/<domain>-deploy/*.tf` — AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront) |
+| `docker-compose` | **Built** | `output/<domain>/<env>/deploy/docker-compose.yml` |
+| `terraform/aws` | **Built** | `output/<domain>/<env>/deploy/*.tf` — AWS IaC (VPC, RDS, ECS Fargate, ALB, S3+CloudFront) |
 | `aws-sam` | Planned | AWS serverless deployment for function-category Constructs |
 
 ## `cba up` / `cba down` / `cba status`
@@ -519,7 +519,7 @@ See [`packages/cba/README.md`](./packages/cba/README.md) for full command refere
 cba up <domain> --env <env>
   │
   ├─ 1. cba validate <domain>
-  ├─ 2. cba develop <domain>
+  ├─ 2. cba develop <domain> --env <env>
   ├─ 3. cba deploy <domain> --env <env>
   └─ 4. adapter.launch
 ```
@@ -541,10 +541,10 @@ Composes the full stack into one compose file, wiring environment variables from
 - External providers and network Constructs → skipped
 
 ```bash
-npx cba develop lending
+npx cba develop lending --env dev
 npx cba deploy lending --env dev --plan
 npx cba deploy lending --env dev
-cd output/lending-deploy && docker compose up -d
+cd output/lending/dev/deploy && docker compose up -d
 ```
 
 ## `terraform/aws` adapter

@@ -1454,7 +1454,7 @@ function buildReadme(
     `## Deploy`,
     ``,
     '```bash',
-    `cd output/${plan.domain}-deploy`,
+    `cd output/${plan.domain}/${plan.environment}/deploy`,
     ``,
     `# 1. Configure variables`,
     `cp terraform.tfvars.example terraform.tfvars`,

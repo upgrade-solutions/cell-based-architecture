@@ -474,7 +474,7 @@ function renderReadme(
     `## Run`,
     ``,
     '```bash',
-    `cd output/${plan.domain}-deploy`,
+    `cd output/${plan.domain}/${plan.environment}/deploy`,
     `docker compose up -d`,
     '```',
     ``,

@@ -65,8 +65,13 @@ export interface EnvironmentPlan {
  * Build a delivery plan for a given domain + environment.
  *
  * Environment overlay rule: entries with matching `environment` field override
- * entries with no `environment` field (the default). This applies to Constructs
- * and Variables. Cells have no environment field — they always apply.
+ * entries with no `environment` field (the default). This applies to Cells,
+ * Constructs, Variables, and Scripts.
+ *
+ * Output layout is env-scoped: every generated cell and the deploy dir live
+ * under `output/<domain>/<env>/`, so dev and prod artifacts coexist without
+ * clobbering each other (dev can compile against SQLite + RabbitMQ while
+ * prod uses Postgres + EventBridge, etc.).
  */
 export function buildPlan(domain: string, environment: string): EnvironmentPlan {
   const paths = resolveDomain(domain)
@@ -87,7 +92,9 @@ export function buildPlan(domain: string, environment: string): EnvironmentPlan 
     paths,
     constructs: overlayByName(technical.constructs ?? [], environment),
     variables: overlayByName(technical.variables ?? [], environment),
-    cells: (technical.cells ?? []).map((c: any) => resolveCell(c, domain, paths.root, environment)),
+    cells: overlayByName(technical.cells ?? [], environment).map((c: any) =>
+      resolveCell(c, domain, paths.root, environment),
+    ),
     providers: (technical.providers ?? []).map((p: any) => ({
       name: p.name,
       type: p.type,
@@ -96,7 +103,7 @@ export function buildPlan(domain: string, environment: string): EnvironmentPlan 
       config: p.config,
     })),
     scripts: overlayByName(technical.scripts ?? [], environment),
-    deployDir: path.join(paths.root, 'output', `${domain}-deploy`),
+    deployDir: path.join(paths.root, 'output', domain, environment, 'deploy'),
   }
 }
 
@@ -123,7 +130,7 @@ function overlayByName<T extends { name: string; environment?: string }>(
 
 function resolveCell(cell: any, domain: string, root: string, environment: string): ResolvedCell {
   const suffix = cell.name.replace(/-cell/g, '').replace(/^-|-$/g, '')
-  const outputDir = path.join(root, 'output', `${domain}-${suffix}`)
+  const outputDir = path.join(root, 'output', domain, environment, suffix)
   return {
     name: cell.name,
     description: cell.description,

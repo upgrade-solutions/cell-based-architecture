@@ -39,8 +39,18 @@ function loadDna(dnaBase: string, ref: string): unknown {
   return JSON.parse(fs.readFileSync(resolved, 'utf-8'))
 }
 
-/** Walk up from a technical.json path to find its `dna/` ancestor directory. */
+/**
+ * Locate the `dna/` directory that holds referenced DNA files.
+ *
+ * Priority:
+ *   1. `CBA_DNA_BASE` env var — set by `cba develop` when it spawns the
+ *      generator against a resolved technical.json that lives under output/.
+ *   2. Walk up from `technicalPath` looking for a `dna/` ancestor — the
+ *      legacy path used when the cell generator is invoked directly.
+ */
 function findDnaBase(technicalPath: string): string {
+  const fromEnv = process.env.CBA_DNA_BASE
+  if (fromEnv) return path.resolve(fromEnv)
   let dir = path.dirname(path.resolve(technicalPath))
   const root = path.parse(dir).root
   while (dir !== root) {
