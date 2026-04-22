@@ -26,26 +26,71 @@ const amqp = require('amqplib')
 const EVENT_BUS_URL = process.env.EVENT_BUS_URL || ''
 const EXCHANGE = 'signals'
 
+// Startup-race tolerance: docker-compose healthchecks (rabbitmq-diagnostics
+// ping) return healthy before AMQP port 5672 is actually accepting
+// connections, so a one-shot connect at boot will get ECONNREFUSED. Retry
+// with exponential backoff, capped at 10s per attempt. Total budget across
+// MAX_RETRIES attempts is ~50s, which covers cold-starting the broker.
+const MAX_RETRIES = 10
+const INITIAL_RETRY_DELAY_MS = 500
+const MAX_RETRY_DELAY_MS = 10000
+
+// After a successful connection drops at runtime (broker restart, network
+// blip), wait this long before reconnecting. Keeps the reconnect loop from
+// thrashing if the broker is genuinely down.
+const RECONNECT_DELAY_MS = 2000
+
 let connection: any = null
 let channel: any = null
+let shuttingDown = false
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export async function connectEventBus(): Promise<void> {
   if (!EVENT_BUS_URL) {
     console.log('[event-bus] EVENT_BUS_URL not set — signal emission disabled')
     return
   }
-  try {
-    console.log(\`[event-bus] Connecting to \${EVENT_BUS_URL}...\`)
-    connection = await amqp.connect(EVENT_BUS_URL)
-    channel = await connection.createChannel()
-    await channel.assertExchange(EXCHANGE, 'topic', { durable: true })
-    console.log('[event-bus] Connected.')
-  } catch (err: any) {
-    console.error(\`[event-bus] Connection failed: \${err.message} — signals will be skipped\`)
+  let delay = INITIAL_RETRY_DELAY_MS
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(\`[event-bus] Connecting to \${EVENT_BUS_URL} (attempt \${attempt}/\${MAX_RETRIES})...\`)
+      connection = await amqp.connect(EVENT_BUS_URL)
+      channel = await connection.createChannel()
+      await channel.assertExchange(EXCHANGE, 'topic', { durable: true })
+      // Runtime auto-reconnect: if the connection closes unexpectedly (broker
+      // restart, network blip), schedule a fresh connectEventBus() so signals
+      // resume publishing once the broker is back. disconnectEventBus()
+      // flips shuttingDown first so cleanup doesn't race the reconnect.
+      connection.on('error', (err: any) => {
+        console.error(\`[event-bus] Connection error: \${err.message}\`)
+      })
+      connection.on('close', () => {
+        connection = null
+        channel = null
+        if (shuttingDown) return
+        console.warn(\`[event-bus] Connection closed — reconnecting in \${RECONNECT_DELAY_MS}ms\`)
+        setTimeout(() => { connectEventBus().catch(() => {}) }, RECONNECT_DELAY_MS)
+      })
+      console.log('[event-bus] Connected.')
+      return
+    } catch (err: any) {
+      const isLast = attempt === MAX_RETRIES
+      if (isLast) {
+        console.error(\`[event-bus] Connect attempt \${attempt} failed: \${err.message} — giving up, signals will be skipped\`)
+        return
+      }
+      console.warn(\`[event-bus] Connect attempt \${attempt} failed: \${err.message} — retrying in \${delay}ms\`)
+      await sleep(delay)
+      delay = Math.min(delay * 2, MAX_RETRY_DELAY_MS)
+    }
   }
 }
 
 export async function disconnectEventBus(): Promise<void> {
+  shuttingDown = true
   if (channel) { await channel.close().catch(() => {}); channel = null }
   if (connection) { await connection.close().catch(() => {}); connection = null }
   console.log('[event-bus] Disconnected.')
