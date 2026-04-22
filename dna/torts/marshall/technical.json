@@ -121,58 +121,38 @@
       "nodes": [
         {
           "id": "ui-cell",
-          "position": {
-            "x": 40,
-            "y": 70
-          },
-          "size": {
-            "width": 160,
-            "height": 70
-          }
+          "name": "ui-cell",
+          "type": "cell",
+          "position": { "x": 40, "y": 70 },
+          "size": { "width": 160, "height": 70 }
         },
         {
           "id": "admin-ui-cell",
-          "position": {
-            "x": 240,
-            "y": 70
-          },
-          "size": {
-            "width": 160,
-            "height": 70
-          }
+          "name": "admin-ui-cell",
+          "type": "cell",
+          "position": { "x": 240, "y": 70 },
+          "size": { "width": 160, "height": 70 }
         },
         {
           "id": "api-cell",
-          "position": {
-            "x": 40,
-            "y": 230
-          },
-          "size": {
-            "width": 160,
-            "height": 70
-          }
+          "name": "api-cell",
+          "type": "cell",
+          "position": { "x": 40, "y": 230 },
+          "size": { "width": 160, "height": 70 }
         },
         {
           "id": "primary-db",
-          "position": {
-            "x": 40,
-            "y": 440
-          },
-          "size": {
-            "width": 160,
-            "height": 60
-          }
+          "name": "primary-db",
+          "type": "construct",
+          "position": { "x": 40, "y": 440 },
+          "size": { "width": 160, "height": 60 }
         },
         {
           "id": "event-bus",
-          "position": {
-            "x": 240,
-            "y": 440
-          },
-          "size": {
-            "width": 160,
-            "height": 60
-          }
+          "name": "event-bus",
+          "type": "construct",
+          "position": { "x": 240, "y": 440 },
+          "size": { "width": 160, "height": 60 }
         }
       ],
       "zones": []
