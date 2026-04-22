@@ -350,7 +350,14 @@ function probeDockerStatusAsync(domain: string, env: string): Promise<Record<str
         // Paths are env-scoped: output/<domain>/<env>/deploy.
         const expectedDeployDir = path.resolve(__dirname, '../../output', domain, env, 'deploy')
 
+        // Pre-populate every cell + construct as 'planned' so nodes whose
+        // containers stopped (or never started) explicitly downgrade from
+        // 'deployed' on the next poll. Without this we'd only send the
+        // running set, and absent keys leave the client with a stale
+        // 'deployed' that never falls back.
         const result: Record<string, string> = {}
+        for (const c of cells) result[c.name] = 'planned'
+        for (const c of constructs) result[c.name] = 'planned'
 
         for (const c of containers) {
           const workingDir = c.labels['com.docker.compose.project.working_dir']

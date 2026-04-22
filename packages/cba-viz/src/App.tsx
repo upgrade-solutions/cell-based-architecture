@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
+import { useMemo, useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { observer } from 'mobx-react-lite'
 import { GraphModel } from './models/GraphModel.ts'
 import { parseArchitectureDNA, type ArchitectureDNA, type NodeStatus } from './loaders/dna-loader.ts'
@@ -196,7 +196,6 @@ const App = observer(function App() {
   // Technical layer state
   const [dna, setDna] = useState<ArchitectureDNA | null>(null)
   const [currentViewName, setCurrentViewName] = useState('deployment')
-  const liveStatus = useRef<Record<string, string>>({})
 
   // Operational layer state
   const [operationalDna, setOperationalDna] = useState<OperationalDNA | null>(null)
@@ -378,40 +377,40 @@ const App = observer(function App() {
   // flips. Deps include phase + sub so leaving Deployment cleanly
   // tears down the interval.
   useEffect(() => {
-    if (!(phase === 'run' && sub === 'deployment')) {
-      // Reset cache when leaving so the next visit re-applies fresh
-      liveStatus.current = {}
-      return
-    }
+    if (!(phase === 'run' && sub === 'deployment')) return
     let active = true
     const poll = () => {
       fetch(`/api/status/${encodeURIComponent(domain)}?adapter=${encodeURIComponent(adapter)}&env=${encodeURIComponent(env)}`)
         .then(r => r.json())
         .then((statuses: Record<string, string>) => {
           if (!active) return
+          // Dedup inside the setDna updater by comparing against the
+          // current dna's node statuses. This must be a pure function
+          // (no external side effects) because React StrictMode
+          // double-invokes state updaters in development — any mutation
+          // here would be applied twice, and a ref-based cache would
+          // cause the second pass to see "no change" and return stale
+          // state, overwriting the real update from the first pass.
+          // Returning `current` on no-change lets React's own referential
+          // equality skip the re-render without us maintaining a cache.
           setDna(current => {
             if (!current) return current
-            const prev = liveStatus.current
-            const changed =
-              Object.keys(statuses).some(k => statuses[k] !== prev[k]) ||
-              Object.keys(prev).some(k => !(k in statuses))
-            if (!changed) return current
-            liveStatus.current = statuses
-            return {
-              ...current,
-              views: current.views.map(view => ({
-                ...view,
-                nodes: view.nodes.map(node => {
-                  const live = statuses[node.id] as NodeStatus | undefined
-                  return live ? { ...node, status: live } : node
-                }),
-              })),
-            }
+            let anyChanged = false
+            const nextViews = current.views.map(view => ({
+              ...view,
+              nodes: view.nodes.map(node => {
+                const live = statuses[node.id] as NodeStatus | undefined
+                if (!live || live === node.status) return node
+                anyChanged = true
+                return { ...node, status: live }
+              }),
+            }))
+            if (!anyChanged) return current
+            return { ...current, views: nextViews }
           })
         })
         .catch(() => { /* adapter not available — keep static statuses */ })
     }
-    liveStatus.current = {}
     poll()
     const interval = setInterval(poll, STATUS_POLL_MS)
     return () => { active = false; clearInterval(interval) }
