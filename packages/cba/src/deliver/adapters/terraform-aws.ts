@@ -135,6 +135,7 @@ function buildMainTf(region: string, plan: EnvironmentPlan): string {
         assignment('region', region),
       ]),
     ),
+    buildBackendStanza(plan),
   ]
 
   if (needsRandom) {
@@ -148,6 +149,50 @@ function buildMainTf(region: string, plan: EnvironmentPlan): string {
   }
 
   return parts.join('\n')
+}
+
+/**
+ * Remote state stanza for team/production use. Emitted commented-out so a
+ * fresh `terraform init` works with zero prior setup (local state is fine
+ * for solo development). The bucket + DynamoDB lock table have to exist
+ * before `terraform init` can migrate — the comment spells that out so
+ * anyone reading main.tf has the bootstrap recipe in front of them.
+ */
+function buildBackendStanza(plan: EnvironmentPlan): string {
+  const stateKey = `${plan.domain}/${plan.environment}/terraform.tfstate`
+  return `
+# ──────────────── Remote state (optional) ────────────────
+#
+# Local state is fine for solo dev but breaks for teams or CI. To use an
+# S3 + DynamoDB backend:
+#
+#   1. aws s3api create-bucket \\
+#        --bucket <your-tfstate-bucket> \\
+#        --region <region> \\
+#        --create-bucket-configuration LocationConstraint=<region>
+#   2. aws s3api put-bucket-versioning --bucket <your-tfstate-bucket> \\
+#        --versioning-configuration Status=Enabled
+#   3. aws s3api put-bucket-encryption --bucket <your-tfstate-bucket> \\
+#        --server-side-encryption-configuration \\
+#        '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+#   4. aws dynamodb create-table \\
+#        --table-name <your-tflock-table> \\
+#        --attribute-definitions AttributeName=LockID,AttributeType=S \\
+#        --key-schema AttributeName=LockID,KeyType=HASH \\
+#        --billing-mode PAY_PER_REQUEST
+#   5. Uncomment the block below, fill in bucket + dynamodb_table, and run
+#      \`terraform init -migrate-state\`.
+#
+# terraform {
+#   backend "s3" {
+#     bucket         = "<your-tfstate-bucket>"
+#     key            = "${stateKey}"
+#     region         = "us-east-1"
+#     dynamodb_table = "<your-tflock-table>"
+#     encrypt        = true
+#   }
+# }
+`
 }
 
 // ──────────────── variables.tf ────────────────
@@ -210,6 +255,25 @@ function collectSecrets(plan: EnvironmentPlan): string[] {
     }
   }
   return Array.from(seen).sort()
+}
+
+/**
+ * Variables whose values should be routed through AWS Secrets Manager and
+ * injected into ECS via the task definition's `secrets:` block rather than
+ * inlined into `environment:`. This keeps the plaintext out of
+ * `ecs:DescribeTaskDefinition` output — anyone with that permission can
+ * otherwise read the value straight off the task def JSON.
+ *
+ * Named allow-list + suffix rules: ops that carry credentials, signing keys,
+ * tokens, or user-credential JSON qualify. Non-sensitive DNA secrets like
+ * EVENT_BUS_NAME / EVENT_BUS_QUEUE_URL (resource identifiers, not secrets)
+ * stay in `environment:` — putting them in Secrets Manager costs $0.40/mo
+ * each for no security benefit.
+ */
+const SENSITIVE_SECRET_NAMES = new Set(['DATABASE_URL', 'JWT_SECRET', 'DEMO_USERS_JSON'])
+function isSensitiveSecret(name: string): boolean {
+  if (SENSITIVE_SECRET_NAMES.has(name)) return true
+  return /_(SECRET|PASSWORD|TOKEN|APIKEY|API_KEY)$/i.test(name)
 }
 
 function collectEnvVars(plan: EnvironmentPlan): string[] {
@@ -748,8 +812,13 @@ function buildComputeTf(
     const memory = construct?.config?.memory ?? 512
     const port = cell.adapterConfig?.port ?? construct?.config?.port ?? 3000
 
-    // Environment variables for the container
-    const envVars = buildContainerEnv(cell, plan)
+    // Environment variables + ECS secret refs for the container
+    const { env: envVars, secrets: secretRefs } = buildContainerEnv(cell, plan)
+    const secretsBlock = secretRefs.length
+      ? `\n\n      secrets = [\n${secretRefs
+          .map((s) => `        { name = "${s.name}", valueFrom = ${s.valueFrom} }`)
+          .join(',\n')}\n      ]`
+      : ''
 
     blocks.push(hcl(
       block('resource', ['"aws_ecs_task_definition"', `"${cellId}"`], [
@@ -779,7 +848,7 @@ function buildComputeTf(
 
       environment = [
 ${envVars.map((e) => `        { name = "${e.name}", value = ${e.value} }`).join(',\n')}
-      ]
+      ]${secretsBlock}
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -824,19 +893,42 @@ ${envVars.map((e) => `        { name = "${e.name}", value = ${e.value} }`).join(
   return { content: blocks.join('\n'), resourceNames, skipped }
 }
 
+/**
+ * Split a cell's variables into the two arrays ECS task definitions accept:
+ *
+ *   - `env`     → goes in the container's `environment: [...]` block as plain
+ *                  name/value pairs. Visible in `ecs:DescribeTaskDefinition`.
+ *   - `secrets` → goes in `secrets: [...]` and is pulled from Secrets Manager
+ *                  at task start by the execution role. Never appears in the
+ *                  task def JSON.
+ *
+ * Sensitive secrets (passwords, keys, user-credential JSON) route to secrets;
+ * everything else — including non-sensitive `source: secret` vars like
+ * EVENT_BUS_NAME — stays in env.
+ */
 function buildContainerEnv(
   cell: ResolvedCell,
   plan: EnvironmentPlan,
-): Array<{ name: string; value: string }> {
+): {
+  env: Array<{ name: string; value: string }>
+  secrets: Array<{ name: string; valueFrom: string }>
+} {
   const derived = derivableSecrets(plan)
   const env: Array<{ name: string; value: string }> = []
+  const secrets: Array<{ name: string; valueFrom: string }> = []
   for (const v of cell.variables) {
     if (v.source === 'literal') {
       env.push({ name: v.name, value: `"${v.value ?? ''}"` })
     } else if (v.source === 'secret') {
-      // Derivable secrets reference locals; external secrets reference vars
-      const ref = derived.has(v.name) ? `local.${tfVarName(v.name)}` : `var.${tfVarName(v.name)}`
-      env.push({ name: v.name, value: ref })
+      if (isSensitiveSecret(v.name)) {
+        // Pulled from Secrets Manager via the secret provisioned in secrets.tf
+        const rid = tfId(v.name.toLowerCase())
+        secrets.push({ name: v.name, valueFrom: `aws_secretsmanager_secret.${rid}.arn` })
+      } else {
+        // Derivable secrets reference locals; external secrets reference vars
+        const ref = derived.has(v.name) ? `local.${tfVarName(v.name)}` : `var.${tfVarName(v.name)}`
+        env.push({ name: v.name, value: ref })
+      }
     } else if (v.source === 'output') {
       // Output refs resolved at deploy time — use placeholder
       const ref = v.value ?? ''
@@ -845,7 +937,7 @@ function buildContainerEnv(
       env.push({ name: v.name, value: `var.${tfVarName(v.name)}` })
     }
   }
-  return env
+  return { env, secrets }
 }
 
 // ──────────────── network.tf ────────────────
@@ -1131,20 +1223,40 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
 }
 
 // ──────────────── secrets.tf ────────────────
+//
+// Provisions an aws_secretsmanager_secret + _version for every sensitive
+// variable (see isSensitiveSecret). The value source depends on derivability:
+//
+//   - Derivable (e.g. DATABASE_URL built from RDS outputs) → secret_string
+//     references `local.<name>` which is computed in locals.tf from other
+//     resources.
+//   - External (e.g. DEMO_USERS_JSON) → secret_string references `var.<name>`,
+//     passed in via terraform.tfvars.
+//
+// Non-sensitive "secrets" from the DNA (resource identifiers like
+// EVENT_BUS_NAME) are skipped here and stay in the ECS `environment:` block —
+// they're not actual secrets and shouldn't burn a $0.40/mo Secrets Manager
+// entry per environment.
 
 function buildSecretsTf(plan: EnvironmentPlan, prefix: string): string {
   const derived = derivableSecrets(plan)
-  const secrets = collectSecrets(plan).filter((s) => !derived.has(s))
-  if (secrets.length === 0) return comment('No external secrets to provision (derivable secrets are in locals.tf)')
+  const allSecrets = collectSecrets(plan)
+  const sensitive = allSecrets.filter(isSensitiveSecret)
+  if (sensitive.length === 0) {
+    return comment('No sensitive secrets to provision via Secrets Manager')
+  }
 
   const blocks: string[] = [
-    comment('Secrets Manager entries for secret-sourced Variables'),
-    comment('The actual secret values are passed via terraform.tfvars (not checked in).'),
+    comment('Secrets Manager entries for sensitive Variables'),
+    comment('Derivable values come from locals.tf; external values from terraform.tfvars.'),
     '',
   ]
 
-  for (const name of secrets) {
+  for (const name of sensitive) {
     const rid = tfId(name.toLowerCase())
+    const source = derived.has(name)
+      ? `local.${tfVarName(name)}`
+      : `var.${tfVarName(name)}`
     blocks.push(hcl(
       block('resource', ['"aws_secretsmanager_secret"', `"${rid}"`], [
         assignment('name', `${prefix}/${name}`),
@@ -1153,7 +1265,7 @@ function buildSecretsTf(plan: EnvironmentPlan, prefix: string): string {
       '',
       block('resource', ['"aws_secretsmanager_secret_version"', `"${rid}"`], [
         assignment('secret_id', raw(`aws_secretsmanager_secret.${rid}.id`)),
-        assignment('secret_string', raw(`var.${tfVarName(name)}`)),
+        assignment('secret_string', raw(source)),
       ]),
     ))
   }
@@ -1187,6 +1299,22 @@ function buildIamTf(prefix: string, plan: EnvironmentPlan): string {
     block('resource', ['"aws_iam_role_policy_attachment"', `"${id}_ecs_execution"`], [
       assignment('role', raw(`aws_iam_role.${id}_ecs_execution.name`)),
       assignment('policy_arn', 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'),
+    ]),
+    '',
+    comment('Allow ECS execution role to pull Secrets Manager values for the task def `secrets:` block'),
+    block('resource', ['"aws_iam_role_policy"', `"${id}_ecs_execution_secrets"`], [
+      assignment('name', `${prefix}-ecs-execution-secrets`),
+      assignment('role', raw(`aws_iam_role.${id}_ecs_execution.id`)),
+      assignment('policy', raw(`jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:*:*:secret:${prefix}/*"
+      }
+    ]
+  })`)),
     ]),
     '',
     comment('ECS task role — permissions for running containers'),

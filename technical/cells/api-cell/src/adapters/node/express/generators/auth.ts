@@ -206,9 +206,6 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
     const authHeader = req.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
       if (allowsAnonymous) return next()
-      // Dev escape hatch (kept for OIDC variant only — built-in JWT runs locally
-      // with seeded credentials so it doesn't need this).
-      if (process.env.NODE_ENV !== 'production') return next()
       return res.status(401).json({ message: 'Unauthorized' })
     }
 

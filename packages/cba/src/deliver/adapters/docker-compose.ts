@@ -323,6 +323,17 @@ function devSecretDefault(name: string, plan: EnvironmentPlan): string {
     if (queue) return `amqp://${queue.name}:${queue.config?.port ?? 5672}`
   }
   if (name === 'JWT_SECRET') return 'dev-jwt-secret-change-me'
+  // Default demo users for built-in JWT auth in local dev. Production
+  // terraform-aws provisioning must set this via Secrets Manager — the
+  // generated auth-routes.ts disables /auth/login when DEMO_USERS_JSON is
+  // missing, so ship the demo triad here so dev just works.
+  if (name === 'DEMO_USERS_JSON') {
+    return JSON.stringify([
+      { email: 'admin@demo.local', password: 'demo123', roles: ['admin'] },
+      { email: 'staff@demo.local', password: 'demo123', roles: ['intake_staff'] },
+      { email: 'attorney@demo.local', password: 'demo123', roles: ['attorney'] },
+    ])
+  }
   // Unresolved secrets → passthrough from deployer's env
   return `\${${name}:-}`
 }

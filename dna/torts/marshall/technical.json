@@ -272,6 +272,12 @@
           "source": "secret",
           "description": "Secret key for signing built-in JWT tokens.",
           "required": true
+        },
+        {
+          "name": "DEMO_USERS_JSON",
+          "source": "secret",
+          "description": "JSON array of built-in auth users: [{email, password, roles}]. /auth/login is disabled when unset.",
+          "required": true
         }
       ],
       "outputs": [
@@ -315,6 +321,12 @@
           "name": "JWT_SECRET",
           "source": "secret",
           "description": "Secret key for signing built-in JWT tokens.",
+          "required": true
+        },
+        {
+          "name": "DEMO_USERS_JSON",
+          "source": "secret",
+          "description": "JSON array of built-in auth users: [{email, password, roles}]. /auth/login is disabled when unset.",
           "required": true
         }
       ],
