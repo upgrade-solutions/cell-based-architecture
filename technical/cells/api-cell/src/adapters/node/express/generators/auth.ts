@@ -52,6 +52,16 @@ function entryMatches(entry: any, userRoles: string[]): boolean {
 }
 
 // ── Middleware factory ────────────────────────────────────────────────────────
+//
+// allowsAnonymous: true iff the access rule includes at least one allow entry
+// that grants the "public" pseudo-role with no ownership constraint and no
+// feature-flag gate. Public-with-ownership (e.g. {role: "public", ownership:
+// true}) means "an authenticated user can access their own resource" — that
+// still requires a token, so it does NOT make the endpoint anonymous.
+//
+// When an endpoint is anonymous-allowed, we still try to verify a Bearer token
+// if one is present (so handlers can use req.user when the caller happens to
+// be authenticated), but we do NOT reject for missing/invalid tokens.
 
 export function createAuthMiddleware(endpoint: any, api: any, operational: any) {
   const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
@@ -62,10 +72,15 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
   const allowEntries: any[] = rule?.allow ?? []
   const requiresOwnership = allowEntries.some((a: any) => a.ownership)
   const hasAllow = allowEntries.length > 0
+  const allowsAnonymous = allowEntries.some(
+    (a: any) =>
+      a.role === 'public' && !a.ownership && !(Array.isArray(a.flags) && a.flags.length > 0),
+  )
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
+      if (allowsAnonymous) return next()
       return res.status(401).json({ message: 'Unauthorized' })
     }
 
@@ -75,7 +90,7 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
       ;(req as any).user = payload
 
       // Role + flag check — at least one allow entry must match.
-      if (hasAllow) {
+      if (hasAllow && !allowsAnonymous) {
         const userRoles: string[] = (payload.roles as string[]) ?? []
         if (!allowEntries.some((entry: any) => entryMatches(entry, userRoles))) {
           return res.status(403).json({ message: 'Forbidden' })
@@ -88,6 +103,7 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
 
       next()
     } catch {
+      if (allowsAnonymous) return next()
       return res.status(401).json({ message: 'Unauthorized' })
     }
   }
@@ -167,6 +183,10 @@ function entryMatches(entry: any, userRoles: string[]): boolean {
 }
 
 // ── Middleware factory ────────────────────────────────────────────────────────
+//
+// allowsAnonymous: true iff the access rule includes at least one allow entry
+// granting the "public" pseudo-role with no ownership constraint and no
+// feature-flag gate. See built-in JWT variant for the full rationale.
 
 export function createAuthMiddleware(endpoint: any, api: any, operational: any) {
   const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
@@ -177,11 +197,17 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
   const allowEntries: any[] = rule?.allow ?? []
   const requiresOwnership = allowEntries.some((a: any) => a.ownership)
   const hasAllow = allowEntries.length > 0
+  const allowsAnonymous = allowEntries.some(
+    (a: any) =>
+      a.role === 'public' && !a.ownership && !(Array.isArray(a.flags) && a.flags.length > 0),
+  )
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
-      // Skip auth in development when no token is provided
+      if (allowsAnonymous) return next()
+      // Dev escape hatch (kept for OIDC variant only — built-in JWT runs locally
+      // with seeded credentials so it doesn't need this).
       if (process.env.NODE_ENV !== 'production') return next()
       return res.status(401).json({ message: 'Unauthorized' })
     }
@@ -192,7 +218,7 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
       ;(req as any).user = payload
 
       // Role + flag check — at least one allow entry must match.
-      if (hasAllow) {
+      if (hasAllow && !allowsAnonymous) {
         const roleClaim = authConfig?.roleClaim ?? 'roles'
         const userRoles: string[] = (payload[roleClaim] as string[]) ?? []
         if (!allowEntries.some((entry: any) => entryMatches(entry, userRoles))) {
@@ -207,6 +233,7 @@ export function createAuthMiddleware(endpoint: any, api: any, operational: any) 
 
       next()
     } catch {
+      if (allowsAnonymous) return next()
       return res.status(401).json({ message: 'Unauthorized' })
     }
   }

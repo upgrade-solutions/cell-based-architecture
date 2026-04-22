@@ -282,11 +282,6 @@
           "description": "Deactivate a lender."
         }
       ]
-    },
-    {
-      "name": "Deal",
-      "fields": [],
-      "actions": []
     }
   ],
   "operations": [

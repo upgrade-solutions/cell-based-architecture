@@ -54,9 +54,13 @@ function checkOwnership(req: Request, entity: Record<string, any>): boolean {
   return ownerFields.some(f => entity[f] && entity[f] === user.sub)
 }
 
+// Resource key matches the schema export name from drizzle.ts:
+// PascalCase resource name → camelCase + 's' (IntakeSubmission → intakeSubmissions).
+const toResourceKey = (n: string) => n.charAt(0).toLowerCase() + n.slice(1) + 's'
+
 export function createHandler(endpoint: any, api: any, operational: any) {
   const [resource] = endpoint.operation.split('.')
-  const resourceKey = resource.toLowerCase() + 's'
+  const resourceKey = toResourceKey(resource)
   const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
   const capability = operation?.capability ?? endpoint.operation
   const kind = classifyEndpoint(endpoint)

@@ -26,9 +26,13 @@ async function seed() {
     }
   }
 
+  // Resource key matches the schema export name produced by drizzle.ts:
+  // PascalCase noun name → camelCase + 's' (e.g. IntakeSubmission → intakeSubmissions).
+  const toResourceKey = (n: string) => n.charAt(0).toLowerCase() + n.slice(1) + 's'
+
   for (const noun of core?.nouns ?? []) {
     if (!noun.examples?.length) continue
-    const key = noun.name.toLowerCase() + 's'
+    const key = toResourceKey(noun.name)
     const table = tables[key]
     if (!table) {
       console.log(\`[seed] skipping \${noun.name} — no table "\${key}"\`)

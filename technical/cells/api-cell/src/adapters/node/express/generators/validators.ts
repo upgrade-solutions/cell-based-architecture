@@ -183,12 +183,16 @@ function evaluateCondition(
   return null
 }
 
+// Resource key matches the schema export name from drizzle.ts:
+// PascalCase resource name → camelCase + 's' (IntakeSubmission → intakeSubmissions).
+const toResourceKey = (n: string) => n.charAt(0).toLowerCase() + n.slice(1) + 's'
+
 export function createRuleValidator(endpoint: any, api: any, operational: any) {
   const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
   const capability = operation?.capability ?? endpoint.operation
   const rule = (operational.rules ?? []).find((r: any) => r.capability === capability && r.type !== 'access')
   const [resourceName] = endpoint.operation.split('.')
-  const resourceKey = resourceName.toLowerCase() + 's'
+  const resourceKey = toResourceKey(resourceName)
   const hasIdParam = (endpoint.params ?? []).some((p: any) => p.in === 'path' && p.name === 'id')
 
   if (!rule) {

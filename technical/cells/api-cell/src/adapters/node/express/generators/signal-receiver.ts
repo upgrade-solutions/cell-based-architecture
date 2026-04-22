@@ -86,13 +86,15 @@ export function buildSignalReceiver(api: any, operational: any): Router {
           }
         }
 
-        // Resolve the target resource and execute Capability effects
+        // Resolve the target resource and execute Capability effects.
+        // Resource key matches the schema export name (camelCase + 's');
+        // id field uses snake_case to match column naming (e.g. claimant_id).
         const [nounName] = cause.capability.split('.')
-        const resourceKey = nounName.toLowerCase() + 's'
+        const resourceKey = nounName.charAt(0).toLowerCase() + nounName.slice(1) + 's'
         const store = getDataStore()
 
         // If payload contains an entity ID, apply effects to that entity
-        const idField = nounName.toLowerCase() + '_id'
+        const idField = nounName.replace(/([A-Z])/g, (c, _p, i) => (i === 0 ? '' : '_') + c.toLowerCase()) + '_id'
         const entityId = payload[idField] ?? payload.id
         if (entityId) {
           const entity = await store.findById(resourceKey, entityId)
