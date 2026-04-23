@@ -28,13 +28,19 @@ const CBA_BIN = path.resolve(__dirname, '../cba/bin/cba')
 // TTL is set under the client's 5s poll interval so each poll naturally
 // triggers a fresh probe but bursty requests (e.g. tab refocus) coalesce.
 const STATUS_CACHE_TTL_MS = 3500
-const statusCache = new Map<string, { at: number; data: Record<string, string> }>()
-const statusInflight = new Map<string, Promise<Record<string, string>>>()
+// Each node reports both its lifecycle status and an optional URL. URLs come
+// from live infra (terraform outputs, docker published ports) rather than
+// static DNA, so they belong next to status in the probe payload — the client
+// merges them into `node.metadata.url` so the canvas can render clickable
+// link ribbons on deployed cells/constructs.
+type NodeStatusPayload = { status: string; url?: string }
+const statusCache = new Map<string, { at: number; data: Record<string, NodeStatusPayload> }>()
+const statusInflight = new Map<string, Promise<Record<string, NodeStatusPayload>>>()
 
 function getCachedStatus(
   key: string,
-  fetcher: () => Promise<Record<string, string>>,
-): Promise<Record<string, string>> {
+  fetcher: () => Promise<Record<string, NodeStatusPayload>>,
+): Promise<Record<string, NodeStatusPayload>> {
   const now = Date.now()
   const cached = statusCache.get(key)
   if (cached && now - cached.at < STATUS_CACHE_TTL_MS) return Promise.resolve(cached.data)
@@ -244,7 +250,7 @@ function saveViewsPlugin() {
           const adapter = urlObj.searchParams.get('adapter') ?? 'docker-compose'
           const env = urlObj.searchParams.get('env') ?? (adapter === 'terraform/aws' ? 'prod' : 'dev')
 
-          const respond = (statuses: Record<string, string>) => {
+          const respond = (statuses: Record<string, NodeStatusPayload>) => {
             res.statusCode = 200
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify(statuses))
@@ -318,19 +324,22 @@ function saveViewsPlugin() {
  *      a) direct match on a construct id     (e.g. `primary-db` → primary-db)
  *      b) direct match + `-cell` suffix      (e.g. `api` → api-cell)
  */
-function probeDockerStatusAsync(domain: string, env: string): Promise<Record<string, string>> {
+function probeDockerStatusAsync(domain: string, env: string): Promise<Record<string, NodeStatusPayload>> {
   return new Promise((resolve, reject) => {
+    // `{{.Ports}}` emits entries like "0.0.0.0:3001->3000/tcp, :::3001->3000/tcp".
+    // We pick the first IPv4 host port and turn it into `http://localhost:<port>`.
     exec(
-      'docker ps -a --format "{{.Names}}\\t{{.State}}\\t{{.Labels}}"',
+      'docker ps -a --format "{{.Names}}\\t{{.State}}\\t{{.Ports}}\\t{{.Labels}}"',
       { encoding: 'utf-8', timeout: 5000 },
       (err, stdout) => {
         if (err) { reject(err); return }
 
         const containers = (stdout ?? '').trim().split('\n').filter(Boolean).map((line) => {
-          const [name, state, labels] = line.split('\t')
+          const [name, state, ports, labels] = line.split('\t')
           return {
             name: name ?? '',
             state: state ?? '',
+            ports: ports ?? '',
             labels: parseLabels(labels ?? ''),
           }
         })
@@ -355,9 +364,9 @@ function probeDockerStatusAsync(domain: string, env: string): Promise<Record<str
         // 'deployed' on the next poll. Without this we'd only send the
         // running set, and absent keys leave the client with a stale
         // 'deployed' that never falls back.
-        const result: Record<string, string> = {}
-        for (const c of cells) result[c.name] = 'planned'
-        for (const c of constructs) result[c.name] = 'planned'
+        const result: Record<string, NodeStatusPayload> = {}
+        for (const c of cells) result[c.name] = { status: 'planned' }
+        for (const c of constructs) result[c.name] = { status: 'planned' }
 
         for (const c of containers) {
           const workingDir = c.labels['com.docker.compose.project.working_dir']
@@ -372,22 +381,25 @@ function probeDockerStatusAsync(domain: string, env: string): Promise<Record<str
           const isRunning = c.state === 'running'
           if (!isRunning) continue // only show "deployed" for running containers
 
+          const portM = c.ports.match(/0\.0\.0\.0:(\d+)->/)
+          const url = portM ? `http://localhost:${portM[1]}` : undefined
+
           // Strategy (a): service name is a construct id
           if (constructIds.has(service)) {
-            result[service] = 'deployed'
+            result[service] = { status: 'deployed', url }
             continue
           }
 
           // Strategy (b): service name + '-cell' suffix matches a cell
           const cellCandidate = `${service}-cell`
           if (cellIds.has(cellCandidate)) {
-            result[cellCandidate] = 'deployed'
+            result[cellCandidate] = { status: 'deployed', url }
             continue
           }
 
           // Strategy (c): exact cell id match (rare — if someone named service 'api-cell' directly)
           if (cellIds.has(service)) {
-            result[service] = 'deployed'
+            result[service] = { status: 'deployed', url }
           }
         }
 
@@ -604,7 +616,7 @@ function parseLabels(raw: string): Record<string, string> {
  * (local Postgres, RabbitMQ) don't show up when probing the prod surface,
  * and vice versa. Providers are implicitly "deployed" (they're config).
  */
-function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<string, string>> {
+function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<string, NodeStatusPayload>> {
   return new Promise((resolve) => {
     const technical = loadTechnical(domain)
     if (!technical) { resolve({}); return }
@@ -617,10 +629,12 @@ function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<
     const deployDir = path.resolve(__dirname, '../../output', domain, env, 'deploy')
     const tf = readTfState(deployDir)
 
-    const result: Record<string, string> = {}
-    for (const c of cells) result[c.name] = 'planned'
-    for (const c of constructs) result[c.name] = 'planned'
-    for (const p of technical.providers ?? []) result[p.name] = 'deployed'
+    const region = typeof tf?.outputs?.aws_region === 'string' ? tf.outputs.aws_region : 'us-east-1'
+
+    const result: Record<string, NodeStatusPayload> = {}
+    for (const c of cells) result[c.name] = { status: 'planned' }
+    for (const c of constructs) result[c.name] = { status: 'planned' }
+    for (const p of technical.providers ?? []) result[p.name] = { status: 'deployed' }
 
     // No state → nothing has been applied for this domain
     if (!tf || Object.keys(tf.outputs).length === 0) { resolve(result); return }
@@ -631,27 +645,39 @@ function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<
     const tfIdToConstruct = new Map<string, any>()
     for (const c of constructs) tfIdToConstruct.set(tfId(c.name), c)
 
-    // ── Constructs: presence of their output = deployed ──
-    for (const [outName] of Object.entries(tf.outputs)) {
-      const patterns: Array<[RegExp, Map<string, any>]> = [
-        [/^rds_endpoint_(.+)$/, tfIdToConstruct],
-        [/^eventbridge_bus_name_(.+)$/, tfIdToConstruct],
-        [/^sqs_queue_url_(.+)$/, tfIdToConstruct],
-      ]
-      for (const [re, table] of patterns) {
+    // ── Constructs: presence of their output = deployed. Link to the
+    // corresponding AWS console page so a click lands somewhere useful
+    // for resources that aren't HTTP-reachable. A single construct may
+    // match multiple outputs (e.g. an event-bus construct emits both
+    // `eventbridge_bus_name_*` for the bus and `sqs_queue_url_*` for
+    // its subscriber queue) — process in ascending priority so the more
+    // meaningful link wins. Priority: SQS < RDS < EventBridge. ──
+    const constructOutputs: Array<[RegExp, (m: RegExpMatchArray, value: string) => string | undefined]> = [
+      [/^sqs_queue_url_(.+)$/, (_m, v) => `https://${region}.console.aws.amazon.com/sqs/v3/home?region=${region}#/queues/${encodeURIComponent(v)}`],
+      [/^rds_endpoint_(.+)$/, (_m, v) => {
+        const dbId = v.split(':')[0].split('.')[0]
+        return dbId ? `https://${region}.console.aws.amazon.com/rds/home?region=${region}#database:id=${dbId}` : undefined
+      }],
+      [/^eventbridge_bus_name_(.+)$/, (_m, v) => `https://${region}.console.aws.amazon.com/events/home?region=${region}#/eventbus/${encodeURIComponent(v)}`],
+    ]
+    for (const [re, buildUrl] of constructOutputs) {
+      for (const [outName, value] of Object.entries(tf.outputs)) {
         const m = outName.match(re)
-        if (m) {
-          const node = table.get(m[1])
-          if (node) result[node.name] = 'deployed'
-        }
+        if (!m || typeof value !== 'string') continue
+        const node = tfIdToConstruct.get(m[1])
+        if (!node) continue
+        result[node.name] = { status: 'deployed', url: buildUrl(m, value) }
       }
     }
 
     // ── Cells: build URL map from outputs, then HTTP healthcheck ──
-    const cellUrls = new Map<string, string>()
+    //
+    // Two URLs per cell: `probeUrl` is hit to confirm reachability (api
+    // cells use /health because the ALB target group health-checks there);
+    // `displayUrl` is the browser-friendly root that ends up in the click
+    // ribbon. For vite cells the two are the same.
+    const cellUrls = new Map<string, { probeUrl: string; displayUrl: string }>()
 
-    // Any non-vite cell shares a single ALB; use /health (ALB target group
-    // already uses this path).
     const albDns = typeof tf.outputs.alb_dns_name === 'string' ? tf.outputs.alb_dns_name : undefined
     if (albDns) {
       for (const c of cells) {
@@ -659,7 +685,10 @@ function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<
         const isProvisioner = adapterType === 'postgres' || adapterType === 'node/event-bus'
         const isVite = adapterType.startsWith('vite/')
         if (!isProvisioner && !isVite) {
-          cellUrls.set(c.name, `http://${albDns}/health`)
+          cellUrls.set(c.name, {
+            probeUrl: `http://${albDns}/health`,
+            displayUrl: `http://${albDns}`,
+          })
         }
       }
     }
@@ -669,17 +698,23 @@ function probeTerraformStatusAsync(domain: string, env: string): Promise<Record<
       const m = outName.match(/^cloudfront_domain_(.+)$/)
       if (m && typeof value === 'string') {
         const cell = tfIdToCell.get(m[1])
-        if (cell) cellUrls.set(cell.name, `https://${value}/`)
+        if (cell) {
+          const url = `https://${value}`
+          cellUrls.set(cell.name, { probeUrl: `${url}/`, displayUrl: url })
+        }
       }
     }
 
     // Run healthchecks concurrently with a 2s per-request budget. The whole
     // fan-out completes in ~max(latency) rather than sum(latency).
     const checks: Array<Promise<void>> = []
-    for (const [cellName, url] of cellUrls) {
+    for (const [cellName, { probeUrl, displayUrl }] of cellUrls) {
       checks.push(
-        httpOk(url, 2000).then((ok) => {
-          if (ok) result[cellName] = 'deployed'
+        httpOk(probeUrl, 2000).then((ok) => {
+          result[cellName] = {
+            status: ok ? 'deployed' : (result[cellName]?.status ?? 'planned'),
+            url: displayUrl,
+          }
         }),
       )
     }

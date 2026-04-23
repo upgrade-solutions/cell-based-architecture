@@ -382,7 +382,7 @@ const App = observer(function App() {
     const poll = () => {
       fetch(`/api/status/${encodeURIComponent(domain)}?adapter=${encodeURIComponent(adapter)}&env=${encodeURIComponent(env)}`)
         .then(r => r.json())
-        .then((statuses: Record<string, string>) => {
+        .then((statuses: Record<string, { status: string; url?: string }>) => {
           if (!active) return
           // Dedup inside the setDna updater by comparing against the
           // current dna's node statuses. This must be a pure function
@@ -399,10 +399,24 @@ const App = observer(function App() {
             const nextViews = current.views.map(view => ({
               ...view,
               nodes: view.nodes.map(node => {
-                const live = statuses[node.id] as NodeStatus | undefined
-                if (!live || live === node.status) return node
+                const live = statuses[node.id]
+                if (!live) return node
+                const liveStatus = live.status as NodeStatus
+                const currentUrl = (node.metadata?.url as string | undefined)
+                const statusChanged = liveStatus !== node.status
+                // Only touch metadata.url when the probe supplied one, so
+                // static DNA-provided URLs aren't clobbered on polls where
+                // the probe has nothing to report.
+                const urlChanged = live.url !== undefined && live.url !== currentUrl
+                if (!statusChanged && !urlChanged) return node
                 anyChanged = true
-                return { ...node, status: live }
+                return {
+                  ...node,
+                  status: liveStatus,
+                  metadata: urlChanged
+                    ? { ...(node.metadata ?? {}), url: live.url }
+                    : node.metadata,
+                }
               }),
             }))
             if (!anyChanged) return current

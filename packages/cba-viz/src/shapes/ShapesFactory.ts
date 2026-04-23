@@ -48,6 +48,19 @@ function statusBodyAttrs(status: NodeStatus | undefined, _baseStroke: string, _n
   }
 }
 
+/**
+ * Fit the URL ribbon inside the shape's width. The ribbon uses a 10px
+ * monospace font (~6px per char); leave ~12px of total horizontal padding
+ * so letters don't touch the rounded corners. An ellipsis is cheaper than
+ * SVG text truncation and keeps the click target centered.
+ */
+function truncateUrlForWidth(url: string, widthPx: number): string {
+  if (!url) return ''
+  const maxChars = Math.max(6, Math.floor((widthPx - 12) / 6))
+  if (url.length <= maxChars) return url
+  return url.slice(0, maxChars - 1) + '…'
+}
+
 function statusLabelAttrs(status: NodeStatus | undefined): Record<string, unknown> {
   switch (status) {
     case 'proposed':
@@ -69,7 +82,7 @@ export class ShapesFactory {
         const size = node.size ?? { width: 160, height: 70 }
         const url = (node.metadata?.url as string | undefined) ?? ''
         // Display URL with http:// stripped for readability; href keeps full URL
-        const urlDisplay = url.replace(/^https?:\/\//, '')
+        const urlDisplay = truncateUrlForWidth(url.replace(/^https?:\/\//, ''), size.width)
         // When technical DNA supplies a `label`, `node.name` carries it and
         // `metadata.role` holds the original kebab-case cell name (e.g.
         // "api-cell") — render it as a subtitle. Hidden when the label is
@@ -102,7 +115,7 @@ export class ShapesFactory {
         const role = (node.metadata?.role as string | undefined) ?? ''
         const roleDisplay = role && role !== node.name ? role : ''
         const url = (node.metadata?.url as string | undefined) ?? ''
-        const urlDisplay = url.replace(/^https?:\/\//, '')
+        const urlDisplay = truncateUrlForWidth(url.replace(/^https?:\/\//, ''), size.width)
         return new ConstructShape({
           id: node.id,
           position: pos,

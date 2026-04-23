@@ -408,6 +408,7 @@ http://localhost:5175/?domain=torts/marshall&phase=run&sub=deployment&env=prod
 - **Write-back** — save positions and edits back to `technical.json` or `operational.json` (Ctrl+S)
 - **Live status** — polls the selected adapter every 5 seconds and updates technical node status in real time
 - **Terraform/AWS probe** — reads `terraform.tfstate` + queries AWS APIs to map live infrastructure status back to DNA node IDs
+- **Clickable URL ribbons** — each deployed cell/construct renders its live endpoint at the bottom of its node (CloudFront for vite cells, ALB for api cells, AWS console deep links for RDS/EventBridge). The ribbon is truncated to fit the shape; click opens the full URL in a new tab
 
 **Status rendering:**
 
