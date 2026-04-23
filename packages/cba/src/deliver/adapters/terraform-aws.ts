@@ -307,10 +307,19 @@ function derivableSecrets(plan: EnvironmentPlan): Map<string, string> {
   const secrets = collectSecrets(plan)
 
   if (hasDb && secrets.includes('DATABASE_URL')) {
-    // RDS uses manage_master_user_password — build URL from endpoint + secret
+    // RDS uses manage_master_user_password — build URL from endpoint + secret.
+    // `?sslmode=no-verify` is non-negotiable here:
+    //   - RDS Postgres defaults to `rds.force_ssl=1`, so a plaintext client
+    //     connection fails with "no pg_hba.conf entry … no encryption".
+    //   - node-postgres reads `sslmode=require` as "verify CA", which then
+    //     rejects the RDS intermediate ("self-signed certificate in
+    //     certificate chain") unless the RDS CA bundle is baked into the
+    //     container. `no-verify` skips chain verification while still
+    //     encrypting the connection — pragmatic for managed-RDS trust
+    //     and avoids shipping the cert bundle in the cell image.
     derived.set(
       'DATABASE_URL',
-      'format("postgres://%s:%s@%s/%s", aws_db_instance.primary_db.username, jsondecode(data.aws_secretsmanager_secret_version.primary_db_password.secret_string)["password"], aws_db_instance.primary_db.endpoint, aws_db_instance.primary_db.db_name)',
+      'format("postgres://%s:%s@%s/%s?sslmode=no-verify", aws_db_instance.primary_db.username, jsondecode(data.aws_secretsmanager_secret_version.primary_db_password.secret_string)["password"], aws_db_instance.primary_db.endpoint, aws_db_instance.primary_db.db_name)',
     )
   }
 
