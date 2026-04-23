@@ -184,6 +184,27 @@ function cellUrl(
 }
 
 /**
+ * Dev-only admin URL for a construct, when one is inferable from its
+ * config. Right now this only covers engines that expose a web management
+ * UI on a declared `management_port` (RabbitMQ is the main one). Anything
+ * else returns undefined and the viewer renders a blank URL ribbon — same
+ * behavior as cells without an inferred URL.
+ *
+ * Prod intentionally returns undefined: managed services (RDS, EventBridge,
+ * SQS) don't expose a public admin URL, and advertising an AWS console
+ * deeplink from DNA would require the account id + region we don't carry.
+ */
+function constructUrl(
+  construct: { config?: Record<string, any> },
+  environment: string,
+): string | undefined {
+  if (environment !== 'dev') return undefined
+  const mgmt = construct.config?.management_port
+  if (typeof mgmt === 'number') return `http://localhost:${mgmt}`
+  return undefined
+}
+
+/**
  * Convert a DNA name to a terraform identifier. Mirrors the `tfId` helper in
  * `packages/cba/src/deliver/adapters/terraform-aws.ts` and the copy in
  * `packages/cba-viz/vite.config.ts`. If you change this, change them all.
@@ -300,7 +321,7 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
   const CELL_W = 160
   const CELL_H = 70
   const CONSTRUCT_W = 160
-  const CONSTRUCT_H = 60
+  const CONSTRUCT_H = 70
   const GAP_X = 40    // horizontal gap between siblings
   const ROW_GAP = 90  // vertical gap between rows within a zone
   const ZONE_GAP = 60 // extra gap between zones
@@ -319,13 +340,21 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
       const saved = savedPositions.get(cell.name)
       nodes.push({
         id: cell.name,
-        name: cell.name,
+        name: cell.label ?? cell.name,
         type: 'cell',
         status: 'planned',
         position: saved?.pos ?? { x, y },
         size: saved?.size ?? { width: CELL_W, height: CELL_H },
         description: cell.description,
-        metadata: { adapter: cell.adapterType, url: cellUrl(cell, plan.environment, deployedUrls) },
+        metadata: {
+          // `role` is the kebab-case cell name (e.g. "api-cell") — the
+          // viewer renders it as a subtitle under `name` when `label`
+          // supplied a friendlier title. Kept distinct from `id` because
+          // the viewer's ids are treated as opaque identity keys.
+          role: cell.name,
+          adapter: cell.adapterType,
+          url: cellUrl(cell, plan.environment, deployedUrls),
+        },
       })
       x += CELL_W + GAP_X
     }
@@ -344,17 +373,22 @@ function deriveView(plan: EnvironmentPlan, savedView?: ArchView): ArchView {
     const engine = (construct.config?.engine as string | undefined) ?? construct.type
     nodes.push({
       id: construct.name,
-      name: construct.name,
+      name: construct.label ?? construct.name,
       type: 'construct',
       status: 'planned',
       position: saved?.pos ?? { x: constructX, y: CONSTRUCT_Y },
       size: saved?.size ?? { width: CONSTRUCT_W, height: CONSTRUCT_H },
       description: construct.description,
       metadata: {
+        // See cell layout above: `role` carries the kebab-case name so
+        // the viewer can render it as a subtitle when `label` has
+        // replaced it in `name`.
+        role: construct.name,
         category: construct.category,
         type: construct.type,
         engine,
         provider: construct.provider,
+        url: constructUrl(construct, plan.environment),
       },
     })
     constructX += CONSTRUCT_W + GAP_X

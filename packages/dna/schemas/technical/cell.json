@@ -11,6 +11,11 @@
       "description": "The kebab-case name of the cell.",
       "examples": ["api", "ui", "db", "auth", "worker"]
     },
+    "label": {
+      "type": "string",
+      "description": "Human-readable display name for diagrams and UIs. Falls back to `name` when absent.",
+      "examples": ["Intake API", "Admin Console", "Marketing Site"]
+    },
     "dna": {
       "type": "string",
       "description": "The path or identifier of the DNA document this cell consumes.",

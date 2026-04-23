@@ -74,6 +74,9 @@ async function bootstrap() {
   app.use(cors())
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }))${authMode === 'built-in' ? `\n  app.use('/auth', authRoutes)` : ''}
+  // Root lands on Swagger UI so visiting http://host:port/ in a browser
+  // (e.g. the cba-viz URL ribbon) doesn't return "Cannot GET /".
+  app.get('/', (_req, res) => res.redirect('/api'))
   app.get('/api-json', (_req, res) => res.json(currentSpec))
   app.use('/api', swaggerUi.serve, swaggerUi.setup(null as any, { swaggerOptions: { url: '/api-json' } }))
 

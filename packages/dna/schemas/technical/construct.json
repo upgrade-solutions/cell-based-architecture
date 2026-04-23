@@ -11,6 +11,11 @@
       "description": "The kebab-case name of the construct, used as a reference key.",
       "examples": ["primary-db", "auth-provider", "file-store", "api-gateway"]
     },
+    "label": {
+      "type": "string",
+      "description": "Human-readable display name for diagrams and UIs. Falls back to `name` when absent.",
+      "examples": ["Database", "Event Bus", "File Store"]
+    },
     "category": {
       "type": "string",
       "description": "The infrastructure category of the construct.",

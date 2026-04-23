@@ -4,6 +4,7 @@ import { resolveDomain, loadLayer, DomainPaths } from '../context'
 
 export interface ResolvedConstruct {
   name: string
+  label?: string
   category: string
   type: string
   provider: string
@@ -22,6 +23,7 @@ export interface ResolvedVariable {
 
 export interface ResolvedCell {
   name: string
+  label?: string
   description?: string
   dna?: string
   adapterType: string
@@ -133,6 +135,7 @@ function resolveCell(cell: any, domain: string, root: string, environment: strin
   const outputDir = path.join(root, 'output', domain, environment, suffix)
   return {
     name: cell.name,
+    label: cell.label,
     description: cell.description,
     dna: cell.dna,
     adapterType: cell.adapter.type,

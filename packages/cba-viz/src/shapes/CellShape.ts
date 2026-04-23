@@ -16,6 +16,9 @@ export const CellShape = dia.Element.define('cbaViz.CellShape', {
     selector: 'label',
   }, {
     tagName: 'text',
+    selector: 'roleLabel',
+  }, {
+    tagName: 'text',
     selector: 'urlLabel',
   }],
   attrs: {
@@ -41,13 +44,23 @@ export const CellShape = dia.Element.define('cbaViz.CellShape', {
     label: {
       text: 'Cell',
       x: 'calc(w/2)',
-      y: 22,
+      y: 20,
       textAnchor: 'middle',
       textVerticalAnchor: 'middle',
       fill: '#f8fafc',
       fontSize: 13,
       fontWeight: '600',
       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+    },
+    roleLabel: {
+      text: '',
+      x: 'calc(w/2)',
+      y: 36,
+      textAnchor: 'middle',
+      textVerticalAnchor: 'middle',
+      fill: '#94a3b8',
+      fontSize: 10,
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
     },
     urlLabel: {
       text: '',

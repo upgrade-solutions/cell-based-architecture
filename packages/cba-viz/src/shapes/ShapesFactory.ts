@@ -70,12 +70,19 @@ export class ShapesFactory {
         const url = (node.metadata?.url as string | undefined) ?? ''
         // Display URL with http:// stripped for readability; href keeps full URL
         const urlDisplay = url.replace(/^https?:\/\//, '')
+        // When technical DNA supplies a `label`, `node.name` carries it and
+        // `metadata.role` holds the original kebab-case cell name (e.g.
+        // "api-cell") — render it as a subtitle. Hidden when the label is
+        // absent (name === role) so undifferentiated cells stay clean.
+        const role = (node.metadata?.role as string | undefined) ?? ''
+        const roleDisplay = role && role !== node.name ? role : ''
         return new CellShape({
           id: node.id,
           position: pos,
           size,
           attrs: {
             label: { text: node.name, ...statusLabelAttrs(status) },
+            roleLabel: { text: roleDisplay, ...statusLabelAttrs(status) },
             urlLabel: {
               text: urlDisplay,
               ...statusLabelAttrs(status),
@@ -87,15 +94,27 @@ export class ShapesFactory {
         })
       }
       case 'construct': {
-        const size = node.size ?? { width: 140, height: 60 }
-        const category = (node.metadata?.category as string) ?? ''
+        const size = node.size ?? { width: 140, height: 70 }
+        // Mirrors the cell subtitle logic: when `label` has replaced the
+        // kebab-case name in `node.name`, `metadata.role` carries the
+        // original id for the subtitle. Hidden when they match so
+        // unlabeled constructs stay clean.
+        const role = (node.metadata?.role as string | undefined) ?? ''
+        const roleDisplay = role && role !== node.name ? role : ''
+        const url = (node.metadata?.url as string | undefined) ?? ''
+        const urlDisplay = url.replace(/^https?:\/\//, '')
         return new ConstructShape({
           id: node.id,
           position: pos,
           size,
           attrs: {
             label: { text: node.name, ...statusLabelAttrs(status) },
-            categoryLabel: { text: category, ...statusLabelAttrs(status) },
+            roleLabel: { text: roleDisplay, ...statusLabelAttrs(status) },
+            urlLabel: {
+              text: urlDisplay,
+              ...statusLabelAttrs(status),
+              ...(status === 'proposed' || status === 'planned' ? {} : { fill: '#60a5fa' }),
+            },
             body: statusBodyAttrs(status, '#3b82f6', 'construct'),
           },
         })
