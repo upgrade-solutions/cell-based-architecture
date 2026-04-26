@@ -23,7 +23,8 @@ describe('cba agent', () => {
   it('lists every AGENTS.md contract', () => {
     const r = cba(['agent', 'list'])
     expect(r.code).toBe(0)
-    expect(r.stdout).toContain('dna-core')
+    // @dna-codes/core no longer ships an AGENTS.md (the package shifted to
+    // docs-only orientation upstream); only the per-layer docs are listed.
     expect(r.stdout).toContain('operational')
     expect(r.stdout).toContain('product')
     expect(r.stdout).toContain('technical')
@@ -35,11 +36,9 @@ describe('cba agent', () => {
     expect(r.stdout).not.toContain('domain:')
   })
 
-  it('resolves the @dna-codes/core package-level contract', () => {
+  it('errors on dna-core (no longer shipped by @dna-codes/core)', () => {
     const r = cba(['agent', 'dna-core'])
-    expect(r.code).toBe(0)
-    expect(r.stdout).toContain('AGENTS.md: dna-core')
-    expect(r.stdout).toContain('@dna-codes/core — Agent Contract')
+    expect(r.code).toBe(1)
   })
 
   it('resolves layer shorthand', () => {
@@ -74,7 +73,8 @@ describe('cba agent', () => {
     expect(r.code).toBe(0)
     const parsed = JSON.parse(r.stdout)
     expect(parsed.concern).toBe('operational')
-    expect(parsed.file).toBe('packages/dna/docs/operational.md')
+    // Layer docs now ship inside @dna-codes/core (in node_modules)
+    expect(parsed.file).toMatch(/@dna-codes\/core\/docs\/operational\.md$/)
     expect(typeof parsed.content).toBe('string')
     expect(parsed.content.length).toBeGreaterThan(100)
   })

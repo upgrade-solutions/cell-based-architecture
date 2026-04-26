@@ -2,6 +2,8 @@
 
 This document outlines the implementation plan for cell-based architecture — from the current proof-of-concept through a fully deployable, multi-domain system.
 
+> **2026 model rewrite.** The DNA language was rewritten upstream and now ships from `@dna-codes/core` + `@dna-codes/schemas` on npm. CBA defers entirely to those packages — it does not fork schemas, types, or the validator. The historical phases below describe the previous primitive set (Noun/Verb/Capability/Outcome/Cause/Signal/Lifecycle/Equation/Position) which has been replaced by the current model (Resource/Person/Role/Group + Membership, Operation, Trigger, Rule, Task, Process). The signal/event-bus subsystem (Phase 3a–3e below) was scaffolded against the old model and is currently **paused** — re-implementation will be against the new Trigger primitive (`source: "operation"` chains).
+
 ---
 
 ## Phase 1: Foundation (Complete)

@@ -25,9 +25,9 @@ DNA documents are defined and described in the [DNA repo](https://github.com/upg
 
 | Layer | What it captures | DNA repo doc |
 |-------|------------------|--------------|
-| **Operational** | What the business does — Nouns, Capabilities, Rules, Outcomes, SOPs | [`docs/operational.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/operational.md) |
-| **Product** | What gets built — Resources, Endpoints, Pages, Blocks | [`docs/product.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/product.md) |
-| **Technical** | How it gets built — Cells, Constructs, Providers, Environments | [`docs/technical.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/technical.md) |
+| **Operational** | What the business does — Resources/Persons/Roles/Groups + Memberships, Operations, Triggers, Rules, Tasks, Processes | [`docs/operational.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/operational.md) |
+| **Product** | What gets built — three sub-layers: core (Resources, Operations, Fields, Actions), api (Endpoints, Schemas, Namespaces), ui (Pages, Routes, Blocks, Layouts) | [`docs/product.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/product.md) |
+| **Technical** | How it gets built — Cells, Constructs, Providers, Environments, Variables, Views | [`docs/technical.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/technical.md) |
 
 Layers flow one-way downstream — Operational → Product → Technical — with upper layers never depending on lower ones.
 
@@ -77,41 +77,9 @@ The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw
 
 The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at runtime. When either file changes, routes and the OpenAPI spec are rebuilt in-process — no restart needed.
 
-**Signal middleware**: The Express adapter generates signal emission middleware driven by Operational DNA. For each route whose Outcome declares `emits`, the middleware intercepts the response and publishes typed signals to RabbitMQ (via amqplib) using a `signals` topic exchange. Routes with no `emits` get a zero-overhead pass-through. The middleware chain per route is: `auth → requestValidator → ruleValidator → signalMiddleware → handler`.
+**State changes**: An operational `Operation` may declare `changes[]` — typed state mutations applied to the target Resource when the operation succeeds. The api-cell adapters surface these as comments on the generated handler/service body so a reader can trace the business intent down to the route. The runtime applies the changes to the storage backend (in-memory or Postgres).
 
-**Signal dispatch (Pattern A — HTTP push)**: After publishing to the event bus, the signal middleware also HTTP POSTs each signal to configured subscriber API URLs. Subscriber URLs are configured in Technical DNA under the cell's adapter config as `signal_dispatch` — a mapping of Signal names to arrays of subscriber base URLs. The middleware constructs `POST {baseUrl}/_signals/{signalName}` requests with the typed payload.
-
-**Signal receiver**: The Express adapter generates `POST /_signals/:signalName` endpoints for each Cause with `source: "signal"` in Operational DNA. Incoming signals are validated against the Signal definition's payload contract, then dispatched to the target Capability's handler.
-
-```
-Publisher API (Domain A)                    Subscriber API (Domain B)
-────────────────────────                    ────────────────────────
-POST /loans/:id/disburse
-  → handler succeeds (200)
-  → signal middleware fires
-  → publishes to event bus
-  → HTTP POST ──────────────────────────→   POST /_signals/lending.Loan.Disbursed
-                                              → validates payload
-                                              → dispatches to PaymentSchedule.Create
-```
-
-Signal dispatch config in Technical DNA:
-
-```json
-{
-  "name": "api-cell",
-  "adapter": {
-    "config": {
-      "signal_dispatch": {
-        "lending.Loan.Disbursed": ["http://payments-api:3002"],
-        "lending.Loan.Defaulted": ["http://collections-api:3003"]
-      }
-    }
-  }
-}
-```
-
-Pattern B (queue + worker) is planned — same handler contract, different transport. See [ROADMAP.md](ROADMAP.md) Phase 3e.
+> Cross-domain signaling (Pattern A — HTTP push to subscribers, Pattern B — queue + worker fan-out) was scaffolded against the previous DNA model and is currently paused. The signal middleware, signal dispatch config, and `_signals` receiver routes have been removed pending a redesign against the new operational primitives. The `event-bus-cell` directory remains in the tree as paused work.
 
 **Dual-mode storage**: The Express adapter supports both in-memory and PostgreSQL (Drizzle ORM) storage. Without `DATABASE_URL`, it runs with in-memory Maps seeded from Operational DNA examples. With `DATABASE_URL`, it connects to Postgres, runs migrations on startup, and seeds from DNA.
 
@@ -172,9 +140,9 @@ bin/rails server
 ```
 
 Generated structure:
-- **Controllers** — one per resource with role-based `authorize_roles!` and DNA Outcome effects applied inline
-- **Models** — one per Operational DNA Noun with validations (presence, enum inclusion)
-- **Migration** — single migration creating all tables from Noun attributes, UUID primary keys
+- **Controllers** — one per resource with role-based `authorize_roles!` and DNA Operation `changes[]` applied inline
+- **Models** — one per Operational DNA Resource with validations (presence, enum inclusion)
+- **Migration** — single migration creating all tables from Resource attributes, UUID primary keys
 - **Auth** — `ApplicationController` with JWKS-based JWT verification (IDP-agnostic)
 - **Routes** — explicit route declarations matching every DNA endpoint
 - **Dockerfile** — multi-stage Ruby 3.3 build with Puma
@@ -191,7 +159,7 @@ uvicorn app.main:app --reload    # http://localhost:8000/docs
 
 Generated structure:
 - **Routers** — one per resource with FastAPI dependency injection for auth and DB sessions
-- **Models** — SQLAlchemy 2.0 declarative models (one per Operational DNA Noun)
+- **Models** — SQLAlchemy 2.0 declarative models (one per Operational DNA Resource)
 - **Schemas** — Pydantic v2 request/response models
 - **Auth** — JWKS-based JWT verification via `python-jose`
 - **Alembic** — migration configuration wired to the SQLAlchemy models
@@ -334,41 +302,11 @@ The `db-cell` is **infrastructure-only** — it provisions the Postgres instance
 
 ---
 
-## `event-bus-cell`
+## `event-bus-cell` (paused)
 
-The `event-bus-cell` reads Operational DNA Signals across all domains and generates event infrastructure code. The `engine` config in technical.json selects the transport: `rabbitmq` (amqplib) or `eventbridge` (AWS SDK).
+Cross-domain signaling was scaffolded against the previous DNA model that included `Signal` as a top-level primitive with `Outcome.emits` carrying the publish list. Both `Signal` and `Outcome` were removed in the model rewrite — state mutations now live as `Operation.changes[]`, and there is no top-level Signal primitive in `@dna-codes/schemas`.
 
-**What it generates:**
-
-| Artifact | Description |
-|----------|-------------|
-| Schema registry | Compiled catalog of all Signals with typed payloads |
-| Publisher libraries | Typed functions per domain, per adapter language |
-| Routing config | Maps each Signal to subscribing Capabilities and their queues |
-| Worker stubs | Skeleton consumer code for api-cells or future worker-cells |
-
-**Signal → Cause flow:**
-
-```json
-// Lending domain — Outcome emits a Signal
-{
-  "capability": "Loan.Disburse",
-  "emits": ["lending.Loan.Disbursed"]
-}
-
-// Payments domain — Cause subscribes to the Signal
-{
-  "capability": "PaymentSchedule.Create",
-  "source": "signal",
-  "signal": "lending.Loan.Disbursed"
-}
-```
-
-**Multi-stack platform model:**
-
-A platform directory (e.g. `dna/lending/`) hosts multiple domain stacks — each with its own api-cell, ui-cell, and db-cell — declared in the same `technical.json` alongside a shared event-bus-cell.
-
-See [ROADMAP.md](ROADMAP.md) Phase 3a–3c and Phase 6 for the implementation plan.
+The cell directory remains in `technical/cells/event-bus-cell/` for reference, but is excluded from the active build/test pipeline. A redesign that maps Triggers (`source: "operation"` chains) onto an event bus is on the roadmap. See [ROADMAP.md](ROADMAP.md).
 
 ---
 
@@ -392,7 +330,7 @@ http://localhost:5175/?domain=torts/marshall&phase=run&sub=deployment&env=prod
 | `domain` | `lending` | DNA domain path (supports nested paths like `torts/marshall`) |
 | `phase` | `build` | Lifecycle phase: `build` (authoring) or `run` (runtime observation) |
 | `sub` | `operational` | Sub-tab within the phase. Build: `operational`, `product`, `technical`, `cross-layer`, `guide`. Run: `deployment`, `logs*`, `metrics*`, `access*` (* = stub) |
-| `cap` | _(none)_ | Selected capability for `sub=cross-layer`, as `Noun.Verb` |
+| `op` | _(none)_ | Selected operation for `sub=cross-layer`, as `Target.Action` |
 | `env` | `dev` | Environment for technical overlay |
 | `adapter` | `docker-compose` | Technical status probe adapter |
 
@@ -451,13 +389,13 @@ Plus utilities: `cba run <domain> --adapter <x>` (start generated output), `cba 
 ```bash
 # Inspect DNA
 npx cba operational list lending
-npx cba operational show lending --type Noun --name Loan
-npx cba operational schema Noun                     # prints JSON schema
+npx cba operational show lending --type Resource --name Loan
+npx cba operational schema Resource                 # prints JSON schema
 npx cba product api list lending
 
 # Mutate DNA
 npx cba technical add lending --type Variable --file new-var.json
-npx cba operational add lending --type Noun \
+npx cba operational add lending --type Resource \
   --at acme.finance.lending --file loan.json
 npx cba technical remove lending --type Variable --name OLD_FLAG
 
@@ -491,8 +429,8 @@ npx cba validate lending --json                     # structured JSON errors
 Every command supports `--json` for machine-parseable output. An agent's typical loop during discovery:
 
 1. `cba operational list lending --json` — ground itself in existing DNA
-2. `cba operational schema Noun --json` — learn the primitive shape
-3. `cba operational add lending --type Noun --at … --file draft.json --json` — draft
+2. `cba operational schema Resource --json` — learn the primitive shape
+3. `cba operational add lending --type Resource --at … --file draft.json --json` — draft
 4. `cba validate lending --json` — catch cross-layer errors, loop back to conversation
 5. `cba develop lending --env dev --dry-run --json` — show stakeholder the diff
 6. `cba develop lending --env dev` — ship it
@@ -597,9 +535,9 @@ npx cba validate lending --json                # structured JSON errors
 
 | Source | Target | What's checked |
 |--------|--------|---------------|
-| Product API `Resource.noun` | Operational `Noun` | Resource references an existing Noun |
-| Product API `Action.verb` | Operational `Verb` | Action verb exists on the corresponding Noun |
-| Product API `Operation.capability` | Operational `Capability` | Operation capability exists |
+| Product API `Resource.resource` | Operational `Resource` | Resource references an existing Resource |
+| Product API `Action.action` | Operational `Action` | API action name exists on the Resource's actions[] catalog |
+| Product API `Operation` (by `name`) | Operational `Operation` | Each API operation has a matching `Target.Action` operation |
 | Product API `Endpoint.operation` | Product API `Operation` | Endpoint references a defined Operation |
 | Product UI `Page.resource` | Product API `Resource` | Page references an existing Resource |
 | Product UI `Block.operation` | Product API `Operation` | Block references an existing Operation |
@@ -666,7 +604,7 @@ cell-based-architecture/
       api-cell/                     # Consumes Product API DNA → containerized REST API
       db-cell/                      # Consumes Operational DNA → database provisioning
       ui-cell/                      # Consumes Product UI DNA → UI app
-      event-bus-cell/               # Consumes Signals → schema registry, publishers, routing
+      event-bus-cell/               # PAUSED — pending redesign against the new operational model
       workflow-cell/                # (planned)
   packages/
     cba/                            # Unified CLI for the full lifecycle
@@ -683,7 +621,8 @@ cell-based-architecture/
 - **Adapters bridge DNA and frameworks.** The cell engine is generic; the adapter carries all framework-specific knowledge.
 - **DNA is the source of truth at every layer.** Cells must not encode domain, product, or framework logic beyond what is needed to interpret their layer's DNA.
 - **JSON in, infrastructure out.** The full path from business concept to deployed software is driven by JSON documents and TypeScript engines.
-- **Signals are the cross-domain contract.** Domains communicate asynchronously via Signals — named events with typed payloads. Two delivery patterns: **Pattern A (HTTP push)** — publisher dispatches directly to subscriber's `/_signals/:signalName` endpoint; **Pattern B (queue + worker)** — event bus routes to a queue, a worker process consumes and dispatches.
+- **Operations carry their state mutations.** Each `Operation` declares optional `changes[]` — typed attribute updates applied to the target Resource on success. There is no separate Outcome primitive; state mutation is an Operation property.
+- **Triggers, not Causes.** Triggers fire Operations or Processes from one of four sources: `user`, `schedule`, `webhook`, `operation` (the last expresses operation-to-operation chaining via `after`).
 - **Infrastructure is not a cell.** Deployment is a `cba deliver` concern with delivery adapters (docker-compose, terraform/aws, aws-sam), not a cell type.
 
 ---

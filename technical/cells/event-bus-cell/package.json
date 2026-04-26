@@ -5,10 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "test": "node --experimental-vm-modules ../../../node_modules/.bin/jest",
-    "generate": "ts-node -r tsconfig-paths/register src/index.ts",
-    "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json event-bus-cell ../../../output/lending-event-bus"
+    "build": "echo 'event-bus-cell paused — skipped' && exit 0",
+    "test": "echo 'event-bus-cell paused — skipped' && exit 0"
   },
   "dependencies": {
     "@dna/validator": "*"

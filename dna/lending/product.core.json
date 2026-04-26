@@ -625,6 +625,215 @@
       "schedule": "0 0 * * *"
     }
   ],
+  "rules": [
+    {
+      "type": "access",
+      "description": "Any unauthenticated user can register as a borrower.",
+      "allow": [
+        {
+          "role": "BorrowerActor"
+        }
+      ],
+      "operation": "Borrower.Register"
+    },
+    {
+      "type": "access",
+      "description": "Only admins may suspend borrowers.",
+      "allow": [
+        {
+          "role": "Admin"
+        }
+      ],
+      "operation": "Borrower.Suspend"
+    },
+    {
+      "type": "access",
+      "description": "Only authenticated borrowers may apply for a loan.",
+      "allow": [
+        {
+          "role": "BorrowerActor"
+        }
+      ],
+      "operation": "Loan.Apply"
+    },
+    {
+      "type": "access",
+      "description": "Only underwriters may open an application for review.",
+      "allow": [
+        {
+          "role": "Underwriter"
+        }
+      ],
+      "operation": "Loan.Review"
+    },
+    {
+      "type": "access",
+      "description": "Only underwriters may approve a loan.",
+      "allow": [
+        {
+          "role": "Underwriter"
+        }
+      ],
+      "operation": "Loan.Approve"
+    },
+    {
+      "type": "access",
+      "description": "Only underwriters may reject a loan.",
+      "allow": [
+        {
+          "role": "Underwriter"
+        }
+      ],
+      "operation": "Loan.Reject"
+    },
+    {
+      "type": "access",
+      "description": "Disbursement is performed by the system only.",
+      "allow": [
+        {
+          "role": "System"
+        }
+      ],
+      "operation": "Loan.Disburse"
+    },
+    {
+      "type": "access",
+      "description": "Only the borrower who owns the loan may submit a repayment.",
+      "allow": [
+        {
+          "role": "BorrowerActor",
+          "ownership": true
+        }
+      ],
+      "operation": "Loan.Repay"
+    },
+    {
+      "type": "access",
+      "description": "Defaulting is performed by the system scheduler only.",
+      "allow": [
+        {
+          "role": "System"
+        }
+      ],
+      "operation": "Loan.Default"
+    },
+    {
+      "type": "condition",
+      "description": "Borrower must have a complete financial profile before applying.",
+      "conditions": [
+        {
+          "attribute": "borrower.credit_score",
+          "operator": "present"
+        },
+        {
+          "attribute": "borrower.annual_income",
+          "operator": "present"
+        },
+        {
+          "attribute": "borrower.status",
+          "operator": "eq",
+          "value": "active"
+        },
+        {
+          "attribute": "loan.amount",
+          "operator": "gt",
+          "value": 0
+        },
+        {
+          "attribute": "loan.term_months",
+          "operator": "gt",
+          "value": 0
+        }
+      ],
+      "operation": "Loan.Apply"
+    },
+    {
+      "type": "condition",
+      "description": "Only loans in under_review status can be picked up by an underwriter.",
+      "conditions": [
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "under_review"
+        }
+      ],
+      "operation": "Loan.Review"
+    },
+    {
+      "type": "condition",
+      "description": "Loan must be under review and within the lender's maximum amount.",
+      "conditions": [
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "under_review"
+        },
+        {
+          "attribute": "loan.amount",
+          "operator": "lte",
+          "value": 250000
+        }
+      ],
+      "operation": "Loan.Approve"
+    },
+    {
+      "type": "condition",
+      "description": "Only loans under review can be rejected.",
+      "conditions": [
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "under_review"
+        }
+      ],
+      "operation": "Loan.Reject"
+    },
+    {
+      "type": "condition",
+      "description": "Only approved loans can be disbursed.",
+      "conditions": [
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "operation": "Loan.Disburse"
+    },
+    {
+      "type": "condition",
+      "description": "Repayments can only be made on active loans.",
+      "conditions": [
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "active"
+        },
+        {
+          "attribute": "loan.amount_paid",
+          "operator": "lt",
+          "value": "loan.amount"
+        }
+      ],
+      "operation": "Loan.Repay"
+    },
+    {
+      "type": "condition",
+      "description": "Only active loans past their due date are eligible for default.",
+      "conditions": [
+        {
+          "attribute": "loan.status",
+          "operator": "eq",
+          "value": "active"
+        },
+        {
+          "attribute": "loan.due_date",
+          "operator": "present"
+        }
+      ],
+      "operation": "Loan.Default"
+    }
+  ],
   "relationships": [
     {
       "name": "Loan.borrower",

@@ -27,6 +27,7 @@ export interface ProductCoreDNA {
   resources?: any[]
   operations?: any[]
   triggers?: any[]
+  rules?: any[]
   relationships?: any[]
 }
 
@@ -117,6 +118,9 @@ export function materializeProductCore(
     })
   const operationNames = new Set<string>(operations.map((op: any) => op.name))
 
+  // 6a. Filter Rules to those constraining surfaced Operations
+  const rules = (operational.rules ?? []).filter((r: any) => operationNames.has(r.operation))
+
   // 6. Filter Triggers to those firing surfaced Operations / surfaced Processes
   const surfacedProcessNames = new Set<string>()
   for (const proc of operational.processes ?? []) {
@@ -145,6 +149,7 @@ export function materializeProductCore(
   if (resources.length) core.resources = resources
   if (operations.length) core.operations = operations
   if (triggers.length) core.triggers = triggers
+  if (rules.length) core.rules = rules
   if (rels.length) core.relationships = rels
 
   return core

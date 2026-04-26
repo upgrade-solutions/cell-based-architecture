@@ -1019,6 +1019,335 @@
       "description": "Paralegal records damage assessment from county records, insurance report, or site visit."
     }
   ],
+  "rules": [
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Public"
+        }
+      ],
+      "description": "Intake is open to the public. No authentication required.",
+      "operation": "IntakeSubmission.Submit"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "intake_submission.city",
+          "operator": "in",
+          "value": [
+            "Superior",
+            "Louisville",
+            "Unincorporated Boulder County"
+          ]
+        }
+      ],
+      "description": "Property must fall within the affected Boulder County jurisdictions.",
+      "operation": "IntakeSubmission.Submit"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only intake staff or admins may qualify a submission.",
+      "operation": "IntakeSubmission.Qualify"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "intake_submission.status",
+          "operator": "in",
+          "value": [
+            "received",
+            "under_review"
+          ]
+        }
+      ],
+      "description": "A submission must be in received or under_review state before it can be qualified.",
+      "operation": "IntakeSubmission.Qualify"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only intake staff or admins may register a claimant.",
+      "operation": "Claimant.Register"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Attorneys and intake staff may view claimant profiles.",
+      "operation": "Claimant.View"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only intake staff or admins may assign an attorney to a claimant.",
+      "operation": "Claimant.Assign"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "claimant.status",
+          "operator": "in",
+          "value": [
+            "registered",
+            "active"
+          ]
+        }
+      ],
+      "description": "Claimant must be in registered or active state to receive an attorney assignment.",
+      "operation": "Claimant.Assign"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Attorneys and intake staff may file claims on behalf of claimants.",
+      "operation": "Claim.File"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "claimant.status",
+          "operator": "in",
+          "value": [
+            "assigned",
+            "active"
+          ]
+        }
+      ],
+      "description": "A claim may only be filed for a claimant who has been assigned an attorney.",
+      "operation": "Claim.File"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Attorneys and intake staff may review claims.",
+      "operation": "Claim.Review"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "claim.status",
+          "operator": "eq",
+          "value": "filed"
+        }
+      ],
+      "description": "Only filed claims are eligible for review.",
+      "operation": "Claim.Review"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only attorneys or admins may update the status of a claim.",
+      "operation": "Claim.UpdateStatus"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Public",
+          "ownership": true
+        },
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Claimants (owning the claim) and legal staff may upload evidence.",
+      "operation": "Evidence.Upload"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "claim.status",
+          "operator": "not_in",
+          "value": [
+            "settled",
+            "dismissed"
+          ]
+        }
+      ],
+      "description": "Evidence may not be uploaded to settled or dismissed claims.",
+      "operation": "Evidence.Upload"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only legal staff or attorneys may verify evidence.",
+      "operation": "Evidence.Verify"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Attorneys and intake staff may advance a case stage.",
+      "operation": "CaseStatus.Advance"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only system admins may onboard a new firm.",
+      "operation": "Firm.Onboard"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "IntakeStaff"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only intake staff or admins may assign an attorney.",
+      "operation": "Attorney.Assign"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "attorney.status",
+          "operator": "eq",
+          "value": "active"
+        }
+      ],
+      "description": "Only active attorneys may be assigned to claimants.",
+      "operation": "Attorney.Assign"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Attorney"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Only the assigned attorney or an admin may process a withdrawal.",
+      "operation": "Claimant.Withdraw"
+    },
+    {
+      "type": "condition",
+      "conditions": [
+        {
+          "attribute": "claimant.status",
+          "operator": "in",
+          "value": [
+            "registered",
+            "assigned",
+            "active"
+          ]
+        }
+      ],
+      "description": "Only claimants who have not already settled or withdrawn may withdraw.",
+      "operation": "Claimant.Withdraw"
+    },
+    {
+      "type": "access",
+      "allow": [
+        {
+          "role": "Paralegal"
+        },
+        {
+          "role": "Admin"
+        }
+      ],
+      "description": "Paralegals and admins may record property damage assessments.",
+      "operation": "Property.Assess"
+    }
+  ],
   "relationships": [
     {
       "name": "Claimant.intake_submission",

@@ -472,8 +472,10 @@ describe('api-cell integration (nestjs)', () => {
   test('loans controller has correct decorators', () => {
     const ctrl = fs.readFileSync(path.join(outputDir, 'src/loans/loans.controller.ts'), 'utf-8')
     expect(ctrl).toContain("@Controller('lending/loans')")
-    expect(ctrl).toContain("@Roles('borrower')")
-    expect(ctrl).toContain("@Roles('underwriter')")
+    // Borrower as a Role is "BorrowerActor" post-migration since "Borrower"
+    // is already taken as a Resource name (names are unique across noun primitives).
+    expect(ctrl).toContain("@Roles('BorrowerActor')")
+    expect(ctrl).toContain("@Roles('Underwriter')")
     expect(ctrl).toContain("@Patch(':id/approve')")
     expect(ctrl).toContain("@Patch(':id/reject')")
     expect(ctrl).toContain("@Post(':id/repayments')")
