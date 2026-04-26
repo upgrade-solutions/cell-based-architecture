@@ -333,7 +333,7 @@
     {
       "name": "ReviewQueue",
       "resource": "Loan",
-      "description": "Underwriter workbench — lists all loans under review and provides inline approval or rejection.",
+      "description": "Underwriter workbench \u2014 lists all loans under review and provides inline approval or rejection.",
       "blocks": [
         {
           "name": "ReviewTable",
@@ -745,18 +745,13 @@
           ]
         }
       ]
-    },
-    {
-      "name": "Deal",
-      "resource": "Deal",
-      "blocks": []
     }
   ],
   "routes": [
     {
       "path": "/loans",
       "page": "LoanList",
-      "description": "Loan list — filtered by role at runtime."
+      "description": "Loan list \u2014 filtered by role at runtime."
     },
     {
       "path": "/loans/apply",

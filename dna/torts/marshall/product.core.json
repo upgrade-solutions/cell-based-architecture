@@ -661,6 +661,127 @@
           "advanced_at": "2026-01-22T10:00:00Z"
         }
       ]
+    },
+    {
+      "name": "Firm",
+      "description": "A participating law firm in the Marshall Fire mass-tort coordination network. Supports multi-firm coordination where multiple firms jointly represent claimants.",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Unique identifier."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Official firm name."
+        },
+        {
+          "name": "bar_number",
+          "type": "string",
+          "description": "State bar registration number."
+        },
+        {
+          "name": "primary_contact_email",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "primary_contact_phone",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "pending",
+            "active",
+            "suspended"
+          ],
+          "description": "Participation status of the firm in the mass tort."
+        },
+        {
+          "name": "onboarded_at",
+          "type": "datetime",
+          "description": "When the firm was approved and activated in the system."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Onboard",
+          "description": "Approve and activate a law firm to participate in the mass-tort matter."
+        },
+        {
+          "name": "List",
+          "type": "read"
+        },
+        {
+          "name": "View",
+          "type": "read"
+        }
+      ]
+    },
+    {
+      "name": "Attorney",
+      "description": "An individual attorney at a participating Firm who is assigned to represent one or more Claimants in the Marshall Fire mass-tort matter.",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Unique identifier."
+        },
+        {
+          "name": "first_name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "last_name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "bar_number",
+          "type": "string",
+          "description": "Individual state bar number."
+        },
+        {
+          "name": "firm_id",
+          "type": "reference",
+          "required": true,
+          "description": "Reference to the Firm this attorney belongs to.",
+          "resource": "Firm"
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "active",
+            "inactive"
+          ],
+          "description": "Whether this attorney is currently accepting assignments."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Assign",
+          "description": "Assign this attorney to represent a Claimant."
+        },
+        {
+          "name": "List",
+          "type": "read"
+        }
+      ]
     }
   ],
   "operations": [
@@ -1094,7 +1215,7 @@
           "role": "IntakeStaff"
         },
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "Admin"
@@ -1135,7 +1256,7 @@
       "type": "access",
       "allow": [
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "IntakeStaff"
@@ -1166,7 +1287,7 @@
       "type": "access",
       "allow": [
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "IntakeStaff"
@@ -1194,7 +1315,7 @@
       "type": "access",
       "allow": [
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "Admin"
@@ -1211,7 +1332,7 @@
           "ownership": true
         },
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "IntakeStaff"
@@ -1245,7 +1366,7 @@
           "role": "IntakeStaff"
         },
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "Admin"
@@ -1258,7 +1379,7 @@
       "type": "access",
       "allow": [
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "IntakeStaff"
@@ -1309,7 +1430,7 @@
       "type": "access",
       "allow": [
         {
-          "role": "Attorney"
+          "role": "AttorneyActor"
         },
         {
           "role": "Admin"
