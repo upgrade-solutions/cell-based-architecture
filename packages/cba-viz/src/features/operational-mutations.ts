@@ -1,66 +1,69 @@
 /**
  * Operational DNA mutations.
  *
- * Pure helpers that take an OperationalDNA and return a new document
- * with a primitive added or deleted. No JointJS, no React — just
- * data-in / data-out so they stay trivially unit-testable.
+ * Pure helpers — data-in / data-out — for adding/removing primitives in
+ * the new operational model. No JointJS, no React, so they stay
+ * trivially unit-testable.
  *
  * Identity is UUID-based — every primitive carries a stable `id` field
- * assigned on first load. Rename is a display-name edit; references and
- * layout keys are UUID-stable and never need rewriting.
+ * assigned on first load. Rename is just a display-name edit; references
+ * and layout keys never need rewriting.
  */
 
 import { generateId } from '../utils/uuid.ts'
 import type {
   OperationalDNA,
   Domain,
-  Noun,
-  Capability,
+  NounLike,
+  Resource,
+  Person,
+  Role,
+  Group,
+  Operation,
+  Trigger,
+  TriggerSource,
   Rule,
-  Outcome,
   RuleType,
+  Task,
+  Process,
+  Membership,
 } from '../loaders/operational-loader.ts'
 
-// ── Kinds we can create / delete in this chunk ─────────────────────────
+// ── Kinds we can create / delete ───────────────────────────────────────
+
+export type NounPrimitiveKind = 'resource' | 'person' | 'role' | 'group'
 
 export type OperationalPrimitiveKind =
-  | 'noun'
-  | 'capability'
+  | NounPrimitiveKind
+  | 'operation'
+  | 'trigger'
   | 'rule'
-  | 'outcome'
-  | 'signal'
+  | 'task'
+  | 'process'
+  | 'membership'
 
-// ── Create helpers ─────────────────────────────────────────────────────
+// ── Internal helpers ───────────────────────────────────────────────────
 
-/**
- * Deep-clone utility. JSON round-trip is fine for DNA — no functions,
- * no Dates, no Maps. Keeps the mutation helpers immutable without
- * hand-written spreads at every level.
- */
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
 /**
- * Walk the domain hierarchy to the first leaf that carries any Nouns.
- * This mirrors `pickLeafDomain` in operational-to-graph.ts — additions
- * land in the same leaf the canvas is currently rendering.
- *
- * Returns the same Domain reference inside the cloned tree so callers
- * can mutate it in place.
+ * Walk the domain hierarchy to the first leaf that carries any noun
+ * primitives. Mirrors `pickLeafDomain` in operational-to-graph.ts so
+ * additions land in the lane the canvas is currently rendering.
  */
 function findTargetLeafDomain(root: Domain): Domain {
-  if (root.nouns && root.nouns.length > 0) return root
+  if (anyNouns(root)) return root
   for (const child of root.domains ?? []) {
     const found = findLeafWithNouns(child)
     if (found) return found
   }
-  // No existing nouns anywhere — fall back to the deepest leaf
   return findDeepestLeaf(root)
 }
 
 function findLeafWithNouns(domain: Domain): Domain | null {
-  if (domain.nouns && domain.nouns.length > 0) return domain
+  if (anyNouns(domain)) return domain
   for (const child of domain.domains ?? []) {
     const found = findLeafWithNouns(child)
     if (found) return found
@@ -73,7 +76,19 @@ function findDeepestLeaf(domain: Domain): Domain {
   return findDeepestLeaf(domain.domains[domain.domains.length - 1])
 }
 
+function anyNouns(domain: Domain): boolean {
+  return (
+    (domain.resources?.length ?? 0) > 0 ||
+    (domain.persons?.length ?? 0) > 0 ||
+    (domain.roles?.length ?? 0) > 0 ||
+    (domain.groups?.length ?? 0) > 0
+  )
+}
+
+// ── Add helpers ────────────────────────────────────────────────────────
+
 export interface AddNounInput {
+  kind: NounPrimitiveKind
   name: string
   description?: string
 }
@@ -81,40 +96,84 @@ export interface AddNounInput {
 export function addNoun(dna: OperationalDNA, input: AddNounInput): OperationalDNA {
   const next = clone(dna)
   const leaf = findTargetLeafDomain(next.domain)
-  leaf.nouns = leaf.nouns ?? []
-  leaf.nouns.push({
+  const newNoun: NounLike = {
     id: generateId(),
     name: input.name,
     description: input.description,
     domain: leaf.path ?? leaf.name,
     attributes: [],
-    verbs: [],
-  })
+    actions: [],
+  }
+  switch (input.kind) {
+    case 'resource':
+      leaf.resources = leaf.resources ?? []
+      leaf.resources.push(newNoun as Resource)
+      break
+    case 'person':
+      leaf.persons = leaf.persons ?? []
+      leaf.persons.push(newNoun as Person)
+      break
+    case 'role':
+      leaf.roles = leaf.roles ?? []
+      leaf.roles.push(newNoun as Role)
+      break
+    case 'group':
+      leaf.groups = leaf.groups ?? []
+      leaf.groups.push(newNoun as Group)
+      break
+  }
   return next
 }
 
-export interface AddCapabilityInput {
-  noun: string
-  verb: string
+export interface AddOperationInput {
+  target: string
+  action: string
   description?: string
 }
 
-export function addCapability(dna: OperationalDNA, input: AddCapabilityInput): OperationalDNA {
+export function addOperation(dna: OperationalDNA, input: AddOperationInput): OperationalDNA {
   const next = clone(dna)
-  next.capabilities = next.capabilities ?? []
-  const name = `${input.noun}.${input.verb}`
-  next.capabilities.push({
+  next.operations = next.operations ?? []
+  const name = `${input.target}.${input.action}`
+  next.operations.push({
     id: generateId(),
-    noun: input.noun,
-    verb: input.verb,
     name,
+    target: input.target,
+    action: input.action,
     description: input.description,
   })
   return next
 }
 
+export interface AddTriggerInput {
+  source: TriggerSource
+  operation?: string
+  process?: string
+  description?: string
+  schedule?: string
+  event?: string
+  after?: string
+}
+
+export function addTrigger(dna: OperationalDNA, input: AddTriggerInput): OperationalDNA {
+  const next = clone(dna)
+  next.triggers = next.triggers ?? []
+  const trigger: Trigger = {
+    id: generateId(),
+    source: input.source,
+    operation: input.operation,
+    process: input.process,
+    description: input.description,
+    schedule: input.schedule,
+    event: input.event,
+    after: input.after,
+  }
+  next.triggers.push(trigger)
+  return next
+}
+
 export interface AddRuleInput {
-  capability: string
+  operation: string
   type: RuleType
   description?: string
 }
@@ -124,7 +183,7 @@ export function addRule(dna: OperationalDNA, input: AddRuleInput): OperationalDN
   next.rules = next.rules ?? []
   const rule: Rule = {
     id: generateId(),
-    capability: input.capability,
+    operation: input.operation,
     type: input.type,
     description: input.description,
   }
@@ -137,21 +196,66 @@ export function addRule(dna: OperationalDNA, input: AddRuleInput): OperationalDN
   return next
 }
 
-export interface AddOutcomeInput {
-  capability: string
+export interface AddTaskInput {
+  name: string
+  actor: string
+  operation: string
   description?: string
 }
 
-export function addOutcome(dna: OperationalDNA, input: AddOutcomeInput): OperationalDNA {
+export function addTask(dna: OperationalDNA, input: AddTaskInput): OperationalDNA {
   const next = clone(dna)
-  next.outcomes = next.outcomes ?? []
-  const outcome: Outcome = {
+  next.tasks = next.tasks ?? []
+  const task: Task = {
     id: generateId(),
-    capability: input.capability,
+    name: input.name,
+    actor: input.actor,
+    operation: input.operation,
     description: input.description,
-    changes: [{ attribute: 'status', set: 'new' }],
   }
-  next.outcomes.push(outcome)
+  next.tasks.push(task)
+  return next
+}
+
+export interface AddProcessInput {
+  name: string
+  operator: string
+  description?: string
+}
+
+export function addProcess(dna: OperationalDNA, input: AddProcessInput): OperationalDNA {
+  const next = clone(dna)
+  next.processes = next.processes ?? []
+  const process: Process = {
+    id: generateId(),
+    name: input.name,
+    operator: input.operator,
+    description: input.description,
+    startStep: '',
+    steps: [],
+  }
+  next.processes.push(process)
+  return next
+}
+
+export interface AddMembershipInput {
+  name: string
+  person: string
+  role: string
+  group?: string
+}
+
+export function addMembership(dna: OperationalDNA, input: AddMembershipInput): OperationalDNA {
+  const next = clone(dna)
+  next.memberships = next.memberships ?? []
+  const membership: Membership = {
+    id: generateId(),
+    name: input.name,
+    person: input.person,
+    role: input.role,
+    group: input.group,
+  }
+  next.memberships.push(membership)
   return next
 }
 
@@ -175,22 +279,16 @@ export function previewCascade(
 ): RemovedPrimitive[] {
   const removed: RemovedPrimitive[] = []
 
-  if (kind === 'noun') {
-    const noun = findNounById(dna.domain, key)
-    removed.push({ kind: 'noun', name: noun?.name ?? key })
+  if (isNounKind(kind)) {
+    const noun = findNounById(dna.domain, kind, key)
+    removed.push({ kind, name: noun?.name ?? key })
     if (noun) {
-      const doomedCaps = (dna.capabilities ?? []).filter((c) => c.noun === noun.name)
-      for (const cap of doomedCaps) {
-        const capName = cap.name ?? `${cap.noun}.${cap.verb}`
-        removed.push({ kind: 'capability', name: capName })
+      const doomedOps = (dna.operations ?? []).filter((o) => o.target === noun.name)
+      for (const op of doomedOps) {
+        removed.push({ kind: 'operation', name: op.name })
         for (const rule of dna.rules ?? []) {
-          if (rule.capability === capName) {
-            removed.push({ kind: 'rule', name: `${capName} ${rule.type ?? 'access'}` })
-          }
-        }
-        for (const outcome of dna.outcomes ?? []) {
-          if (outcome.capability === capName) {
-            removed.push({ kind: 'outcome', name: `${capName} outcome` })
+          if (rule.operation === op.name) {
+            removed.push({ kind: 'rule', name: rule.name ?? `${op.name} ${rule.type ?? 'access'}` })
           }
         }
       }
@@ -198,38 +296,46 @@ export function previewCascade(
     return removed
   }
 
-  if (kind === 'capability') {
-    const cap = (dna.capabilities ?? []).find((c) => c.id === key)
-    const capName = cap ? (cap.name ?? `${cap.noun}.${cap.verb}`) : key
-    removed.push({ kind: 'capability', name: capName })
+  if (kind === 'operation') {
+    const op = (dna.operations ?? []).find((o) => o.id === key)
+    const opName = op?.name ?? key
+    removed.push({ kind: 'operation', name: opName })
     for (const rule of dna.rules ?? []) {
-      if (rule.capability === capName) {
-        removed.push({ kind: 'rule', name: `${capName} ${rule.type ?? 'access'}` })
+      if (rule.operation === opName) {
+        removed.push({ kind: 'rule', name: rule.name ?? `${opName} ${rule.type ?? 'access'}` })
       }
     }
-    for (const outcome of dna.outcomes ?? []) {
-      if (outcome.capability === capName) {
-        removed.push({ kind: 'outcome', name: `${capName} outcome` })
-      }
-    }
+    return removed
+  }
+
+  if (kind === 'trigger') {
+    const trigger = (dna.triggers ?? []).find((t) => t.id === key)
+    const label = trigger?.operation ?? trigger?.process ?? trigger?.source ?? key
+    removed.push({ kind: 'trigger', name: `trigger:${label}` })
     return removed
   }
 
   if (kind === 'rule') {
     const rule = (dna.rules ?? []).find((r) => r.id === key)
-    removed.push({ kind: 'rule', name: rule ? `${rule.capability} ${rule.type ?? 'access'}` : key })
+    removed.push({ kind: 'rule', name: rule ? (rule.name ?? `${rule.operation} ${rule.type ?? 'access'}`) : key })
     return removed
   }
 
-  if (kind === 'outcome') {
-    const outcome = (dna.outcomes ?? []).find((o) => o.id === key)
-    removed.push({ kind: 'outcome', name: outcome ? `${outcome.capability} outcome` : key })
+  if (kind === 'task') {
+    const task = (dna.tasks ?? []).find((t) => t.id === key)
+    removed.push({ kind: 'task', name: task?.name ?? key })
     return removed
   }
 
-  if (kind === 'signal') {
-    const signal = (dna.signals ?? []).find((s) => s.id === key)
-    removed.push({ kind: 'signal', name: signal?.name ?? key })
+  if (kind === 'process') {
+    const process = (dna.processes ?? []).find((p) => p.id === key)
+    removed.push({ kind: 'process', name: process?.name ?? key })
+    return removed
+  }
+
+  if (kind === 'membership') {
+    const m = (dna.memberships ?? []).find((m) => m.id === key)
+    removed.push({ kind: 'membership', name: m?.name ?? key })
     return removed
   }
 
@@ -238,7 +344,6 @@ export function previewCascade(
 
 /**
  * Remove a primitive (and its cascades) from the DNA.
- * `key` is the primitive's UUID `id`.
  */
 export function deleteOperationalPrimitive(
   dna: OperationalDNA,
@@ -248,94 +353,77 @@ export function deleteOperationalPrimitive(
   const next = clone(dna)
   const removed: RemovedPrimitive[] = []
 
-  if (kind === 'noun') {
+  if (isNounKind(kind)) {
     let nounName: string | undefined
     walkDomains(next.domain, (domain) => {
-      if (domain.nouns) {
-        const found = domain.nouns.find((n) => n.id === key)
+      const arr = nounArrayOn(domain, kind)
+      if (arr) {
+        const found = arr.find((n) => n.id === key)
         if (found) nounName = found.name
-        domain.nouns = domain.nouns.filter((n) => n.id !== key)
+        const filtered = arr.filter((n) => n.id !== key)
+        setNounArrayOn(domain, kind, filtered)
       }
     })
-    removed.push({ kind: 'noun', name: nounName ?? key })
+    removed.push({ kind, name: nounName ?? key })
 
     if (nounName) {
-      const doomedCapNames = new Set<string>()
-      next.capabilities = (next.capabilities ?? []).filter((cap) => {
-        if (cap.noun === nounName) {
-          const name = cap.name ?? `${cap.noun}.${cap.verb}`
-          doomedCapNames.add(name)
-          removed.push({ kind: 'capability', name })
+      const doomedOpNames = new Set<string>()
+      next.operations = (next.operations ?? []).filter((op) => {
+        if (op.target === nounName) {
+          doomedOpNames.add(op.name)
+          removed.push({ kind: 'operation', name: op.name })
           return false
         }
         return true
       })
-
       next.rules = (next.rules ?? []).filter((rule) => {
-        if (doomedCapNames.has(rule.capability)) {
-          removed.push({ kind: 'rule', name: `${rule.capability} ${rule.type ?? 'access'}` })
+        if (doomedOpNames.has(rule.operation)) {
+          removed.push({ kind: 'rule', name: rule.name ?? `${rule.operation} ${rule.type ?? 'access'}` })
           return false
         }
         return true
       })
-      next.outcomes = (next.outcomes ?? []).filter((outcome) => {
-        if (doomedCapNames.has(outcome.capability)) {
-          removed.push({ kind: 'outcome', name: `${outcome.capability} outcome` })
-          return false
-        }
+      next.triggers = (next.triggers ?? []).filter((trigger) => {
+        if (trigger.operation && doomedOpNames.has(trigger.operation)) return false
+        if (trigger.after && doomedOpNames.has(trigger.after)) return false
         return true
       })
-      next.causes = (next.causes ?? []).filter((cause) => {
-        if (doomedCapNames.has(cause.capability)) return false
-        if (cause.after && doomedCapNames.has(cause.after)) return false
-        return true
-      })
-
-      walkNouns(next.domain, (noun) => {
-        for (const attr of noun.attributes ?? []) {
-          if (attr.type === 'reference' && attr.noun === nounName) {
-            delete attr.noun
-          }
-        }
-      })
+      next.tasks = (next.tasks ?? []).filter((task) => !doomedOpNames.has(task.operation))
     }
-
     return { dna: next, removed }
   }
 
-  if (kind === 'capability') {
-    const cap = (next.capabilities ?? []).find((c) => c.id === key)
-    const capName = cap ? (cap.name ?? `${cap.noun}.${cap.verb}`) : undefined
-    next.capabilities = (next.capabilities ?? []).filter((c) => c.id !== key)
-    if (capName) removed.push({ kind: 'capability', name: capName })
+  if (kind === 'operation') {
+    const op = (next.operations ?? []).find((o) => o.id === key)
+    const opName = op?.name
+    next.operations = (next.operations ?? []).filter((o) => o.id !== key)
+    if (opName) removed.push({ kind: 'operation', name: opName })
 
-    if (capName) {
+    if (opName) {
       next.rules = (next.rules ?? []).filter((rule) => {
-        if (rule.capability === capName) {
-          removed.push({ kind: 'rule', name: `${capName} ${rule.type ?? 'access'}` })
+        if (rule.operation === opName) {
+          removed.push({ kind: 'rule', name: rule.name ?? `${opName} ${rule.type ?? 'access'}` })
           return false
         }
         return true
       })
-      next.outcomes = (next.outcomes ?? []).filter((outcome) => {
-        if (outcome.capability === capName) {
-          removed.push({ kind: 'outcome', name: `${capName} outcome` })
-          return false
-        }
+      next.triggers = (next.triggers ?? []).filter((trigger) => {
+        if (trigger.operation === opName) return false
+        if (trigger.after === opName) return false
         return true
       })
-      next.causes = (next.causes ?? []).filter((cause) => {
-        if (cause.capability === capName) return false
-        if (cause.after === capName) return false
-        return true
-      })
-      for (const outcome of next.outcomes ?? []) {
-        if (outcome.initiates) {
-          outcome.initiates = outcome.initiates.filter((c) => c !== capName)
-        }
-      }
+      next.tasks = (next.tasks ?? []).filter((task) => task.operation !== opName)
     }
+    return { dna: next, removed }
+  }
 
+  if (kind === 'trigger') {
+    const target = (next.triggers ?? []).find((t) => t.id === key)
+    if (target) {
+      next.triggers = (next.triggers ?? []).filter((t) => t.id !== key)
+      const label = target.operation ?? target.process ?? target.source ?? key
+      removed.push({ kind: 'trigger', name: `trigger:${label}` })
+    }
     return { dna: next, removed }
   }
 
@@ -343,25 +431,35 @@ export function deleteOperationalPrimitive(
     const target = (next.rules ?? []).find((r) => r.id === key)
     if (target) {
       next.rules = (next.rules ?? []).filter((r) => r.id !== key)
-      removed.push({ kind: 'rule', name: `${target.capability} ${target.type ?? 'access'}` })
+      removed.push({ kind: 'rule', name: target.name ?? `${target.operation} ${target.type ?? 'access'}` })
     }
     return { dna: next, removed }
   }
 
-  if (kind === 'outcome') {
-    const target = (next.outcomes ?? []).find((o) => o.id === key)
+  if (kind === 'task') {
+    const target = (next.tasks ?? []).find((t) => t.id === key)
     if (target) {
-      next.outcomes = (next.outcomes ?? []).filter((o) => o.id !== key)
-      removed.push({ kind: 'outcome', name: `${target.capability} outcome` })
+      next.tasks = (next.tasks ?? []).filter((t) => t.id !== key)
+      removed.push({ kind: 'task', name: target.name })
     }
     return { dna: next, removed }
   }
 
-  if (kind === 'signal') {
-    const target = (next.signals ?? []).find((s) => s.id === key)
+  if (kind === 'process') {
+    const target = (next.processes ?? []).find((p) => p.id === key)
     if (target) {
-      next.signals = (next.signals ?? []).filter((s) => s.id !== key)
-      removed.push({ kind: 'signal', name: target.name })
+      next.processes = (next.processes ?? []).filter((p) => p.id !== key)
+      removed.push({ kind: 'process', name: target.name })
+      next.triggers = (next.triggers ?? []).filter((t) => t.process !== target.name)
+    }
+    return { dna: next, removed }
+  }
+
+  if (kind === 'membership') {
+    const target = (next.memberships ?? []).find((m) => m.id === key)
+    if (target) {
+      next.memberships = (next.memberships ?? []).filter((m) => m.id !== key)
+      removed.push({ kind: 'membership', name: target.name })
     }
     return { dna: next, removed }
   }
@@ -371,20 +469,46 @@ export function deleteOperationalPrimitive(
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-function findNounById(domain: Domain, id: string): Noun | null {
-  for (const noun of domain.nouns ?? []) {
+function isNounKind(kind: OperationalPrimitiveKind): kind is NounPrimitiveKind {
+  return kind === 'resource' || kind === 'person' || kind === 'role' || kind === 'group'
+}
+
+function nounArrayOn(domain: Domain, kind: NounPrimitiveKind): NounLike[] | undefined {
+  switch (kind) {
+    case 'resource': return domain.resources
+    case 'person':   return domain.persons
+    case 'role':     return domain.roles
+    case 'group':    return domain.groups
+  }
+}
+
+function setNounArrayOn(domain: Domain, kind: NounPrimitiveKind, arr: NounLike[]): void {
+  switch (kind) {
+    case 'resource': domain.resources = arr as Resource[]; break
+    case 'person':   domain.persons   = arr as Person[]; break
+    case 'role':     domain.roles     = arr as Role[]; break
+    case 'group':    domain.groups    = arr as Group[]; break
+  }
+}
+
+function findNounById(domain: Domain, kind: NounPrimitiveKind, id: string): NounLike | null {
+  const arr = nounArrayOn(domain, kind) ?? []
+  for (const noun of arr) {
     if (noun.id === id) return noun
   }
   for (const child of domain.domains ?? []) {
-    const found = findNounById(child, id)
+    const found = findNounById(child, kind, id)
     if (found) return found
   }
   return null
 }
 
-function walkNouns(domain: Domain, fn: (noun: Noun) => void): void {
-  for (const noun of domain.nouns ?? []) fn(noun)
-  for (const child of domain.domains ?? []) walkNouns(child, fn)
+function walkAllNouns(domain: Domain, fn: (noun: NounLike, kind: NounPrimitiveKind) => void): void {
+  for (const r of domain.resources ?? []) fn(r, 'resource')
+  for (const p of domain.persons ?? [])  fn(p, 'person')
+  for (const r of domain.roles ?? [])    fn(r, 'role')
+  for (const g of domain.groups ?? [])   fn(g, 'group')
+  for (const child of domain.domains ?? []) walkAllNouns(child, fn)
 }
 
 function walkDomains(domain: Domain, fn: (domain: Domain) => void): void {
@@ -393,17 +517,22 @@ function walkDomains(domain: Domain, fn: (domain: Domain) => void): void {
 }
 
 // ── Convenience: enumerate existing primitives ────────────────────────
-//
-// The create dialog needs to populate dropdowns (noun list for
-// "Capability", capability list for "Rule" / "Outcome"). Centralizing
-// here keeps the dialog code stupid.
 
-export function listNouns(dna: OperationalDNA): Noun[] {
-  const out: Noun[] = []
-  walkNouns(dna.domain, (n) => out.push(n))
+export interface ListedNoun {
+  noun: NounLike
+  kind: NounPrimitiveKind
+}
+
+export function listNouns(dna: OperationalDNA): ListedNoun[] {
+  const out: ListedNoun[] = []
+  walkAllNouns(dna.domain, (noun, kind) => out.push({ noun, kind }))
   return out
 }
 
-export function listCapabilities(dna: OperationalDNA): Capability[] {
-  return dna.capabilities ?? []
+export function listOperations(dna: OperationalDNA): Operation[] {
+  return dna.operations ?? []
+}
+
+export function listProcesses(dna: OperationalDNA): Process[] {
+  return dna.processes ?? []
 }

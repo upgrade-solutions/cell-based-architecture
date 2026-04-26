@@ -157,12 +157,19 @@ const listItemStyle: React.CSSProperties = {
 
 function kindBadgeStyle(kind: string): React.CSSProperties {
   const palette: Record<string, { bg: string; fg: string }> = {
-    noun:       { bg: '#1e3a5f', fg: '#93c5fd' },
-    capability: { bg: '#14532d', fg: '#86efac' },
-    rule:       { bg: '#78350f', fg: '#fcd34d' },
-    outcome:    { bg: '#4c1d95', fg: '#c4b5fd' },
-    signal:     { bg: '#881337', fg: '#fda4af' },
+    // Operational noun primitives
     resource:   { bg: '#1e3a5f', fg: '#93c5fd' },
+    person:     { bg: '#78350f', fg: '#fcd34d' },
+    role:       { bg: '#4c1d95', fg: '#c4b5fd' },
+    group:      { bg: '#064e3b', fg: '#6ee7b7' },
+    // Operational activities
+    operation:  { bg: '#14532d', fg: '#86efac' },
+    trigger:    { bg: '#881337', fg: '#fda4af' },
+    rule:       { bg: '#78350f', fg: '#fcd34d' },
+    task:       { bg: '#365314', fg: '#bef264' },
+    process:    { bg: '#312e81', fg: '#a5b4fc' },
+    membership: { bg: '#581c87', fg: '#d8b4fe' },
+    // Product
     endpoint:   { bg: '#134e4a', fg: '#5eead4' },
     page:       { bg: '#3730a3', fg: '#a5b4fc' },
     block:      { bg: '#4a044e', fg: '#f5d0fe' },

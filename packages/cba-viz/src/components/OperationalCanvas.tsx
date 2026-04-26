@@ -9,10 +9,10 @@ import { mountJointPaper } from '../features/joint-paper.ts'
 // Each shape file self-registers on import; we just need to reach the
 // side effect.
 import '../shapes/operational/NounShape.ts'
-import '../shapes/operational/CapabilityShape.ts'
+import '../shapes/operational/OperationShape.ts'
 import '../shapes/operational/RuleShape.ts'
-import '../shapes/operational/OutcomeShape.ts'
-import '../shapes/operational/SignalShape.ts'
+import '../shapes/operational/TriggerShape.ts'
+import '../shapes/operational/ProcessShape.ts'
 import '../shapes/ZoneContainer.ts'
 
 interface OperationalCanvasProps {

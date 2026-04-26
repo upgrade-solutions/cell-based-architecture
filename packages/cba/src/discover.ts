@@ -110,7 +110,7 @@ export function runDiscover(argv: string[], args: ParsedArgs): void {
 
   const nextSteps = [
     `cba operational list ${domain}`,
-    `cba operational schema Noun`,
+    `cba operational schema Resource`,
     `cba product api list ${domain}`,
     `cba validate ${domain} --json`,
   ]

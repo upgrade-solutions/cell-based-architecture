@@ -83,7 +83,7 @@ export function subLabel(sub: Sub): string {
 /** Tooltip describing what the sub-tab contains. */
 function subTitle(sub: Sub): string {
   switch (sub) {
-    case 'operational':  return 'Operational DNA — business logic, Nouns, Capabilities, Rules, Outcomes, Signals'
+    case 'operational':  return 'Operational DNA — Resources, Persons, Roles, Groups, Operations, Triggers, Rules, Tasks, Processes'
     case 'product':      return 'Product DNA — Core (materialized), API (resources + endpoints), UI (layout + pages + blocks). Pick a variant from the dropdown.'
     case 'technical':    return 'Technical DNA — cells, constructs, providers, environments'
     case 'cross-layer':  return 'Cross-layer — a single capability across operational, product API, and product UI'
@@ -270,7 +270,7 @@ export const Toolbar = observer(function Toolbar({
             <button
               onClick={onCreate}
               style={createButtonStyle}
-              title="Add a new Noun, Capability, Rule, or Outcome"
+              title="Add a new Resource, Person, Role, Group, Operation, Trigger, Rule, Task, Process, or Membership"
             >
               + New
             </button>

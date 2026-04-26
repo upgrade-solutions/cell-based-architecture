@@ -1,39 +1,40 @@
 export type GuidePhase = 'discover' | 'design'
 
 export type PrimitiveType =
-  | 'noun'
-  | 'attribute'
-  | 'verb'
-  | 'capability'
-  | 'position'
+  | 'resource'
   | 'person'
+  | 'role'
+  | 'group'
+  | 'attribute'
+  | 'action'
+  | 'operation'
   | 'task'
   | 'process'
   | 'rule'
-  | 'cause'
-  | 'outcome'
-  | 'signal'
+  | 'trigger'
+  | 'membership'
   | 'relationship'
 
 export const PRIMITIVE_TYPES: PrimitiveType[] = [
-  'noun', 'attribute', 'verb', 'capability',
-  'position', 'person', 'task', 'process',
-  'rule', 'cause', 'outcome', 'signal', 'relationship',
+  'resource', 'person', 'role', 'group',
+  'attribute', 'action', 'operation',
+  'task', 'process',
+  'rule', 'trigger', 'membership', 'relationship',
 ]
 
 export const PRIMITIVE_COLORS: Record<PrimitiveType, string> = {
-  noun: '#64748b',
+  resource: '#64748b',
+  person: '#fbbf24',
+  role: '#a78bfa',
+  group: '#34d399',
   attribute: '#64748b',
-  verb: '#10b981',
-  capability: '#10b981',
-  position: '#8b5cf6',
-  person: '#8b5cf6',
-  task: '#8b5cf6',
-  process: '#f59e0b',
-  rule: '#06b6d4',
-  cause: '#f43f5e',
-  outcome: '#f43f5e',
-  signal: '#f43f5e',
+  action: '#10b981',
+  operation: '#10b981',
+  task: '#bef264',
+  process: '#6366f1',
+  rule: '#f59e0b',
+  trigger: '#f43f5e',
+  membership: '#a855f7',
   relationship: '#a855f7',
 }
 
@@ -43,6 +44,7 @@ export interface Extraction {
   primitiveType: PrimitiveType
   confidence: 'manual' | 'suggested'
   approved: boolean
+  /** When the extraction is an attribute/action, this names the parent noun. */
   parentNoun?: string
 }
 

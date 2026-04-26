@@ -1,15 +1,26 @@
 /**
  * Operational DNA types + loader.
  *
- * Field names and shapes must match `operational/schemas/*.json` exactly.
- * The RJSF-driven inspector form round-trips data through these interfaces
- * back to the schema, so any drift breaks editing silently. If you change
- * a schema, update the corresponding interface here and re-run tsc.
+ * Field names and shapes mirror `@dna-codes/schemas/operational/*.json` exactly.
+ * The RJSF-driven inspector form round-trips data through these interfaces back
+ * to the schema, so any drift breaks editing silently. If you change a schema,
+ * update the corresponding interface here and re-run tsc.
  */
 
 import { migrateOperationalDNA } from './migrate-to-uuid.ts'
 
-// ── Primitive types (mirror operational/schemas/*.json) ─────────────────
+// ── Primitive types (mirror @dna-codes/schemas/operational/*.json) ─────────
+
+export type ActionType = 'read' | 'write' | 'destructive'
+
+export interface Action {
+  name: string
+  description?: string
+  type?: ActionType
+  idempotent?: boolean
+  input?: Attribute[]
+  output?: Attribute[]
+}
 
 export interface Attribute {
   name: string
@@ -19,68 +30,107 @@ export interface Attribute {
   /** Only valid when type === 'enum'. */
   values?: string[]
   /** Only valid when type === 'reference'. */
-  noun?: string
+  resource?: string
 }
 
-export interface Verb {
-  name: string
-  description?: string
-  noun?: string
-  input?: Attribute[]
-  output?: Attribute[]
-}
-
-export interface Noun {
+/**
+ * The four operational "noun" primitives — Resource, Person, Role, Group —
+ * share a common shape. Role adds optional scope/system/cardinality/excludes
+ * fields; Person adds an optional `resource` link.
+ */
+export interface NounLike {
   id?: string
   name: string
   description?: string
   /** Dot-separated domain path this noun lives in. */
   domain?: string
+  parent?: string
   attributes?: Attribute[]
-  verbs?: Verb[]
+  actions?: Action[]
   examples?: Array<Record<string, unknown>>
 }
+
+export type Resource = NounLike
+
+export interface Person extends NounLike {
+  /** Optional Resource template the Person is backed by (e.g. system actors). */
+  resource?: string
+}
+
+export interface Role extends NounLike {
+  /** Group / Person / Resource the Role is exercised within (string or string[]). */
+  scope?: string | string[]
+  /** True for non-human actors (jobs, services). */
+  system?: boolean
+  /** When system, optional Resource template the Role is backed by. */
+  resource?: string
+  /** Per-scope-instance constraints. */
+  cardinality?: 'one' | 'many'
+  required?: boolean
+  excludes?: string[]
+}
+
+export type Group = NounLike
 
 export interface Domain {
   name: string
   description?: string
   path?: string
   domains?: Domain[]
-  nouns?: Noun[]
+  resources?: Resource[]
+  persons?: Person[]
+  roles?: Role[]
+  groups?: Group[]
 }
 
-export interface Capability {
+export interface Membership {
   id?: string
-  /** Noun this capability applies to. */
-  noun: string
-  /** Verb performed on the noun. */
-  verb: string
-  /** Canonical `Noun.Verb` form. Redundant with noun+verb but stored for fast lookup. */
-  name?: string
-  description?: string
+  name: string
+  person: string
+  role: string
+  /** Required when Role.scope is multi-valued. */
+  group?: string
 }
 
-export type CauseSource = 'user' | 'schedule' | 'webhook' | 'capability' | 'signal'
+export interface OperationChange {
+  attribute: string
+  set?: unknown
+}
 
-export interface Cause {
+export interface Operation {
   id?: string
-  capability: string
+  /** Canonical `Target.Action` form. */
+  name: string
+  /** Any noun primitive (Resource/Person/Role/Group) or Process. */
+  target: string
+  /** Action name on the target's actions[] catalog. */
+  action: string
   description?: string
-  source: CauseSource
+  changes?: OperationChange[]
+  domain?: string
+}
+
+export type TriggerSource = 'user' | 'schedule' | 'webhook' | 'operation'
+
+export interface Trigger {
+  id?: string
+  /** Targets either an Operation (ad-hoc invocation) or a Process (kicks off SOP). */
+  operation?: string
+  process?: string
+  source: TriggerSource
+  description?: string
   /** Required when source === 'schedule'. Cron expression. */
   schedule?: string
   /** Required when source === 'webhook'. */
   event?: string
-  /** Required when source === 'capability'. Upstream `Noun.Verb`. */
+  /** Required when source === 'operation'. Upstream Operation name. */
   after?: string
-  /** Required when source === 'signal'. Fully qualified signal name. */
-  signal?: string
-  condition?: RuleCondition
 }
 
 export type RuleType = 'access' | 'condition'
 
 export interface RuleAllow {
+  /** Role or Person name (any actorable primitive). */
   role?: string
   ownership?: boolean
 }
@@ -93,7 +143,9 @@ export interface RuleCondition {
 
 export interface Rule {
   id?: string
-  capability: string
+  name?: string
+  /** Operation this Rule constrains. */
+  operation: string
   description?: string
   type?: RuleType
   /** Populated when type === 'access'. */
@@ -102,60 +154,13 @@ export interface Rule {
   conditions?: RuleCondition[]
 }
 
-export interface OutcomeChange {
-  attribute: string
-  set: unknown
-}
-
-export interface Outcome {
-  id?: string
-  capability: string
-  description?: string
-  changes: OutcomeChange[]
-  /** Downstream `Noun.Verb` capabilities to initiate synchronously. */
-  initiates?: string[]
-  /** Fully qualified signal names to emit asynchronously. */
-  emits?: string[]
-}
-
-export interface SignalPayloadField {
-  name: string
-  type: 'string' | 'text' | 'number' | 'boolean' | 'date' | 'datetime'
-  description?: string
-}
-
-export interface Signal {
-  id?: string
-  /** Fully qualified name: `domain.Noun.PastTenseVerb`. */
-  name: string
-  /** The `Noun.Verb` capability whose success publishes this signal. */
-  capability: string
-  description?: string
-  payload: SignalPayloadField[]
-}
-
-export interface Position {
-  name: string
-  description?: string
-  domain?: string
-  reports_to?: string
-  roles?: string[]
-}
-
-export interface Person {
-  name: string
-  display_name?: string
-  position: string
-  email?: string
-  domain?: string
-  active?: boolean
-}
-
 export interface Task {
+  id?: string
   name: string
   description?: string
-  position: string
-  capability: string
+  /** Role or Person (any actorable primitive). */
+  actor: string
+  operation: string
   domain?: string
 }
 
@@ -164,16 +169,21 @@ export interface ProcessStep {
   task: string
   description?: string
   depends_on?: string[]
-  branch?: { when: string; else?: string }
+  conditions?: string[]
+  /** Step id to jump to on condition failure, or "abort". */
+  else?: string
 }
 
 export interface Process {
+  id?: string
   name: string
   description?: string
   domain?: string
+  /** Role or Person who owns the process. */
   operator: string
+  /** Step id where execution begins (Amazon-States-Language convention). */
+  startStep: string
   steps: ProcessStep[]
-  emits?: string[]
 }
 
 export interface Relationship {
@@ -187,25 +197,12 @@ export interface Relationship {
   inverse?: string
 }
 
-export interface EquationOutput {
-  name: string
-  type: 'string' | 'number' | 'boolean' | 'date' | 'datetime'
-}
-
-export interface Equation {
-  id?: string
-  name: string
-  description?: string
-  input: string[]
-  output: EquationOutput
-}
-
 // ── Layout overlay ──────────────────────────────────────────────────────
 //
 // We persist node positions alongside content in the operational.json
 // document, mirroring the `views[]` pattern technical.json already uses.
 // `elements` is keyed by the stable id the mapper assigns (e.g.
-// `noun:Loan`, `capability:Loan.Approve`, `signal:lending.Loan.Disbursed`).
+// `resource:Loan`, `operation:Loan.Approve`, `trigger:<id>`).
 
 export interface OperationalLayoutElement {
   position: { x: number; y: number }
@@ -221,25 +218,21 @@ export interface OperationalLayout {
 
 export interface OperationalDNA {
   domain: Domain
-  capabilities?: Capability[]
-  causes?: Cause[]
+  memberships?: Membership[]
+  operations?: Operation[]
+  triggers?: Trigger[]
   rules?: Rule[]
-  outcomes?: Outcome[]
-  equations?: Equation[]
-  signals?: Signal[]
-  relationships?: Relationship[]
-  positions?: Position[]
-  persons?: Person[]
   tasks?: Task[]
   processes?: Process[]
-  /** Phase 1 layout overlay — non-canonical, rides alongside content. */
+  relationships?: Relationship[]
+  /** Layout overlay — non-canonical, rides alongside content. */
   layouts?: OperationalLayout[]
 }
 
 /**
- * Minimal runtime validation — just enough to fail fast on a
- * structurally broken file. Full schema validation happens on edit via
- * RJSF's ajv validator, not on initial load.
+ * Minimal runtime validation — just enough to fail fast on a structurally
+ * broken file. Full schema validation happens on edit via RJSF's ajv
+ * validator, not on initial load.
  */
 export function parseOperationalDNA(json: unknown): OperationalDNA {
   const data = json as OperationalDNA

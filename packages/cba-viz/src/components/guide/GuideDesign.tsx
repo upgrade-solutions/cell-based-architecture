@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { OperationalDNA } from '../../loaders/operational-loader.ts'
+import type { OperationalDNA, Domain, NounLike, ProcessStep } from '../../loaders/operational-loader.ts'
 import { GuideDefine } from './GuideDefine.tsx'
 import { GuidePlan } from './GuidePlan.tsx'
 
@@ -22,9 +22,9 @@ export function GuideDesign({ dna }: GuideDesignProps) {
   const [tab, setTab] = useState<DesignTab>('summary')
   const processes = dna.processes ?? []
   const tasks = dna.tasks ?? []
-  const positions = dna.positions ?? []
-  const nouns = collectNouns(dna.domain)
-  const capabilities = dna.capabilities ?? []
+  const roles = collectRoles(dna.domain)
+  const resources = collectResources(dna.domain)
+  const operations = dna.operations ?? []
   const rules = dna.rules ?? []
 
   return (
@@ -77,7 +77,7 @@ export function GuideDesign({ dna }: GuideDesignProps) {
                           <span style={stepIdBadgeStyle}>{step.id}</span>
                           {task ? (
                             <span style={stepResolvedStyle}>
-                              <strong>{task.position}</strong> performs <strong>{task.capability}</strong>
+                              <strong>{task.actor}</strong> performs <strong>{task.operation}</strong>
                             </span>
                           ) : (
                             <span style={stepTaskRefStyle}>{step.task}</span>
@@ -87,18 +87,17 @@ export function GuideDesign({ dna }: GuideDesignProps) {
                         {deps.length > 0 && (
                           <div style={stepDepsStyle}>Requires: {deps.join(', ')}</div>
                         )}
-                        {step.branch && (
+                        {step.else && (
                           <div style={branchBoxStyle}>
-                            <span style={branchWhenStyle}>IF {step.branch.when}</span>
-                            {step.branch.else && <span style={branchElseStyle}>ELSE {step.branch.else}</span>}
+                            <span style={branchElseStyle}>ELSE → {step.else}</span>
                           </div>
                         )}
                         {task && (() => {
-                          const capRules = rules.filter((r) => r.capability === task.capability)
-                          if (capRules.length === 0) return null
+                          const opRules = rules.filter((r) => r.operation === task.operation)
+                          if (opRules.length === 0) return null
                           return (
                             <div style={rulesBoxStyle}>
-                              {capRules.map((r, ri) => (
+                              {opRules.map((r, ri) => (
                                 <div key={ri} style={ruleLineStyle}>
                                   <span style={ruleTypeBadgeStyle}>{r.type}</span>
                                   <span style={ruleDescStyle}>{r.description ?? 'No description'}</span>
@@ -136,8 +135,8 @@ export function GuideDesign({ dna }: GuideDesignProps) {
                         return (
                           <div key={step.id} style={flowStepStyle}>
                             <div style={flowStepIdStyle}>{step.id}</div>
-                            <div style={flowStepPosStyle}>{task?.position ?? '?'}</div>
-                            {step.branch && <div style={flowBranchStyle}>◆</div>}
+                            <div style={flowStepPosStyle}>{task?.actor ?? '?'}</div>
+                            {step.else && <div style={flowBranchStyle}>◆</div>}
                           </div>
                         )
                       })}
@@ -162,14 +161,14 @@ export function GuideDesign({ dna }: GuideDesignProps) {
       {/* Product API */}
       {tab === 'api' && (
       <div style={sectionStyle}>
-        <p style={productIntroStyle}>REST surface derived from the domain's Nouns and Capabilities.</p>
+        <p style={productIntroStyle}>REST surface derived from the domain's Resources and Operations.</p>
 
         {/* Roles — auth inputs */}
         <div style={productSubsectionStyle}>
           <div style={productSubtitleStyle}>Roles (for auth middleware)</div>
           <div style={chipGridStyle}>
-            {[...new Set(positions.flatMap((p) => p.roles ?? []))].map((role) => (
-              <span key={role} style={roleChipStyle}>{role}</span>
+            {roles.map((r) => (
+              <span key={r.name} style={roleChipStyle}>{r.name}</span>
             ))}
           </div>
         </div>
@@ -182,33 +181,33 @@ export function GuideDesign({ dna }: GuideDesignProps) {
                 <th style={thStyle}>Resource</th>
                 <th style={thStyle}>Endpoint</th>
                 <th style={thStyle}>Method</th>
-                <th style={thStyle}>Capability</th>
+                <th style={thStyle}>Operation</th>
                 <th style={thStyle}>Allowed Roles</th>
               </tr>
             </thead>
             <tbody>
-              {nouns.flatMap((noun) => {
-                const nounCaps = capabilities.filter((c) => c.noun === noun.name)
-                if (nounCaps.length === 0) {
+              {resources.flatMap((res) => {
+                const resOps = operations.filter((o) => o.target === res.name)
+                if (resOps.length === 0) {
                   return [
-                    <tr key={noun.name}>
-                      <td style={tdStyle}>{noun.name}</td>
-                      <td style={tdStyle}>{`/${toKebab(noun.name)}s`}</td>
+                    <tr key={res.name}>
+                      <td style={tdStyle}>{res.name}</td>
+                      <td style={tdStyle}>{`/${toKebab(res.name)}s`}</td>
                       <td style={tdStyle}>GET</td>
                       <td style={tdMutedStyle}>list (implicit)</td>
                       <td style={tdMutedStyle}>—</td>
                     </tr>,
                   ]
                 }
-                return nounCaps.map((cap) => {
-                  const accessRules = rules.filter((r) => r.capability === cap.name && r.type === 'access')
-                  const allowedRoles = accessRules.flatMap((r) => (r.allow ?? []).map((a) => a.role).filter(Boolean))
+                return resOps.map((op) => {
+                  const accessRules = rules.filter((r) => r.operation === op.name && r.type === 'access')
+                  const allowedRoles = accessRules.flatMap((r) => (r.allow ?? []).map((a) => a.role).filter(Boolean) as string[])
                   return (
-                    <tr key={cap.name}>
-                      <td style={tdStyle}>{cap.noun}</td>
-                      <td style={tdStyle}>{suggestEndpoint(cap)}</td>
-                      <td style={tdStyle}>{suggestMethod(cap.verb)}</td>
-                      <td style={tdStyle}>{cap.name}</td>
+                    <tr key={op.name}>
+                      <td style={tdStyle}>{op.target}</td>
+                      <td style={tdStyle}>{suggestEndpoint(op.target, op.action)}</td>
+                      <td style={tdStyle}>{suggestMethod(op.action)}</td>
+                      <td style={tdStyle}>{op.name}</td>
                       <td style={tdStyle}>{allowedRoles.length > 0 ? allowedRoles.join(', ') : <span style={{ color: '#475569', fontStyle: 'italic' }}>—</span>}</td>
                     </tr>
                   )
@@ -223,22 +222,22 @@ export function GuideDesign({ dna }: GuideDesignProps) {
       {/* Product UI */}
       {tab === 'ui' && (
       <div style={sectionStyle}>
-        <p style={productIntroStyle}>Suggested pages and blocks derived from the domain's Nouns and Capabilities.</p>
+        <p style={productIntroStyle}>Suggested pages and blocks derived from the domain's Resources and Operations.</p>
 
         <div style={productSubsectionStyle}>
           <div style={productSubtitleStyle}>Pages</div>
           <div style={uiGridStyle}>
-            {nouns.map((noun) => {
-              const nounCaps = capabilities.filter((c) => c.noun === noun.name)
+            {resources.map((res) => {
+              const resOps = operations.filter((o) => o.target === res.name)
               return (
-                <div key={noun.name} style={uiPageCardStyle}>
-                  <div style={uiPageNameStyle}>{noun.name}</div>
-                  <div style={uiPageRouteStyle}>/{toKebab(noun.name)}s</div>
+                <div key={res.name} style={uiPageCardStyle}>
+                  <div style={uiPageNameStyle}>{res.name}</div>
+                  <div style={uiPageRouteStyle}>/{toKebab(res.name)}s</div>
                   <div style={uiBlocksStyle}>
                     <span style={uiBlockStyle}>list</span>
                     <span style={uiBlockStyle}>detail</span>
-                    {nounCaps.some((c) => isWriteVerb(c.verb)) && <span style={uiBlockStyle}>form</span>}
-                    {nounCaps.length > 1 && <span style={uiBlockStyle}>actions</span>}
+                    {resOps.some((o) => isWriteAction(o.action)) && <span style={uiBlockStyle}>form</span>}
+                    {resOps.length > 1 && <span style={uiBlockStyle}>actions</span>}
                   </div>
                 </div>
               )
@@ -246,7 +245,6 @@ export function GuideDesign({ dna }: GuideDesignProps) {
           </div>
         </div>
 
-        {/* Navigation hint */}
         <div style={productSubsectionStyle}>
           <div style={productSubtitleStyle}>Navigation</div>
           <div style={chipGridStyle}>
@@ -264,15 +262,30 @@ export function GuideDesign({ dna }: GuideDesignProps) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function collectNouns(domain: any): { name: string }[] {
-  const out: { name: string }[] = []
-  for (const n of domain.nouns ?? []) out.push({ name: n.name })
-  for (const sub of domain.domains ?? []) out.push(...collectNouns(sub))
+function collectResources(domain: Domain): NounLike[] {
+  const out: NounLike[] = []
+  walkResources(domain, (r) => out.push(r))
   return out
 }
 
-function topoSort(steps: { id: string; depends_on?: string[] }[]): typeof steps[] {
-  const layers: typeof steps[] = []
+function collectRoles(domain: Domain): NounLike[] {
+  const out: NounLike[] = []
+  walkRoles(domain, (r) => out.push(r))
+  return out
+}
+
+function walkResources(domain: Domain, fn: (n: NounLike) => void): void {
+  for (const r of domain.resources ?? []) fn(r)
+  for (const sub of domain.domains ?? []) walkResources(sub, fn)
+}
+
+function walkRoles(domain: Domain, fn: (n: NounLike) => void): void {
+  for (const r of domain.roles ?? []) fn(r)
+  for (const sub of domain.domains ?? []) walkRoles(sub, fn)
+}
+
+function topoSort(steps: ProcessStep[]): ProcessStep[][] {
+  const layers: ProcessStep[][] = []
   const placed = new Set<string>()
   const remaining = [...steps]
 
@@ -297,23 +310,23 @@ function toKebab(s: string): string {
   return s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 }
 
-function suggestMethod(verb: string): string {
-  const v = verb.toLowerCase()
+function suggestMethod(action: string): string {
+  const v = action.toLowerCase()
   if (v === 'view' || v === 'list' || v === 'get') return 'GET'
   if (v === 'delete' || v === 'remove') return 'DELETE'
   if (v === 'update' || v === 'updatestatus' || v === 'advance' || v === 'activate' || v === 'deactivate' || v === 'assign' || v === 'verify' || v === 'assess') return 'PATCH'
   return 'POST'
 }
 
-function suggestEndpoint(cap: { noun: string; verb: string }): string {
-  const base = `/${toKebab(cap.noun)}s`
-  const v = cap.verb.toLowerCase()
+function suggestEndpoint(target: string, action: string): string {
+  const base = `/${toKebab(target)}s`
+  const v = action.toLowerCase()
   if (v === 'list' || v === 'register' || v === 'submit' || v === 'file' || v === 'apply' || v === 'onboard' || v === 'upload') return base
-  return `${base}/:id/${toKebab(cap.verb)}`
+  return `${base}/:id/${toKebab(action)}`
 }
 
-function isWriteVerb(verb: string): boolean {
-  const v = verb.toLowerCase()
+function isWriteAction(action: string): boolean {
+  const v = action.toLowerCase()
   return !['view', 'list', 'get'].includes(v)
 }
 
@@ -345,12 +358,6 @@ const tabContentStyle: React.CSSProperties = {
 
 const sectionStyle: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 12,
-}
-
-const sectionTitleStyle: React.CSSProperties = {
-  margin: 0, fontSize: 16, fontWeight: 600, color: '#f1f5f9',
-  fontFamily: '-apple-system, sans-serif',
-  paddingBottom: 8, borderBottom: '1px solid #334155',
 }
 
 const emptyStyle: React.CSSProperties = {
@@ -439,7 +446,6 @@ const branchBoxStyle: React.CSSProperties = {
   fontSize: 10, fontFamily: 'ui-monospace, monospace',
 }
 
-const branchWhenStyle: React.CSSProperties = { color: '#f59e0b' }
 const branchElseStyle: React.CSSProperties = { color: '#ef4444' }
 
 const rulesBoxStyle: React.CSSProperties = {

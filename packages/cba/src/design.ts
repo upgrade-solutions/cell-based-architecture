@@ -8,6 +8,7 @@ import {
   findPrimitiveSpec,
   collectPrimitives,
   findDomainByPath,
+  findNounByName,
   walkDomains,
 } from './primitives'
 import { ParsedArgs, flag, boolFlag } from './args'
@@ -129,7 +130,7 @@ function cmdShow(layer: Layer, domain: string, args: ParsedArgs, opts: { json: b
   const all = collectPrimitives(doc, spec!)
 
   // Singletons (Namespace, Layout) — return without --name
-  if (spec!.type === 'Namespace' || spec!.type === 'Layout') {
+  if (spec!.singleton) {
     if (all.length === 0) {
       emitError(`${type} not found in ${layer}`, opts)
       process.exit(1)
@@ -187,12 +188,16 @@ function findSchemaFile(type: string, layer: Layer): string | undefined {
   const candidates: (string | null)[] = []
   if (layer === 'operational') {
     candidates.push(resolveDnaSchemaFile('operational', lowerType))
-  } else if (layer === 'product.api' || layer === 'product.ui') {
+  } else if (layer === 'product.core') {
+    candidates.push(resolveDnaSchemaFile('product', `core/${lowerType}`))
+  } else if (layer === 'product.api') {
     candidates.push(
-      resolveDnaSchemaFile('product', `core/${lowerType}`),
       resolveDnaSchemaFile('product', `api/${lowerType}`),
-      resolveDnaSchemaFile('product', `web/${lowerType}`),
+      // Fallback for shapes shared with product/core (e.g. Resource)
+      resolveDnaSchemaFile('product', `core/${lowerType}`),
     )
+  } else if (layer === 'product.ui') {
+    candidates.push(resolveDnaSchemaFile('product', `web/${lowerType}`))
   } else if (layer === 'technical') {
     candidates.push(resolveDnaSchemaFile('technical', lowerType))
   }
@@ -215,7 +220,7 @@ function cmdAdd(layer: Layer, domain: string, args: ParsedArgs, opts: { json: bo
   }
 
   const primitiveJson = JSON.parse(fs.readFileSync(path.resolve(file), 'utf-8'))
-  if (!primitiveJson.name && spec!.type !== 'Namespace' && spec!.type !== 'Layout') {
+  if (!primitiveJson.name && !spec!.singleton) {
     emitError(`Primitive JSON must include a "name" field`, opts)
     process.exit(1)
   }
@@ -223,40 +228,36 @@ function cmdAdd(layer: Layer, domain: string, args: ParsedArgs, opts: { json: bo
   const paths = resolveDomain(domain)
   const doc = loadLayer(paths, layer)
 
-  if (spec!.nested && spec!.location.startsWith('domain.*')) {
-    if (!at) {
-      emitError(
-        `--at is required for nested primitives.\n  Noun: --at <domain-path>  (e.g. acme.finance.lending)\n  Verb/Attribute: --at <domain-path>:<noun-name>  (e.g. acme.finance.lending:Loan)`,
-        opts,
-      )
+  if (spec!.nested && spec!.childOf === 'noun') {
+    // Action / Attribute on a Resource/Person/Role/Group — needs --at <domain-path>:<noun-name>
+    const [dpath, nounName] = (at ?? '').split(':')
+    if (!dpath || !nounName) {
+      emitError(`--at must be <domain-path>:<noun-name> for ${spec!.type} (e.g. acme.finance.lending:Loan)`, opts)
       process.exit(1)
     }
-    if (spec!.location === 'domain.*.nouns') {
-      const target = findDomainByPath(doc.domain, at)
-      if (!target) { emitError(`Domain path not found: "${at}"`, opts); process.exit(1) }
-      target.nouns ??= []
-      if (target.nouns.some((i: any) => i.name === primitiveJson.name)) {
-        emitError(`Noun "${primitiveJson.name}" already exists at ${at}`, opts); process.exit(1)
-      }
-      target.nouns.push(primitiveJson)
-    } else {
-      // Verb or Attribute: --at <domain-path>:<noun-name>
-      const [dpath, nounName] = at.split(':')
-      if (!dpath || !nounName) {
-        emitError(`--at must be <domain-path>:<noun-name> for ${spec!.type}`, opts); process.exit(1)
-      }
-      const dom = findDomainByPath(doc.domain, dpath)
-      if (!dom) { emitError(`Domain path not found: "${dpath}"`, opts); process.exit(1) }
-      const noun = (dom.nouns ?? []).find((n: any) => n.name === nounName)
-      if (!noun) { emitError(`Noun "${nounName}" not found at ${dpath}`, opts); process.exit(1) }
-      const key = spec!.location === 'domain.*.nouns.*.verbs' ? 'verbs' : 'attributes'
-      noun[key] ??= []
-      if (noun[key].some((i: any) => i.name === primitiveJson.name)) {
-        emitError(`${spec!.type} "${primitiveJson.name}" already exists at ${at}`, opts); process.exit(1)
-      }
-      noun[key].push(primitiveJson)
+    const found = findNounByName(doc.domain, dpath, nounName)
+    if (!found) { emitError(`Noun "${nounName}" not found at ${dpath}`, opts); process.exit(1) }
+    const key = spec!.location.endsWith('.actions') ? 'actions' : 'attributes'
+    found.noun[key] ??= []
+    if (found.noun[key].some((i: any) => i.name === primitiveJson.name)) {
+      emitError(`${spec!.type} "${primitiveJson.name}" already exists at ${at}`, opts); process.exit(1)
     }
-  } else if (spec!.type === 'Namespace' || spec!.type === 'Layout') {
+    found.noun[key].push(primitiveJson)
+  } else if (spec!.nested && spec!.location.startsWith('domain.*')) {
+    // Resource / Person / Role / Group — --at <domain-path>
+    if (!at) {
+      emitError(`--at <domain-path> is required for ${spec!.type}`, opts)
+      process.exit(1)
+    }
+    const target = findDomainByPath(doc.domain, at)
+    if (!target) { emitError(`Domain path not found: "${at}"`, opts); process.exit(1) }
+    const field = spec!.location.split('.').pop()! // resources | persons | roles | groups
+    target[field] ??= []
+    if (target[field].some((i: any) => i.name === primitiveJson.name)) {
+      emitError(`${spec!.type} "${primitiveJson.name}" already exists at ${at}`, opts); process.exit(1)
+    }
+    target[field].push(primitiveJson)
+  } else if (spec!.singleton) {
     doc[spec!.location] = primitiveJson
   } else {
     doc[spec!.location] ??= []
@@ -293,18 +294,22 @@ function cmdRemove(layer: Layer, domain: string, args: ParsedArgs, opts: { json:
   const doc = loadLayer(paths, layer)
   let removed = false
 
-  if (spec!.nested && spec!.location.startsWith('domain.*')) {
+  if (spec!.nested && spec!.childOf === 'noun') {
+    // Action / Attribute removal — sweep all noun primitives
+    const childKey = spec!.location.endsWith('.actions') ? 'actions' : 'attributes'
     walkDomains(doc.domain, (node) => {
-      if (spec!.location === 'domain.*.nouns') {
-        const idx = (node.nouns ?? []).findIndex((i: any) => i.name === name)
-        if (idx >= 0) { node.nouns.splice(idx, 1); removed = true }
-      } else {
-        for (const n of node.nouns ?? []) {
-          const key = spec!.location === 'domain.*.nouns.*.verbs' ? 'verbs' : 'attributes'
-          const idx = (n[key] ?? []).findIndex((i: any) => i.name === name)
-          if (idx >= 0) { n[key].splice(idx, 1); removed = true }
+      for (const nounField of ['resources', 'persons', 'roles', 'groups']) {
+        for (const noun of node[nounField] ?? []) {
+          const idx = (noun[childKey] ?? []).findIndex((i: any) => i.name === name)
+          if (idx >= 0) { noun[childKey].splice(idx, 1); removed = true }
         }
       }
+    })
+  } else if (spec!.nested && spec!.location.startsWith('domain.*')) {
+    const field = spec!.location.split('.').pop()! // resources | persons | roles | groups
+    walkDomains(doc.domain, (node) => {
+      const idx = (node[field] ?? []).findIndex((i: any) => i.name === name)
+      if (idx >= 0) { node[field].splice(idx, 1); removed = true }
     })
   } else {
     const arr = doc[spec!.location]

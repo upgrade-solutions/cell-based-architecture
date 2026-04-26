@@ -3,11 +3,16 @@ import type { OperationalDNA } from '../loaders/operational-loader.ts'
 import type { ProductApiDNA, ProductUiDNA, HttpMethod, BlockType } from '../loaders/product-loader.ts'
 import {
   addNoun,
-  addCapability,
+  addOperation,
   addRule,
-  addOutcome,
+  addTrigger,
+  addTask,
+  addProcess,
+  addMembership,
   listNouns,
-  listCapabilities,
+  listOperations,
+  listProcesses,
+  type NounPrimitiveKind,
 } from '../features/operational-mutations.ts'
 import {
   addResource,
@@ -22,25 +27,35 @@ import {
 /**
  * Phase 5c.4 — create dialog for DNA primitives.
  *
- * Option A from Chunk 2: one dialog, `context`-switched between the
- * three editable surfaces (operational, product-api, product-ui).
- * Each context shows only the type picker options and form fields
- * that make sense there, so users on Product API don't see a "Noun"
- * option and vice versa. All three share the same shell, header, and
- * button styles — less duplication than three sibling dialogs.
+ * Operational `kind` set was rewritten to match the new model:
+ *   resource | person | role | group  (the four NOUN-like primitives)
+ *   operation | trigger | rule | task | process | membership
  *
- * The dialog doesn't know how to save; it hands the new DNA back to
- * the parent via the `onCreate` callback. The parent sets the right
- * state atom (operationalDna / productApiDna / productUiDna) and
- * marks the graph dirty.
+ * Primitive types we DROPPED in the rewrite (outcome, signal, equation,
+ * position, capability) are no longer creatable — those primitives no
+ * longer exist in the schema.
  */
 
 // ── Kind enums per context ─────────────────────────────────────────────
 
-type OperationalKind = 'noun' | 'capability' | 'rule' | 'outcome'
+type OperationalKind =
+  | NounPrimitiveKind
+  | 'operation'
+  | 'trigger'
+  | 'rule'
+  | 'task'
+  | 'process'
+  | 'membership'
+
 type ProductApiKind = 'resource' | 'endpoint'
 type ProductUiKind = 'page' | 'block'
 
+const OPERATIONAL_KINDS: OperationalKind[] = [
+  'resource', 'person', 'role', 'group',
+  'operation', 'trigger', 'rule', 'task', 'process', 'membership',
+]
+
+const TRIGGER_SOURCES = ['user', 'schedule', 'webhook', 'operation'] as const
 const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 const BLOCK_TYPES: BlockType[] = [
   'list',
@@ -98,41 +113,109 @@ export function CreatePrimitiveDialog(props: CreatePrimitiveDialogProps) {
 // ── Operational ────────────────────────────────────────────────────────
 
 function OperationalDialog({ dna, onCreate, onClose }: OperationalContextProps) {
-  const [kind, setKind] = useState<OperationalKind>('noun')
-  const [nounName, setNounName] = useState('')
-  const [capNoun, setCapNoun] = useState('')
-  const [capVerb, setCapVerb] = useState('')
-  const [ruleCapability, setRuleCapability] = useState('')
+  const [kind, setKind] = useState<OperationalKind>('resource')
+  // shared name + description fields used by most kinds
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  // operation-specific
+  const [opTarget, setOpTarget] = useState('')
+  const [opAction, setOpAction] = useState('')
+  // rule-specific
+  const [ruleOperation, setRuleOperation] = useState('')
   const [ruleType, setRuleType] = useState<'access' | 'condition'>('access')
-  const [outcomeCapability, setOutcomeCapability] = useState('')
+  // trigger-specific
+  const [triggerSource, setTriggerSource] = useState<typeof TRIGGER_SOURCES[number]>('user')
+  const [triggerOperation, setTriggerOperation] = useState('')
+  const [triggerProcess, setTriggerProcess] = useState('')
+  // task-specific
+  const [taskActor, setTaskActor] = useState('')
+  const [taskOperation, setTaskOperation] = useState('')
+  // process-specific
+  const [processOperator, setProcessOperator] = useState('')
+  // membership-specific
+  const [membershipPerson, setMembershipPerson] = useState('')
+  const [membershipRole, setMembershipRole] = useState('')
+
   const [error, setError] = useState<string | null>(null)
 
   const nouns = listNouns(dna)
-  const capabilities = listCapabilities(dna)
+  const operations = listOperations(dna)
+  const processes = listProcesses(dna)
+
+  const personNouns = nouns.filter((n) => n.kind === 'person')
+  const roleNouns = nouns.filter((n) => n.kind === 'role')
+
+  const isNounKind = (k: OperationalKind): k is NounPrimitiveKind =>
+    k === 'resource' || k === 'person' || k === 'role' || k === 'group'
 
   const handleSubmit = () => {
     setError(null)
     try {
-      if (kind === 'noun') {
-        if (!nounName.trim()) return setError('Name is required')
-        if (nouns.some((n) => n.name === nounName.trim())) {
-          return setError(`Noun "${nounName.trim()}" already exists`)
+      if (isNounKind(kind)) {
+        if (!name.trim()) return setError('Name is required')
+        if (nouns.some((n) => n.noun.name === name.trim())) {
+          return setError(`${kind} "${name.trim()}" already exists`)
         }
-        onCreate(addNoun(dna, { name: nounName.trim() }))
-      } else if (kind === 'capability') {
-        if (!capNoun) return setError('Pick a noun')
-        if (!capVerb.trim()) return setError('Verb is required')
-        const name = `${capNoun}.${capVerb.trim()}`
-        if (capabilities.some((c) => (c.name ?? `${c.noun}.${c.verb}`) === name)) {
-          return setError(`Capability "${name}" already exists`)
+        onCreate(addNoun(dna, { kind, name: name.trim(), description: description.trim() || undefined }))
+      } else if (kind === 'operation') {
+        if (!opTarget) return setError('Pick a target')
+        if (!opAction.trim()) return setError('Action is required')
+        const fullName = `${opTarget}.${opAction.trim()}`
+        if (operations.some((o) => o.name === fullName)) {
+          return setError(`Operation "${fullName}" already exists`)
         }
-        onCreate(addCapability(dna, { noun: capNoun, verb: capVerb.trim() }))
+        onCreate(addOperation(dna, {
+          target: opTarget,
+          action: opAction.trim(),
+          description: description.trim() || undefined,
+        }))
+      } else if (kind === 'trigger') {
+        if (triggerSource !== 'user' && triggerSource !== 'schedule' && triggerSource !== 'webhook' && triggerSource !== 'operation') {
+          return setError('Pick a trigger source')
+        }
+        if (!triggerOperation && !triggerProcess) {
+          return setError('Trigger must target an operation or a process')
+        }
+        onCreate(addTrigger(dna, {
+          source: triggerSource,
+          operation: triggerOperation || undefined,
+          process: triggerProcess || undefined,
+          description: description.trim() || undefined,
+        }))
       } else if (kind === 'rule') {
-        if (!ruleCapability) return setError('Pick a capability')
-        onCreate(addRule(dna, { capability: ruleCapability, type: ruleType }))
-      } else if (kind === 'outcome') {
-        if (!outcomeCapability) return setError('Pick a capability')
-        onCreate(addOutcome(dna, { capability: outcomeCapability }))
+        if (!ruleOperation) return setError('Pick an operation')
+        onCreate(addRule(dna, {
+          operation: ruleOperation,
+          type: ruleType,
+          description: description.trim() || undefined,
+        }))
+      } else if (kind === 'task') {
+        if (!name.trim()) return setError('Name is required')
+        if (!taskActor) return setError('Pick an actor (Role or Person)')
+        if (!taskOperation) return setError('Pick an operation')
+        onCreate(addTask(dna, {
+          name: name.trim(),
+          actor: taskActor,
+          operation: taskOperation,
+          description: description.trim() || undefined,
+        }))
+      } else if (kind === 'process') {
+        if (!name.trim()) return setError('Name is required')
+        if (!processOperator) return setError('Pick an operator (Role or Person)')
+        onCreate(addProcess(dna, {
+          name: name.trim(),
+          operator: processOperator,
+          description: description.trim() || undefined,
+        }))
+      } else if (kind === 'membership') {
+        if (!name.trim()) return setError('Name is required')
+        if (!membershipPerson) return setError('Pick a person')
+        if (!membershipRole) return setError('Pick a role')
+        onCreate(addMembership(dna, {
+          name: name.trim(),
+          person: membershipPerson,
+          role: membershipRole,
+        }))
       }
       onClose()
     } catch (e) {
@@ -151,57 +234,98 @@ function OperationalDialog({ dna, onCreate, onClose }: OperationalContextProps) 
         }}
         style={selectStyle}
       >
-        <option value="noun">Noun</option>
-        <option value="capability">Capability</option>
-        <option value="rule">Rule</option>
-        <option value="outcome">Outcome</option>
+        {OPERATIONAL_KINDS.map((k) => (
+          <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>
+        ))}
       </select>
 
-      {kind === 'noun' ? (
+      {isNounKind(kind) ? (
         <>
           <label style={labelStyle}>Name</label>
           <input
-            value={nounName}
-            onChange={(e) => setNounName(e.target.value)}
-            placeholder="e.g. Loan"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={kind === 'resource' ? 'e.g. Loan' : kind === 'person' ? 'e.g. Borrower' : kind === 'role' ? 'e.g. Approver' : 'e.g. Underwriting Team'}
             style={inputStyle}
             autoFocus
+          />
+          <label style={labelStyle}>Description</label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={inputStyle}
           />
         </>
       ) : null}
 
-      {kind === 'capability' ? (
+      {kind === 'operation' ? (
         <>
-          <label style={labelStyle}>Noun</label>
-          <select value={capNoun} onChange={(e) => setCapNoun(e.target.value)} style={selectStyle}>
-            <option value="">-- pick a noun --</option>
-            {nouns.map((n) => (
-              <option key={n.name} value={n.name}>{n.name}</option>
+          <label style={labelStyle}>Target</label>
+          <select value={opTarget} onChange={(e) => setOpTarget(e.target.value)} style={selectStyle}>
+            <option value="">-- pick a target --</option>
+            {nouns.map((entry) => (
+              <option key={entry.noun.id ?? entry.noun.name} value={entry.noun.name}>
+                {entry.noun.name} ({entry.kind})
+              </option>
             ))}
           </select>
-          <label style={labelStyle}>Verb</label>
+          <label style={labelStyle}>Action</label>
           <input
-            value={capVerb}
-            onChange={(e) => setCapVerb(e.target.value)}
+            value={opAction}
+            onChange={(e) => setOpAction(e.target.value)}
             placeholder="e.g. Approve"
             style={inputStyle}
           />
+          <label style={labelStyle}>Description</label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={inputStyle}
+          />
+        </>
+      ) : null}
+
+      {kind === 'trigger' ? (
+        <>
+          <label style={labelStyle}>Source</label>
+          <select
+            value={triggerSource}
+            onChange={(e) => setTriggerSource(e.target.value as typeof TRIGGER_SOURCES[number])}
+            style={selectStyle}
+          >
+            {TRIGGER_SOURCES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <label style={labelStyle}>Operation (optional)</label>
+          <select value={triggerOperation} onChange={(e) => setTriggerOperation(e.target.value)} style={selectStyle}>
+            <option value="">-- none --</option>
+            {operations.map((o) => (
+              <option key={o.id ?? o.name} value={o.name}>{o.name}</option>
+            ))}
+          </select>
+          <label style={labelStyle}>Process (optional)</label>
+          <select value={triggerProcess} onChange={(e) => setTriggerProcess(e.target.value)} style={selectStyle}>
+            <option value="">-- none --</option>
+            {processes.map((p) => (
+              <option key={p.id ?? p.name} value={p.name}>{p.name}</option>
+            ))}
+          </select>
         </>
       ) : null}
 
       {kind === 'rule' ? (
         <>
-          <label style={labelStyle}>Capability</label>
+          <label style={labelStyle}>Operation</label>
           <select
-            value={ruleCapability}
-            onChange={(e) => setRuleCapability(e.target.value)}
+            value={ruleOperation}
+            onChange={(e) => setRuleOperation(e.target.value)}
             style={selectStyle}
           >
-            <option value="">-- pick a capability --</option>
-            {capabilities.map((c) => {
-              const name = c.name ?? `${c.noun}.${c.verb}`
-              return <option key={name} value={name}>{name}</option>
-            })}
+            <option value="">-- pick an operation --</option>
+            {operations.map((o) => (
+              <option key={o.id ?? o.name} value={o.name}>{o.name}</option>
+            ))}
           </select>
           <label style={labelStyle}>Type</label>
           <select
@@ -215,23 +339,59 @@ function OperationalDialog({ dna, onCreate, onClose }: OperationalContextProps) 
         </>
       ) : null}
 
-      {kind === 'outcome' ? (
+      {kind === 'task' ? (
         <>
-          <label style={labelStyle}>Capability</label>
-          <select
-            value={outcomeCapability}
-            onChange={(e) => setOutcomeCapability(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">-- pick a capability --</option>
-            {capabilities.map((c) => {
-              const name = c.name ?? `${c.noun}.${c.verb}`
-              return <option key={name} value={name}>{name}</option>
-            })}
+          <label style={labelStyle}>Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. review-claim" style={inputStyle} />
+          <label style={labelStyle}>Actor (Role or Person)</label>
+          <select value={taskActor} onChange={(e) => setTaskActor(e.target.value)} style={selectStyle}>
+            <option value="">-- pick an actor --</option>
+            {[...roleNouns, ...personNouns].map((n) => (
+              <option key={n.noun.id ?? n.noun.name} value={n.noun.name}>{n.noun.name} ({n.kind})</option>
+            ))}
           </select>
-          <div style={hintStyle}>
-            Adds a default change: <code>status = "new"</code>. Edit in the inspector after creation.
-          </div>
+          <label style={labelStyle}>Operation</label>
+          <select value={taskOperation} onChange={(e) => setTaskOperation(e.target.value)} style={selectStyle}>
+            <option value="">-- pick an operation --</option>
+            {operations.map((o) => (
+              <option key={o.id ?? o.name} value={o.name}>{o.name}</option>
+            ))}
+          </select>
+        </>
+      ) : null}
+
+      {kind === 'process' ? (
+        <>
+          <label style={labelStyle}>Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Claim Resolution" style={inputStyle} />
+          <label style={labelStyle}>Operator (Role or Person)</label>
+          <select value={processOperator} onChange={(e) => setProcessOperator(e.target.value)} style={selectStyle}>
+            <option value="">-- pick an operator --</option>
+            {[...roleNouns, ...personNouns].map((n) => (
+              <option key={n.noun.id ?? n.noun.name} value={n.noun.name}>{n.noun.name} ({n.kind})</option>
+            ))}
+          </select>
+        </>
+      ) : null}
+
+      {kind === 'membership' ? (
+        <>
+          <label style={labelStyle}>Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. james-as-partner-attorney" style={inputStyle} />
+          <label style={labelStyle}>Person</label>
+          <select value={membershipPerson} onChange={(e) => setMembershipPerson(e.target.value)} style={selectStyle}>
+            <option value="">-- pick a person --</option>
+            {personNouns.map((p) => (
+              <option key={p.noun.id ?? p.noun.name} value={p.noun.name}>{p.noun.name}</option>
+            ))}
+          </select>
+          <label style={labelStyle}>Role</label>
+          <select value={membershipRole} onChange={(e) => setMembershipRole(e.target.value)} style={selectStyle}>
+            <option value="">-- pick a role --</option>
+            {roleNouns.map((r) => (
+              <option key={r.noun.id ?? r.noun.name} value={r.noun.name}>{r.noun.name}</option>
+            ))}
+          </select>
         </>
       ) : null}
 
@@ -567,6 +727,8 @@ const bodyStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
+  maxHeight: '70vh',
+  overflowY: 'auto',
 }
 
 const labelStyle: React.CSSProperties = {

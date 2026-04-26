@@ -1,59 +1,58 @@
 import type { dia } from '@joint/plus'
 import type { ProductCoreDNA } from '../loaders/product-loader.ts'
-import type { OperationalDNA } from '../loaders/operational-loader.ts'
+import type { OperationalDNA, Operation, Resource } from '../loaders/operational-loader.ts'
 import { operationalToGraphCells } from './operational-to-graph.ts'
 
 /**
  * Product Core → JointJS cells.
  *
- * Product core is a materialized slice of Operational DNA — the
- * per-primitive shapes (Noun, Capability, Rule, Outcome, Signal,
- * Cause, Relationship, Equation) are all identical. The
- * only structural difference is the domain wrapper: operational uses
- * a nested `Domain { domains[], nouns[] }` hierarchy, while product
- * core flattens everything — `nouns[]` lives at the document root.
+ * Product Core is a materialized slice of Operational DNA — the
+ * per-primitive shapes (Resource, Operation, Trigger, Rule, Process)
+ * are all identical. The only structural difference is the domain
+ * wrapper: operational uses a nested `Domain { domains[], resources[],
+ * persons[], roles[], groups[] }` hierarchy, while product core flattens
+ * everything — `resources[]` lives at the document root.
  *
  * Rather than duplicate the mapper + shapes, we adapt the flat core
  * document into the nested operational shape and delegate. The
- * operational mapper's `pickLeafDomain` routine is fine with a
- * single-level domain tree, and downstream rendering doesn't care
- * whether the data came from operational.json or product.core.json.
- *
- * This means Product Core renders with the exact same visual palette
- * as Operational (slate Nouns, emerald Capability pills, amber/cyan
- * Rule hexagons, etc.). The value of the separate canvas is the
- * different data source — the user sees the *materialized subset* of
- * operational that product surfaces actually consume, which is what
- * the downstream cells read.
+ * operational mapper is fine with a single-level domain tree, and
+ * downstream rendering doesn't care which file the data came from.
  */
 export function productCoreToGraphCells(dna: ProductCoreDNA): dia.Cell[] {
   return operationalToGraphCells(productCoreToOperational(dna))
 }
 
 /**
- * Wrap a flat Product Core document into the nested shape the
- * operational mapper consumes. Pure, side-effect-free — returns a new
- * object with the same primitive arrays and a synthetic Domain node.
+ * Wrap a flat Product Core document into the nested operational shape
+ * the operational mapper consumes. Pure, side-effect-free — returns a
+ * new object with the same primitive arrays and a synthetic Domain.
+ *
+ * Product Core's Operation type uses an optional `target` field instead
+ * of operational's required `target`. We default to empty when absent
+ * so the operational mapper's grouping doesn't trip over undefined.
  */
 export function productCoreToOperational(dna: ProductCoreDNA): OperationalDNA {
+  const operations: Operation[] = (dna.operations ?? []).map((op) => ({
+    id: op.id,
+    name: op.name,
+    target: op.target,
+    action: op.action,
+    description: op.description,
+    changes: op.changes,
+  }))
+
   return {
     domain: {
       name: dna.domain.name,
       path: dna.domain.path,
       description: dna.domain.description,
-      nouns: dna.nouns,
+      // Product Core's resources[] map directly to operational Resource[].
+      // Person/Role/Group don't ride along — those are operational-only.
+      resources: dna.resources as Resource[] | undefined,
     },
-    capabilities: dna.capabilities,
-    causes: dna.causes,
-    rules: dna.rules,
-    outcomes: dna.outcomes,
-    equations: dna.equations,
-    signals: dna.signals,
+    operations,
+    triggers: dna.triggers,
     relationships: dna.relationships,
-    // Product core doesn't have a layouts[] field in its schema yet.
-    // When we add layout persistence for product-core saves, it can
-    // either mirror the operational approach (top-level `layouts`) or
-    // live in a sibling file — decide in Phase 5c.3 persistence work.
     layouts: undefined,
   }
 }

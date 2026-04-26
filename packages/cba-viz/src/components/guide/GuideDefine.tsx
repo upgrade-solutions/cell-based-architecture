@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { OperationalDNA } from '../../loaders/operational-loader.ts'
+import type { OperationalDNA, Domain, NounLike } from '../../loaders/operational-loader.ts'
 import { PRIMITIVE_COLORS } from './types.ts'
 
 interface GuideDefineProps {
@@ -13,30 +13,88 @@ interface SectionConfig {
   items: { name: string; detail?: string }[]
 }
 
+function walkNouns(domain: Domain, fn: (n: NounLike, kind: 'resource' | 'person' | 'role' | 'group') => void): void {
+  for (const r of domain.resources ?? []) fn(r, 'resource')
+  for (const p of domain.persons ?? []) fn(p, 'person')
+  for (const r of domain.roles ?? []) fn(r, 'role')
+  for (const g of domain.groups ?? []) fn(g, 'group')
+  for (const sub of domain.domains ?? []) walkNouns(sub, fn)
+}
+
 function collectSections(dna: OperationalDNA): SectionConfig[] {
-  const nouns: { name: string; detail?: string }[] = []
-  const walkNouns = (d: any) => {
-    for (const n of d.nouns ?? []) {
-      const attrCount = (n.attributes ?? []).length
-      const verbCount = (n.verbs ?? []).length
-      nouns.push({ name: n.name, detail: `${attrCount} attrs, ${verbCount} verbs` })
+  const resources: { name: string; detail?: string }[] = []
+  const persons: { name: string; detail?: string }[] = []
+  const roles: { name: string; detail?: string }[] = []
+  const groups: { name: string; detail?: string }[] = []
+
+  walkNouns(dna.domain, (noun, kind) => {
+    const attrCount = (noun.attributes ?? []).length
+    const actionCount = (noun.actions ?? []).length
+    const detail = `${attrCount} attrs, ${actionCount} actions`
+    const entry = { name: noun.name, detail }
+    switch (kind) {
+      case 'resource': resources.push(entry); break
+      case 'person':   persons.push(entry); break
+      case 'role':     roles.push(entry); break
+      case 'group':    groups.push(entry); break
     }
-    for (const sub of d.domains ?? []) walkNouns(sub)
-  }
-  walkNouns(dna.domain)
+  })
 
   return [
-    { label: 'Nouns', color: PRIMITIVE_COLORS.noun, items: nouns },
-    { label: 'Capabilities', color: PRIMITIVE_COLORS.capability, items: (dna.capabilities ?? []).map((c) => ({ name: c.name ?? `${c.noun}.${c.verb}`, detail: c.description })) },
-    { label: 'Positions', color: PRIMITIVE_COLORS.position, items: (dna.positions ?? []).map((p) => ({ name: p.name, detail: p.roles?.join(', ') })) },
-    { label: 'Persons', color: PRIMITIVE_COLORS.person, items: (dna.persons ?? []).map((p) => ({ name: p.display_name ?? p.name, detail: p.position })) },
-    { label: 'Tasks', color: PRIMITIVE_COLORS.task, items: (dna.tasks ?? []).map((t) => ({ name: t.name, detail: `${t.position} does ${t.capability}` })) },
-    { label: 'Processes', color: PRIMITIVE_COLORS.process, items: (dna.processes ?? []).map((p) => ({ name: p.name, detail: `${p.steps.length} steps, operator: ${p.operator}` })) },
-    { label: 'Rules', color: PRIMITIVE_COLORS.rule, items: (dna.rules ?? []).map((r) => ({ name: `${r.capability ?? '?'} (${r.type ?? 'access'})`, detail: r.description })) },
-    { label: 'Causes', color: PRIMITIVE_COLORS.cause, items: (dna.causes ?? []).map((c) => ({ name: c.capability, detail: `source: ${c.source}` })) },
-    { label: 'Outcomes', color: PRIMITIVE_COLORS.outcome, items: (dna.outcomes ?? []).map((o) => ({ name: o.capability, detail: `${o.changes.length} changes${o.emits?.length ? `, emits ${o.emits.length}` : ''}` })) },
-    { label: 'Signals', color: PRIMITIVE_COLORS.signal, items: (dna.signals ?? []).map((s) => ({ name: s.name, detail: s.capability })) },
-    { label: 'Relationships', color: PRIMITIVE_COLORS.relationship, items: (dna.relationships ?? []).map((r) => ({ name: r.name, detail: `${r.from} → ${r.to} (${r.cardinality})` })) },
+    { label: 'Resources', color: PRIMITIVE_COLORS.resource, items: resources },
+    { label: 'Persons', color: PRIMITIVE_COLORS.person, items: persons },
+    { label: 'Roles', color: PRIMITIVE_COLORS.role, items: roles },
+    { label: 'Groups', color: PRIMITIVE_COLORS.group, items: groups },
+    {
+      label: 'Operations',
+      color: PRIMITIVE_COLORS.operation,
+      items: (dna.operations ?? []).map((o) => ({ name: o.name, detail: o.description })),
+    },
+    {
+      label: 'Triggers',
+      color: PRIMITIVE_COLORS.trigger,
+      items: (dna.triggers ?? []).map((t) => ({
+        name: t.operation ?? t.process ?? `(${t.source})`,
+        detail: `source: ${t.source}`,
+      })),
+    },
+    {
+      label: 'Rules',
+      color: PRIMITIVE_COLORS.rule,
+      items: (dna.rules ?? []).map((r) => ({
+        name: r.name ?? `${r.operation} (${r.type ?? 'access'})`,
+        detail: r.description,
+      })),
+    },
+    {
+      label: 'Tasks',
+      color: PRIMITIVE_COLORS.task,
+      items: (dna.tasks ?? []).map((t) => ({ name: t.name, detail: `${t.actor} does ${t.operation}` })),
+    },
+    {
+      label: 'Processes',
+      color: PRIMITIVE_COLORS.process,
+      items: (dna.processes ?? []).map((p) => ({
+        name: p.name,
+        detail: `${p.steps.length} steps, operator: ${p.operator}`,
+      })),
+    },
+    {
+      label: 'Memberships',
+      color: PRIMITIVE_COLORS.membership,
+      items: (dna.memberships ?? []).map((m) => ({
+        name: m.name,
+        detail: `${m.person} → ${m.role}${m.group ? ` (in ${m.group})` : ''}`,
+      })),
+    },
+    {
+      label: 'Relationships',
+      color: PRIMITIVE_COLORS.relationship,
+      items: (dna.relationships ?? []).map((r) => ({
+        name: r.name,
+        detail: `${r.from} → ${r.to} (${r.cardinality})`,
+      })),
+    },
   ]
 }
 
@@ -53,7 +111,6 @@ export function GuideDefine({ dna, onChange }: GuideDefineProps) {
 
   return (
     <div style={containerStyle}>
-      {/* Left: accordion editor */}
       <div style={leftStyle}>
         <div style={sectionHeaderStyle}>
           Primitives
@@ -89,7 +146,6 @@ export function GuideDefine({ dna, onChange }: GuideDefineProps) {
         </div>
       </div>
 
-      {/* Right: DNA summary */}
       <div style={rightStyle}>
         <div style={sectionHeaderStyle}>DNA Preview</div>
         <div style={previewStyle}>

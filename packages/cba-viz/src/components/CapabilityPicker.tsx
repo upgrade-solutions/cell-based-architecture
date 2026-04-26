@@ -1,33 +1,27 @@
 import { useState, useRef, useEffect } from 'react'
-import type { Capability } from '../loaders/operational-loader.ts'
+import type { Operation } from '../loaders/operational-loader.ts'
 
 interface CapabilityPickerProps {
-  capabilities: Capability[]
-  /** Currently selected capability name (`Noun.Verb`) or null. */
+  /** Operational `Operation[]` — the picker selects by canonical name. */
+  operations: Operation[]
+  /** Currently selected operation name (`Target.Action`) or null. */
   selected: string | null
-  /** Called when the user picks a different capability or clears selection. */
+  /** Called when the user picks a different operation or clears selection. */
   onChange: (name: string | null) => void
 }
 
 /**
  * Floating picker chip for the cross-layer canvas.
  *
- * Absolutely positioned over the top-left of the canvas area. Two
- * states: empty (no capability picked) shows a prominent "Pick a
- * capability ▾" chip; selected shows the compact `Noun.Verb` label.
- * Click in either state toggles a dropdown list of all capabilities
- * from the operational DNA.
- *
- * Rendered as HTML (not as a JointJS element) so the dropdown isn't
- * clipped by the SVG paper. The chip sits in a higher z-order layer
- * than the paper via React portal-free absolute positioning.
+ * Conceptually renamed from "capability" to "operation" with the
+ * model rewrite — the file name is preserved to keep import sites
+ * stable. Picks one of the operations from the operational DNA so the
+ * cross-layer canvas can render its full footprint across layers.
  */
-export function CapabilityPicker({ capabilities, selected, onChange }: CapabilityPickerProps) {
+export function CapabilityPicker({ operations, selected, onChange }: CapabilityPickerProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Close on outside click. Uses pointerdown so the toggle button's
-  // click doesn't immediately re-close the dropdown it just opened.
   useEffect(() => {
     if (!open) return
     const handler = (e: PointerEvent) => {
@@ -46,16 +40,16 @@ export function CapabilityPicker({ capabilities, selected, onChange }: Capabilit
       <button
         onClick={() => setOpen(!open)}
         style={isEmpty ? emptyChipStyle : chipStyle}
-        title={isEmpty ? 'Pick a capability to explore across layers' : `Change capability (currently ${selected})`}
+        title={isEmpty ? 'Pick an operation to explore across layers' : `Change operation (currently ${selected})`}
       >
-        <span>{isEmpty ? 'Pick a capability' : selected}</span>
+        <span>{isEmpty ? 'Pick an operation' : selected}</span>
         <span style={caretStyle}>▾</span>
       </button>
 
       {open ? (
         <div style={dropdownStyle}>
-          {capabilities.length === 0 ? (
-            <div style={emptyDropdownStyle}>No capabilities in operational DNA</div>
+          {operations.length === 0 ? (
+            <div style={emptyDropdownStyle}>No operations in operational DNA</div>
           ) : (
             <>
               {!isEmpty ? (
@@ -69,12 +63,12 @@ export function CapabilityPicker({ capabilities, selected, onChange }: Capabilit
                   Clear selection
                 </button>
               ) : null}
-              {capabilities.map((cap) => {
-                const name = cap.name ?? `${cap.noun}.${cap.verb}`
+              {operations.map((op) => {
+                const name = op.name
                 const isSelected = name === selected
                 return (
                   <button
-                    key={name}
+                    key={op.id ?? name}
                     onClick={() => {
                       onChange(name)
                       setOpen(false)

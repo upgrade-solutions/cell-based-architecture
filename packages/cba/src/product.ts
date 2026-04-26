@@ -56,14 +56,15 @@ function runCore(argv: string[], _args: ParsedArgs, opts: { json: boolean }): vo
       {
         domain,
         file: paths.files['product.core'],
-        nouns: core.nouns.length,
-        capabilities: core.capabilities?.length ?? 0,
+        resources: core.resources?.length ?? 0,
+        operations: core.operations?.length ?? 0,
+        triggers: core.triggers?.length ?? 0,
       },
       opts,
       () =>
-        `✓ materialized ${path.relative(process.cwd(), paths.files['product.core'])} — ${core.nouns.length} noun(s), ${
-          core.capabilities?.length ?? 0
-        } capability(ies)`,
+        `✓ materialized ${path.relative(process.cwd(), paths.files['product.core'])} — ${
+          core.resources?.length ?? 0
+        } resource(s), ${core.operations?.length ?? 0} operation(s), ${core.triggers?.length ?? 0} trigger(s)`,
     )
   } catch (err) {
     emitError((err as Error).message, opts)

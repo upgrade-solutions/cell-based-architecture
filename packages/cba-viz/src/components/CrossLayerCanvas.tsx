@@ -9,9 +9,8 @@ import { CapabilityPicker } from './CapabilityPicker.tsx'
 
 // Register all shapes that the cross-layer mapper might use so JointJS
 // can deserialize them by type.
-import '../shapes/operational/CapabilityShape.ts'
+import '../shapes/operational/OperationShape.ts'
 import '../shapes/operational/RuleShape.ts'
-import '../shapes/operational/OutcomeShape.ts'
 import '../shapes/product/ResourceShape.ts'
 import '../shapes/product/EndpointShape.ts'
 import '../shapes/product/PageShape.ts'
@@ -82,14 +81,14 @@ export const CrossLayerCanvas = observer(function CrossLayerCanvas({
       <div ref={paperContainerRef} style={paperStyle} />
 
       <CapabilityPicker
-        capabilities={operationalDna.capabilities ?? []}
+        operations={operationalDna.operations ?? []}
         selected={capabilityName}
         onChange={onCapabilityChange}
       />
 
       {capabilityName === null ? (
         <div style={emptyHintStyle}>
-          Pick a capability from the chip in the top-left to explore its full footprint across Operational,
+          Pick an operation from the chip in the top-left to explore its full footprint across Operational,
           Product API, and Product UI.
         </div>
       ) : null}

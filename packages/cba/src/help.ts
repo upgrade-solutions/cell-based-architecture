@@ -4,8 +4,8 @@ USAGE
   cba <command> [args] [--flags]
 
 DNA LAYERS
-  operational    Nouns, Verbs, Capabilities, Causes, Rules, Outcomes, SOPs (Positions, Tasks, Processes)
-  product        Product surface — api (Resources, Endpoints) or ui (Pages, Routes, Blocks)
+  operational    Resources/Persons/Roles/Groups (+ Memberships), Operations, Triggers, Rules, Tasks, Processes, Relationships
+  product        core (Resources, Operations) | api (Endpoints, Schemas) | ui (Pages, Routes, Blocks)
   technical      Environments, Constructs, Cells, Variables, Providers, Views
 
 BUILD + DEPLOY
@@ -57,34 +57,37 @@ rules, and SOPs. It is technology-agnostic and owned by the business.
 
 COMMANDS
   discover       Launch or resume an agent-driven discovery session
-  list           List primitives (Nouns, Verbs, Capabilities, etc.)
+  list           List primitives (Resources, Operations, Triggers, etc.)
   show           Show a single primitive as JSON
   add            Append a primitive (from a JSON file)
   remove         Remove a primitive by name
   schema         Show the JSON schema for a primitive type
   validate       Validate the operational layer
 
-PRIMITIVES
-  Noun, Verb, Attribute, Capability, Domain, Relationship, Cause, Rule, Outcome,
-  Equation, Position, Person, Task, Process
+PRIMITIVES (sourced from @dna-codes/schemas)
+  People       — Person, Role, Group, Membership
+  Entities     — Resource, Attribute, Relationship
+  Activities   — Operation, Task, Step (inside Process), Process, Trigger, Rule
+  Container    — Domain (recursive)
+  Action       — child of any noun primitive (Resource/Person/Role/Group)
 
 EXAMPLES
   cba operational list lending
-  cba operational list lending --type Noun
-  cba operational show lending --type Noun --name Loan
+  cba operational list lending --type Resource
+  cba operational show lending --type Resource --name Loan
   cba operational schema Rule
-  cba operational add lending --type Noun --at acme.finance.lending --file loan.json
-  cba operational add lending --type Verb --at acme.finance.lending:Loan --file approve.json
-  cba operational remove lending --type Noun --name OldNoun
+  cba operational add lending --type Resource --at acme.finance.lending --file loan.json
+  cba operational add lending --type Action --at acme.finance.lending:Loan --file approve.json
+  cba operational remove lending --type Resource --name OldResource
   cba operational discover lending
   cba operational discover lending --from notes.md
   cba operational discover lending --continue
 
 FLAGS (vary by command)
-  --type <T>        Primitive type (Noun, Verb, Capability, etc.)
+  --type <T>        Primitive type (Resource, Operation, Trigger, etc.)
   --name <N>        Primitive name
   --file <path>     JSON file containing the primitive (for add)
-  --at <domain>     Domain path for nested operational primitives
+  --at <domain>     Domain path for noun primitives, or <domain>:<noun> for Action/Attribute
   --from <file>     Ingest notes/transcripts (for discover)
   --continue        Resume most recent session (for discover)
   --json            Machine-readable output
@@ -368,7 +371,7 @@ USAGE
   cba validate <domain> [--layer <layer>]
 
 Validates each layer against its JSON schema and checks cross-layer
-references (e.g. product Resources -> operational Nouns).
+references (e.g. product Resources -> operational Resources).
 
 EXAMPLES
   cba validate lending                       # all layers + cross-layer

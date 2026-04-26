@@ -40,7 +40,7 @@ export function GuideDiscover({ state, onChange, onProceed, dna }: GuideDiscover
 
   const approvedCount = state.extractions.filter((e) => e.approved).length
   const nounExtractions = state.extractions
-    .filter((e) => e.primitiveType === 'noun' && e.approved)
+    .filter((e) => e.primitiveType === 'resource' && e.approved)
     .map((e) => e.text.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(''))
 
   const grouped = new Map<PrimitiveType, Extraction[]>()
@@ -87,7 +87,7 @@ export function GuideDiscover({ state, onChange, onProceed, dna }: GuideDiscover
                 {items.map((ext) => (
                   <div key={ext.id} style={{ ...extractionStyle, opacity: ext.approved ? 1 : 0.5, borderColor: ext.approved ? PRIMITIVE_COLORS[ext.primitiveType] : '#334155' }}>
                     <div style={extTextStyle}>{ext.text}</div>
-                    {(ext.primitiveType === 'attribute' || ext.primitiveType === 'verb' || ext.primitiveType === 'person') && (
+                    {(ext.primitiveType === 'attribute' || ext.primitiveType === 'action' || ext.primitiveType === 'person') && (
                       <select
                         value={ext.parentNoun ?? ''}
                         onChange={(e) => handleParentChange(ext.id, e.target.value)}

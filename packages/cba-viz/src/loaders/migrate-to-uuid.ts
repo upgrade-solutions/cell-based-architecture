@@ -1,39 +1,24 @@
 /**
  * Transparent UUID migration for DNA documents.
  *
- * On first load, primitives without an `id` field get a stable UUID
- * assigned. Layout keys are re-keyed from name-based
- * (`noun:Loan`, `capability:Loan.Approve`) to UUID-based
- * (`noun:<uuid>`, `capability:<uuid>`).
+ * On first load, primitives without an `id` field get a stable UUID assigned.
+ * Layout keys are re-keyed from name-based (`resource:Loan`,
+ * `operation:Loan.Approve`) to UUID-based (`resource:<uuid>`,
+ * `operation:<uuid>`).
  *
- * Idempotent — if a primitive already has an `id`, it's left as-is.
- * Safe to run on every load.
+ * Idempotent — primitives with an `id` are left as-is. Safe on every load.
  */
 
 import { generateId } from '../utils/uuid.ts'
 import type {
   OperationalDNA,
   Domain,
-  Noun,
-  Capability,
-  Rule,
-  Outcome,
-  Signal,
-  Cause,
-  Relationship,
-  Equation,
+  NounLike,
   OperationalLayout,
 } from './operational-loader.ts'
 import type {
   ProductApiDNA,
   ProductUiDNA,
-  Resource,
-  Operation,
-  Endpoint,
-  Namespace,
-  Page,
-  Block,
-  Route,
 } from './product-loader.ts'
 
 function ensureId<T extends { id?: string }>(obj: T): T {
@@ -46,36 +31,32 @@ function ensureId<T extends { id?: string }>(obj: T): T {
 export function migrateOperationalDNA(dna: OperationalDNA): OperationalDNA {
   // Build lookup maps while assigning IDs (single pass)
   const nounIdByName = new Map<string, string>()
-  const capIdByName = new Map<string, string>()
-  const signalIdByName = new Map<string, string>()
+  const opIdByName = new Map<string, string>()
 
-  // 1. Assign IDs to all nouns in the domain tree
+  // 1. Assign IDs to every noun primitive (Resource/Person/Role/Group)
+  //    in the domain tree
   walkNouns(dna.domain, (noun) => {
     ensureId(noun)
     nounIdByName.set(noun.name, noun.id!)
   })
 
-  // 2. Capabilities
-  for (const cap of dna.capabilities ?? []) {
-    ensureId(cap)
-    const name = cap.name ?? `${cap.noun}.${cap.verb}`
-    capIdByName.set(name, cap.id!)
+  // 2. Operations
+  for (const op of dna.operations ?? []) {
+    ensureId(op)
+    opIdByName.set(op.name, op.id!)
   }
 
-  // 3. Rules, Outcomes, Causes, Signals, Relationships, Equations
+  // 3. Top-level activities + relationships + memberships
+  for (const trigger of dna.triggers ?? []) ensureId(trigger)
   for (const rule of dna.rules ?? []) ensureId(rule)
-  for (const outcome of dna.outcomes ?? []) ensureId(outcome)
-  for (const cause of dna.causes ?? []) ensureId(cause)
-  for (const signal of dna.signals ?? []) {
-    ensureId(signal)
-    signalIdByName.set(signal.name, signal.id!)
-  }
+  for (const task of dna.tasks ?? []) ensureId(task)
+  for (const proc of dna.processes ?? []) ensureId(proc)
   for (const rel of dna.relationships ?? []) ensureId(rel)
-  for (const eq of dna.equations ?? []) ensureId(eq)
+  for (const m of dna.memberships ?? []) ensureId(m)
 
-  // 4. Re-key layout overlay from name-based to UUID-based
+  // 4. Re-key layout overlay from legacy name-based to UUID-based
   for (const layout of dna.layouts ?? []) {
-    migrateOperationalLayout(layout, nounIdByName, capIdByName)
+    migrateOperationalLayout(layout, nounIdByName, opIdByName)
   }
 
   return dna
@@ -84,11 +65,11 @@ export function migrateOperationalDNA(dna: OperationalDNA): OperationalDNA {
 function migrateOperationalLayout(
   layout: OperationalLayout,
   nounIds: Map<string, string>,
-  capIds: Map<string, string>,
+  opIds: Map<string, string>,
 ): void {
   const rewritten: typeof layout.elements = {}
   for (const [key, val] of Object.entries(layout.elements)) {
-    const newKey = migrateLayoutKey(key, nounIds, capIds)
+    const newKey = migrateLayoutKey(key, nounIds, opIds)
     rewritten[newKey] = val
   }
   layout.elements = rewritten
@@ -97,55 +78,57 @@ function migrateOperationalLayout(
 function migrateLayoutKey(
   key: string,
   nounIds: Map<string, string>,
-  capIds: Map<string, string>,
+  opIds: Map<string, string>,
 ): string {
   // Already migrated (contains a UUID-like segment)
   if (key.includes('-') && key.split(':').some(s => s.length === 36)) return key
 
-  if (key.startsWith('noun:')) {
-    const name = key.slice('noun:'.length)
+  // Legacy `noun:Foo` → `resource:Foo` rename, then UUID lookup
+  if (key.startsWith('noun:') || key.startsWith('resource:')) {
+    const name = key.slice(key.indexOf(':') + 1)
     const uuid = nounIds.get(name)
-    return uuid ? `noun:${uuid}` : key
+    return uuid ? `resource:${uuid}` : `resource:${name}`
   }
 
-  if (key.startsWith('capability:')) {
-    const name = key.slice('capability:'.length)
-    const uuid = capIds.get(name)
-    return uuid ? `capability:${uuid}` : key
+  // Legacy `capability:` → `operation:` rename, then UUID lookup
+  if (key.startsWith('capability:') || key.startsWith('operation:')) {
+    const name = key.slice(key.indexOf(':') + 1)
+    const uuid = opIds.get(name)
+    return uuid ? `operation:${uuid}` : `operation:${name}`
   }
 
-  // rule:<CapName>:<idx> and outcome:<CapName>:<idx>
-  // These become rule:<capUuid>:<idx> and outcome:<capUuid>:<idx>
-  if (key.startsWith('rule:') || key.startsWith('outcome:')) {
+  // rule:<OpName>:<idx> — rewrite key to use the operation UUID
+  if (key.startsWith('rule:')) {
     const firstColon = key.indexOf(':')
-    const prefix = key.slice(0, firstColon)
     const rest = key.slice(firstColon + 1)
     const lastColon = rest.lastIndexOf(':')
     if (lastColon < 0) return key
-    const capName = rest.slice(0, lastColon)
+    const opName = rest.slice(0, lastColon)
     const idx = rest.slice(lastColon + 1)
-    const uuid = capIds.get(capName)
-    return uuid ? `${prefix}:${uuid}:${idx}` : key
+    const uuid = opIds.get(opName)
+    return uuid ? `rule:${uuid}:${idx}` : key
   }
 
-  if (key.startsWith('signal:')) {
-    // Signals aren't typically in layouts, but handle defensively
-    return key
+  // Drop legacy outcome:* and signal:* layout keys — those primitives are gone
+  if (key.startsWith('outcome:') || key.startsWith('signal:') || key.startsWith('cause:')) {
+    return ''
   }
 
-  // Domain keys, unknown keys — pass through
   return key
 }
 
-function walkNouns(domain: Domain, fn: (noun: Noun) => void): void {
-  for (const noun of domain.nouns ?? []) fn(noun)
+function walkNouns(domain: Domain, fn: (noun: NounLike) => void): void {
+  for (const r of domain.resources ?? []) fn(r)
+  for (const p of domain.persons ?? []) fn(p)
+  for (const r of domain.roles ?? []) fn(r)
+  for (const g of domain.groups ?? []) fn(g)
   for (const child of domain.domains ?? []) walkNouns(child, fn)
 }
 
 // ── Product API DNA ───────────────────────────────────────────────────
 
 export function migrateProductApiDNA(dna: ProductApiDNA): ProductApiDNA {
-  ensureId(dna.namespace)
+  if (dna.namespace) ensureId(dna.namespace)
   for (const resource of dna.resources ?? []) ensureId(resource)
   for (const operation of dna.operations ?? []) ensureId(operation)
   for (const endpoint of dna.endpoints ?? []) ensureId(endpoint)

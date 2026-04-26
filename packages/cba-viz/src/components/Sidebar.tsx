@@ -103,9 +103,9 @@ export const Sidebar = observer(function Sidebar({ model, env, adapter }: Sideba
                 // whatever the user typed in the form — capabilities go
                 // by Noun.Verb, endpoints by METHOD path, everything else
                 // by its `name` field.
-                const nextObj = next as { name?: string; noun?: string; verb?: string; method?: string; path?: string }
-                if (kind === 'capability' && nextObj.noun && nextObj.verb) {
-                  cell?.attr({ label: { text: nextObj.name ?? `${nextObj.noun}.${nextObj.verb}` } })
+                const nextObj = next as { name?: string; target?: string; action?: string; method?: string; path?: string }
+                if (kind === 'operation' && nextObj.target && nextObj.action) {
+                  cell?.attr({ label: { text: nextObj.name ?? `${nextObj.target}.${nextObj.action}` } })
                 } else if (kind === 'endpoint' && nextObj.method && nextObj.path) {
                   cell?.attr({
                     methodLabel: { text: nextObj.method },
@@ -296,11 +296,16 @@ function lookupSchema(layer: string, kind: string): { family: string; name: stri
   if (layer === 'operational') {
     switch (kind) {
       case 'domain':     return { family: 'operational', name: 'domain' }
-      case 'noun':       return { family: 'operational', name: 'noun' }
-      case 'capability': return { family: 'operational', name: 'capability' }
+      case 'resource':   return { family: 'operational', name: 'resource' }
+      case 'person':     return { family: 'operational', name: 'person' }
+      case 'role':       return { family: 'operational', name: 'role' }
+      case 'group':      return { family: 'operational', name: 'group' }
+      case 'operation':  return { family: 'operational', name: 'operation' }
+      case 'trigger':    return { family: 'operational', name: 'trigger' }
       case 'rule':       return { family: 'operational', name: 'rule' }
-      case 'outcome':    return { family: 'operational', name: 'outcome' }
-      case 'signal':     return { family: 'operational', name: 'signal' }
+      case 'task':       return { family: 'operational', name: 'task' }
+      case 'process':    return { family: 'operational', name: 'process' }
+      case 'membership': return { family: 'operational', name: 'membership' }
     }
   }
 

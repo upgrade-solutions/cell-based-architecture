@@ -14,66 +14,62 @@ describe('materializeProductCore', () => {
 
     const core = materializeProductCore(operational, api, ui)
 
-    // Shape checks
     expect(core.domain).toBeDefined()
     expect(core.domain.path).toContain('lending')
-    expect(core.nouns.length).toBeGreaterThan(0)
-    expect(core.nouns.some((n) => n.name === 'Loan')).toBe(true)
+    expect(core.resources?.length ?? 0).toBeGreaterThan(0)
+    expect(core.resources?.some((r) => r.name === 'Loan')).toBe(true)
 
-    // Must validate against the product.core schema
     const validator = new DnaValidator()
     const r = validator.validate(core, 'product/core')
-    if (!r.valid) {
-      console.error('validation errors:', r.errors)
-    }
+    if (!r.valid) console.error('validation errors:', r.errors)
     expect(r.valid).toBe(true)
   })
 
-  it('falls back to all nouns when no surfaces are provided', () => {
+  it('falls back to all resources when no surfaces are provided', () => {
     const operational = loadDna('dna/lending/operational.json')
     const core = materializeProductCore(operational)
-    expect(core.nouns.length).toBeGreaterThan(0)
+    expect(core.resources?.length ?? 0).toBeGreaterThan(0)
   })
 
-  it('emits capabilities only for referenced nouns', () => {
+  it('emits operations only for surfaced resources', () => {
     const operational = {
       domain: {
         name: 'test',
         path: 'test',
-        nouns: [
+        resources: [
           {
             name: 'Included',
             attributes: [{ name: 'id', type: 'string' }],
-            verbs: [{ name: 'Create' }],
+            actions: [{ name: 'Create', type: 'write' }],
           },
           {
             name: 'Excluded',
             attributes: [{ name: 'id', type: 'string' }],
-            verbs: [{ name: 'Create' }],
+            actions: [{ name: 'Create', type: 'write' }],
           },
         ],
       },
-      capabilities: [
-        { noun: 'Included', verb: 'Create', name: 'Included.Create' },
-        { noun: 'Excluded', verb: 'Create', name: 'Excluded.Create' },
+      operations: [
+        { name: 'Included.Create', target: 'Included', action: 'Create' },
+        { name: 'Excluded.Create', target: 'Excluded', action: 'Create' },
       ],
     }
-    const api = { resources: [{ name: 'Included', noun: 'Included' }] }
+    const api = { resources: [{ name: 'Included', resource: 'Included' }] }
 
     const core = materializeProductCore(operational, api)
-    expect(core.nouns.map((n) => n.name)).toEqual(['Included'])
-    expect(core.capabilities?.map((c: any) => c.name)).toEqual(['Included.Create'])
+    expect(core.resources?.map((r) => r.name)).toEqual(['Included'])
+    expect(core.operations?.map((o: any) => o.name)).toEqual(['Included.Create'])
   })
 
-  it('includes transitively related nouns via relationships', () => {
+  it('includes transitively related resources via relationships', () => {
     const operational = {
       domain: {
         name: 'test',
         path: 'test',
-        nouns: [
-          { name: 'Order', attributes: [{ name: 'customer_id', type: 'string' }], verbs: [] },
-          { name: 'Customer', attributes: [{ name: 'id', type: 'string' }], verbs: [] },
-          { name: 'Unrelated', attributes: [{ name: 'id', type: 'string' }], verbs: [] },
+        resources: [
+          { name: 'Order', attributes: [{ name: 'customer_id', type: 'string' }], actions: [] },
+          { name: 'Customer', attributes: [{ name: 'id', type: 'string' }], actions: [] },
+          { name: 'Unrelated', attributes: [{ name: 'id', type: 'string' }], actions: [] },
         ],
       },
       relationships: [
@@ -86,12 +82,11 @@ describe('materializeProductCore', () => {
         },
       ],
     }
-    const api = { resources: [{ name: 'Order', noun: 'Order' }] }
+    const api = { resources: [{ name: 'Order', resource: 'Order' }] }
 
     const core = materializeProductCore(operational, api)
-    const nounNames = core.nouns.map((n) => n.name).sort()
-    expect(nounNames).toEqual(['Customer', 'Order'])
+    const resourceNames = (core.resources ?? []).map((r) => r.name).sort()
+    expect(resourceNames).toEqual(['Customer', 'Order'])
     expect(core.relationships?.length).toBe(1)
   })
-
 })

@@ -50,7 +50,6 @@ import {
   type Phase,
   type Sub,
   type BuildSub,
-  type RunSub,
   type ProductVariant,
   BUILD_SUBS,
   RUN_SUBS,
@@ -625,22 +624,19 @@ const App = observer(function App() {
 
       // Operational ────────────────────────────────────────────────
       if (layer === 'operational' && operationalActive && operationalDna) {
-        if (
-          kind !== 'noun' &&
-          kind !== 'capability' &&
-          kind !== 'rule' &&
-          kind !== 'outcome' &&
-          kind !== 'signal'
-        ) {
-          return
-        }
+        const operationalKinds = new Set<string>([
+          'resource', 'person', 'role', 'group',
+          'operation', 'trigger', 'rule', 'task', 'process', 'membership',
+        ])
+        if (!operationalKinds.has(kind)) return
         const source = cellDna.source as Record<string, unknown> | undefined
         const key = source?.id as string | undefined
         const label = (cellDna.name as string | undefined) ?? key ?? ''
         if (!key) return
         e.preventDefault()
-        const removed = previewCascade(operationalDna, kind, key)
-        setDeleteConfirm({ layer: 'operational', kind, key, label, removed })
+        const opKind = kind as OperationalPrimitiveKind
+        const removed = previewCascade(operationalDna, opKind, key)
+        setDeleteConfirm({ layer: 'operational', kind: opKind, key, label, removed })
         return
       }
 

@@ -201,7 +201,8 @@ function groupEndpointsByResource(
 ): Map<string, Endpoint[]> {
   const opByName = new Map<string, Operation>()
   for (const op of operations) {
-    const name = op.name ?? `${op.resource}.${op.action}`
+    const target = op.target ?? op.resource
+    const name = op.name ?? `${target ?? ''}.${op.action}`
     opByName.set(name, op)
   }
 
@@ -209,12 +210,12 @@ function groupEndpointsByResource(
   for (const endpoint of endpoints) {
     // Primary: parse `Resource.Action` directly from the operation string.
     const direct = endpoint.operation.split('.')[0]
-    let resource = direct
+    let resource: string | undefined = direct
     // Fallback: look up the operation to find its resource when the
     // naming doesn't match the dotted convention.
     if (!resource) {
       const op = opByName.get(endpoint.operation)
-      if (op) resource = op.resource
+      if (op) resource = op.target ?? op.resource
     }
     if (!resource) continue
     const list = map.get(resource) ?? []

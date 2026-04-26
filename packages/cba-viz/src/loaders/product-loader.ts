@@ -1,55 +1,35 @@
 /**
  * Product DNA types + loaders.
  *
- * Phase 5c.3 foundation. Covers all three product sub-layers in one
- * file because they share types heavily (Resource, Field, Action,
- * Operation are used by product-core, product-api, and product-ui).
- * Splitting them would triple-import the same interfaces and invite
- * drift when schemas evolve.
+ * Covers all three product sub-layers in one file because they share types
+ * heavily (Resource, Field, Action, Operation are used by product-core,
+ * product-api, and product-ui).
  *
- * Field names and shapes must match `product/schemas/**.json` exactly.
- * The RJSF inspector form round-trips data through these interfaces
- * back to the schema — any drift breaks editing silently. If you
- * change a schema, update the matching interface here and re-run tsc.
+ * Field names and shapes mirror `@dna-codes/schemas/product/**.json`. The
+ * RJSF inspector form round-trips data through these interfaces back to the
+ * schema — any drift breaks editing silently.
  *
- * Product core shares its top-level primitives (capabilities, causes,
- * rules, outcomes, equations, signals, relationships,
- * nouns) with Operational DNA. We re-export those types from
- * `operational-loader` so there's exactly one source of truth for
- * shared primitives — materialization flattens the domain hierarchy
- * but doesn't change the per-primitive schemas.
+ * Product Core re-uses the operational primitive shapes (Resource shape,
+ * Operation shape, Trigger shape, Relationship shape) from
+ * `operational-loader`. Materialization flattens the domain hierarchy but
+ * doesn't change the per-primitive schemas.
  */
 
 import type {
-  Noun,
-  Capability,
-  Cause,
-  Rule,
-  Outcome,
-  Equation,
-  Signal,
+  Resource as OpResource,
+  Operation as OpOperation,
+  Trigger,
   Relationship,
-  Position,
-  Person,
-  Task,
-  Process,
 } from './operational-loader.ts'
 import { migrateProductApiDNA, migrateProductUiDNA } from './migrate-to-uuid.ts'
 
-// Re-export shared primitives so downstream consumers can import
-// everything product-related from one place.
+// Re-export shared primitives for downstream consumers.
 export type {
-  Noun,
-  Capability,
-  Cause,
-  Rule,
-  Outcome,
-  Equation,
-  Signal,
+  Trigger,
   Relationship,
 }
 
-// ── Shared product primitives (product/schemas/core/) ───────────────────
+// ── Shared product primitives (product/core/) ─────────────────────────
 
 /**
  * Field type enum. Extends Operational Attribute types with UI-only
@@ -84,8 +64,8 @@ export interface Field {
 export interface Action {
   name: string
   description?: string
-  /** Operational Verb this action maps from. */
-  verb?: string
+  /** Operational Action this maps from (Resource.actions[].name). */
+  action?: string
   /** HTTP method when realized as an API endpoint. */
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   input?: Field[]
@@ -96,28 +76,25 @@ export interface Resource {
   id?: string
   name: string
   description?: string
-  /** Operational Noun this resource maps from. */
-  noun?: string
+  /** Operational Resource this maps from. */
+  resource?: string
   fields?: Field[]
   actions?: Action[]
 }
 
 export interface Operation {
   id?: string
-  resource: string
+  /** Operational target (Resource/Person/Role/Group/Process) — optional alias of `target`. */
+  resource?: string
+  /** Operational target name. Mirrors operational `Operation.target`. */
+  target?: string
   action: string
-  /** Canonical `Resource.Action` form. */
+  /** Canonical `Target.Action` form. */
   name?: string
   description?: string
-  /** Operational Capability this operation maps from, as `Noun.Verb`. */
-  capability?: string
 }
 
-// ── Product Core (product.core.json) ─────────────────────────────────────
-//
-// Product core is a materialized, flattened slice of Operational DNA.
-// Structurally identical primitive arrays; only the domain layout differs
-// (flat nouns[] at the top instead of nested Domain.domains[].nouns[]).
+// ── Product Core (product.core.json) ──────────────────────────────────
 
 export interface ProductCoreDomain {
   name: string
@@ -125,20 +102,21 @@ export interface ProductCoreDomain {
   description?: string
 }
 
+/**
+ * Product Core is a materialized projection of operational DNA. Its shape
+ * follows `@dna-codes/core`'s ProductCoreDNA: domain + resources, operations,
+ * triggers, relationships. The legacy fields (capabilities, outcomes, signals,
+ * equations, lifecycles) are gone with the model rewrite.
+ */
 export interface ProductCoreDNA {
   domain: ProductCoreDomain
-  nouns: Noun[]
-  capabilities?: Capability[]
-  causes?: Cause[]
-  rules?: Rule[]
-  outcomes?: Outcome[]
-  equations?: Equation[]
-  signals?: Signal[]
+  resources?: OpResource[]
+  operations?: OpOperation[]
+  triggers?: Trigger[]
   relationships?: Relationship[]
-  roles?: { name: string; description?: string }[]
 }
 
-// ── Product API (product.api.json) ───────────────────────────────────────
+// ── Product API (product.api.json) ────────────────────────────────────
 
 export interface Namespace {
   id?: string
@@ -177,7 +155,7 @@ export interface Endpoint {
   id?: string
   method: HttpMethod
   path: string
-  /** Operation this endpoint maps from, as `Resource.Action`. */
+  /** Operation this endpoint serves, as `Resource.Action`. */
   operation: string
   description?: string
   params?: Param[]
@@ -192,12 +170,8 @@ export interface ProductApiDNA {
   endpoints: Endpoint[]
 }
 
-// ── Product UI (product.ui.json) ─────────────────────────────────────────
+// ── Product UI (product.ui.json) ──────────────────────────────────────
 
-/**
- * Block structural type enum. UI adapters render each type into a
- * concrete component (table for `list`, form for `form`, etc.).
- */
 export type BlockType =
   | 'list'
   | 'detail'
@@ -213,7 +187,7 @@ export interface Block {
   name: string
   type: BlockType
   description?: string
-  /** Operation this block maps from, as `Resource.Action`. */
+  /** Operation this block calls, as `Resource.Action`. */
   operation?: string
   fields?: Field[]
 }
@@ -235,14 +209,6 @@ export interface Route {
   protected?: boolean
 }
 
-/**
- * The Layout type is open-ended in the schema — different layout
- * variants (universal, marketing, auth, wizard) carry different
- * configuration shapes under distinct `type` discriminators. We
- * deliberately leave it as a permissive index signature so the
- * inspector form can surface arbitrary extra fields without
- * forcing every new layout variant to grow a new TypeScript type.
- */
 export interface Layout {
   name: string
   type?: string
@@ -256,16 +222,12 @@ export interface ProductUiDNA {
   routes: Route[]
 }
 
-// ── Parsers + loaders ───────────────────────────────────────────────────
+// ── Parsers + loaders ─────────────────────────────────────────────────
 
-/**
- * Minimal runtime validation — fail fast on structurally broken files.
- * Full schema validation is handled by RJSF's ajv on edit.
- */
 export function parseProductCoreDNA(json: unknown): ProductCoreDNA {
   const data = json as ProductCoreDNA
-  if (!data || typeof data !== 'object' || !data.domain || !Array.isArray(data.nouns)) {
-    throw new Error('Invalid product core DNA: missing required "domain" and/or "nouns"')
+  if (!data || typeof data !== 'object' || !data.domain) {
+    throw new Error('Invalid product core DNA: missing required "domain"')
   }
   return data
 }
@@ -286,12 +248,6 @@ export function parseProductUiDNA(json: unknown): ProductUiDNA {
   return migrateProductUiDNA(data)
 }
 
-/**
- * Fetch a product DNA sub-layer from the dev middleware. The middleware
- * URL tokens use `-` instead of `.` because dots are awkward in URL path
- * segments; the middleware maps `product-core` → `product.core.json`,
- * `product-api` → `product.api.json`, `product-ui` → `product.ui.json`.
- */
 export async function loadProductCoreDNA(domain: string): Promise<ProductCoreDNA> {
   const response = await fetch(`/api/dna/product-core/${encodeURIComponent(domain)}`)
   if (!response.ok) {
