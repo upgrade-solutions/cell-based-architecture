@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dna/core": "*",
+    "@dna-codes/core": "^0.3.0",
     "@joint/plus": "file:joint-plus.tgz",
     "@rjsf/core": "^6.4.2",
     "@rjsf/utils": "^6.4.2",

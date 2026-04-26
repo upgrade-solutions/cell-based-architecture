@@ -26,7 +26,6 @@ export interface ProductCoreDNA {
   outcomes?: any[]
   lifecycles?: any[]
   equations?: any[]
-  signals?: any[]
   relationships?: any[]
 }
 
@@ -40,7 +39,7 @@ export interface ProductCoreDNA {
  *    to including every Noun in the domain.
  * 3. Expand the referenced set via Relationships (transitive closure — a Noun reachable
  *    from a referenced Noun via any relationship is included)
- * 4. Filter capabilities/causes/rules/outcomes/lifecycles/signals/relationships to the set
+ * 4. Filter capabilities/causes/rules/outcomes/lifecycles/relationships to the set
  *    that applies to the referenced Nouns
  * 5. Pick the deepest domain node that contains at least one referenced Noun as the
  *    core's `domain` field
@@ -127,23 +126,6 @@ export function materializeProductCore(
   // The cells can decide whether they need them.
   const equations = operational.equations ?? []
 
-  // Signals: include any emitted by surfaced outcomes, subscribed by surfaced causes,
-  // or whose capability is in the surfaced set.
-  const emittedSignals = new Set<string>()
-  for (const o of outcomes) {
-    for (const s of o.emits ?? []) emittedSignals.add(s)
-  }
-  const subscribedSignals = new Set<string>()
-  for (const c of causes) {
-    if (c.source === 'signal' && c.signal) subscribedSignals.add(c.signal)
-  }
-  const signals = (operational.signals ?? []).filter(
-    (s: any) =>
-      emittedSignals.has(s.name) ||
-      subscribedSignals.has(s.name) ||
-      capabilityNames.has(s.capability),
-  )
-
   const rels = (operational.relationships ?? []).filter(
     (r: any) => referencedNouns.has(r.from) && referencedNouns.has(r.to),
   )
@@ -161,7 +143,6 @@ export function materializeProductCore(
   if (outcomes.length) core.outcomes = outcomes
   if (lifecycles.length) core.lifecycles = lifecycles
   if (equations.length) core.equations = equations
-  if (signals.length) core.signals = signals
   if (rels.length) core.relationships = rels
 
   return core

@@ -20,7 +20,6 @@ interface CellPlan {
  * Convention: adapter-type prefix identifies the cell package.
  */
 function workspaceForAdapter(adapterType: string): string | undefined {
-  if (adapterType === 'node/event-bus') return '@cell/event-bus-cell'
   if (adapterType.startsWith('node/')) return '@cell/api-cell'
   if (adapterType.startsWith('ruby/')) return '@cell/api-cell'
   if (adapterType.startsWith('python/')) return '@cell/api-cell'
@@ -249,7 +248,7 @@ function workspaceDir(workspace: string): string {
   const { findRepoRoot } = require('./context')
   const root = findRepoRoot()
   const name = workspace.replace('@cell/', '')
-  if (name === 'dna-validator' || name === 'cba') {
+  if (name === 'cba') {
     return path.join(root, 'packages', name)
   }
   return path.join(root, 'technical/cells', name)

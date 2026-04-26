@@ -2,7 +2,7 @@
 
 Cell-based architecture is a philosophy for building applications by injecting **DNA** into **cells** — TypeScript engines that read DNA and produce working software (API endpoints, UIs, database schemas, etc.).
 
-- **DNA** — a JSON description language expressing a business domain across three layers (Operational, Product, Technical). Defined and documented in the [DNA repo](https://github.com/upgrade-solutions/dna).
+- **DNA** — a JSON description language expressing a business domain across three layers (Operational, Product, Technical). Defined, schemafied, and validated by the [DNA repo](https://github.com/upgrade-solutions/dna), shipped on npm as `@dna-codes/core` + `@dna-codes/schemas`. CBA defers entirely to those packages — it does not ship its own copy of DNA primitives, schemas, or the validator.
 - **Cell** — a TypeScript package/engine that accepts one layer of DNA as input and produces code or deployable infrastructure.
 
 The relationship: DNA describes *what* the business is and does; cells decide *how* to implement it.
@@ -13,9 +13,9 @@ The relationship: DNA describes *what* the business is and does; cells decide *h
 |---------|-----------|-------|
 | `@cell/cba` | Unified CLI for the full cell-based-architecture lifecycle | [`packages/cba/`](./packages/cba/) |
 | `@cell/cba-viz` | Interactive architecture viewer (Vite + React + JointJS) | [`packages/cba-viz/`](./packages/cba-viz/) |
-| `@cell/{api,ui,db,event-bus}-cell` | Cells that consume DNA and produce code or infra | [`technical/cells/`](./technical/cells/) |
+| `@cell/{api,ui,db}-cell` | Cells that consume DNA and produce code or infra | [`technical/cells/`](./technical/cells/) |
 
-DNA packages (`@dna-codes/core`, `@dna-codes/schemas`) live in the [DNA repo](https://github.com/upgrade-solutions/dna). See its README for schemas, TypeScript bindings, and layer docs.
+DNA packages (`@dna-codes/core`, `@dna-codes/schemas`) live in the [DNA repo](https://github.com/upgrade-solutions/dna) and are pulled in from npm. See that README for schemas, TypeScript bindings, and layer docs.
 
 ---
 
@@ -51,8 +51,7 @@ A cell is a **TypeScript package** that:
 | `api-cell` | Product → Technical | API Product DNA + adapter config | REST API (NestJS, Express, etc.) | **Built** — `technical/cells/api-cell/` |
 | `ui-cell` | Product → Technical | UI Product DNA + adapter config | UI app (React, Vue, etc.) | **Built** — `technical/cells/ui-cell/` |
 | `db-cell` | Technical | Construct config (infra-only) | Database provisioning (Docker, roles, permissions) | **Built** — `technical/cells/db-cell/` |
-| `event-bus-cell` | Operational → Technical | Signals across all domains + queue Construct config | Schema registry, typed publisher libs, routing config, worker stubs | **Built** — `technical/cells/event-bus-cell/` |
-| `workflow-cell` | Technical | Causes, Processes, Outcomes, Constructs | Event-driven workflows | Planned |
+| `workflow-cell` | Technical | Triggers, Processes, Operations, Constructs | Event-driven workflows | Planned |
 
 ## Cell Interface Contract
 
@@ -550,17 +549,31 @@ cd output/lending/dev/deploy && docker compose up -d
 
 ## `terraform/aws` adapter
 
-Generates Terraform HCL files that provision AWS infrastructure from Technical DNA:
+Generates Terraform HCL files that provision AWS infrastructure from Technical DNA. Output is split across `main.tf`, `vpc.tf`, `storage.tf`, `compute.tf`, `network.tf`, `iam.tf`, `ecr.tf`, `secrets.tf`, `locals.tf`, `variables.tf`, and `outputs.tf`.
 
-| DNA Primitive | AWS Resource |
-|---------------|-------------|
-| storage/database (postgres) | `aws_db_instance` (RDS) |
-| storage/cache (redis) | `aws_elasticache_cluster` |
-| compute/container | ECS Fargate task definition + service |
-| network/gateway | `aws_apigatewayv2_api` |
-| Cell (node/\*, ruby/\*, python/\*) | ECR repository + ECS container definition |
-| Cell (vite/\*) | S3 bucket + CloudFront distribution |
-| Variable (secret) | Secrets Manager secret |
+**Baseline (always provisioned)** — foundational resources every environment gets:
+
+| Concern | AWS Resources |
+|---------|---------------|
+| Network (`vpc.tf`) | `aws_vpc`, `aws_subnet` (2 public + 2 private across 2 AZs), `aws_internet_gateway`, `aws_nat_gateway`, `aws_eip`, `aws_route_table`, `aws_route_table_association`, `aws_security_group` (ECS, ALB; RDS and Redis added when used) |
+| Compute cluster (`compute.tf`) | `aws_ecs_cluster`, `aws_cloudwatch_log_group` |
+| Edge (`network.tf`) | `aws_lb` + `aws_lb_listener` (ALB front door for ECS services) |
+| IAM (`iam.tf`) | `aws_iam_role` (ECS execution + task), `aws_iam_role_policy` (Secrets Manager reads; EventBridge + SQS when present), `aws_iam_role_policy_attachment` |
+
+**Per DNA primitive** — resources emitted based on what's in Technical DNA:
+
+| DNA Primitive | AWS Resources |
+|---------------|---------------|
+| `storage/database` (postgres) | `aws_db_instance` (RDS, managed master password), `aws_db_subnet_group` |
+| `storage/cache` (redis) | `aws_elasticache_cluster`, `aws_elasticache_subnet_group` |
+| `storage/queue` (eventbridge) | `aws_cloudwatch_event_bus`, `aws_cloudwatch_event_rule`, `aws_cloudwatch_event_target`, `aws_sqs_queue`, `aws_sqs_queue_policy` |
+| `compute/container` (via Cell) | `aws_ecs_task_definition` (Fargate), `aws_ecs_service` |
+| `network/gateway` | `aws_apigatewayv2_api`, `aws_apigatewayv2_stage`, `aws_apigatewayv2_integration` (VPC-linked to ALB) |
+| Cell (`node/*`, `ruby/*`, `python/*`) | `aws_ecr_repository` + container definition wired into the ECS task def above. HTTP-serving cells also get `aws_lb_target_group` + `aws_lb_listener_rule` on the shared ALB |
+| Cell (`vite/*`) | `aws_s3_bucket`, `aws_s3_bucket_public_access_block`, `aws_s3_bucket_policy`, `aws_cloudfront_distribution`, `aws_cloudfront_origin_access_identity` |
+| Variable (`source: secret`, sensitive) | `aws_secretsmanager_secret` + `aws_secretsmanager_secret_version`. `JWT_SECRET` also gets a `random_password` resource; `DATABASE_URL` is derived from RDS outputs via `locals.tf` |
+
+Data sources pulled in: `aws_availability_zones` (for subnet AZ spread), `aws_secretsmanager_secret_version` (for the RDS-managed master password when deriving `DATABASE_URL`).
 
 ```bash
 npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve
@@ -672,6 +685,32 @@ cell-based-architecture/
 - **JSON in, infrastructure out.** The full path from business concept to deployed software is driven by JSON documents and TypeScript engines.
 - **Signals are the cross-domain contract.** Domains communicate asynchronously via Signals — named events with typed payloads. Two delivery patterns: **Pattern A (HTTP push)** — publisher dispatches directly to subscriber's `/_signals/:signalName` endpoint; **Pattern B (queue + worker)** — event bus routes to a queue, a worker process consumes and dispatches.
 - **Infrastructure is not a cell.** Deployment is a `cba deliver` concern with delivery adapters (docker-compose, terraform/aws, aws-sam), not a cell type.
+
+---
+
+# Spec-Driven Development
+
+This repo uses **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** as its default spec-driven development framework. Non-trivial features go through a Proposal → Apply → Archive workflow before implementation, keeping intent and code in sync.
+
+```bash
+npm install -g @fission-ai/openspec@latest   # one-time, global
+```
+
+Slash commands (Claude Code):
+
+| Command | What it does |
+|---------|--------------|
+| `/opsx:explore` | Think through ideas, investigate problems, clarify requirements |
+| `/opsx:propose <name-or-description>` | Create a change with `proposal.md`, `design.md`, `tasks.md` |
+| `/opsx:apply` | Implement the tasks for the active change |
+| `/opsx:archive` | Finalize and archive a completed change |
+
+Project-level OpenSpec layout:
+- `openspec/config.yaml` — project context + per-artifact rules used by every proposal
+- `openspec/specs/` — accepted, living specs
+- `openspec/changes/` — in-flight proposals; archived ones move to `openspec/changes/archive/`
+
+Skip OpenSpec only for trivial fixes, doc tweaks, or one-off experiments.
 
 ---
 

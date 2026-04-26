@@ -9,7 +9,7 @@ import { createRequire } from 'node:module'
 import { exec, execFile } from 'node:child_process'
 
 // Vite loads this config as ESM, so `require` isn't in scope — use
-// createRequire to resolve @dna/core's on-disk location for schema serving.
+// createRequire to resolve @dna-codes/schemas's on-disk location for schema serving.
 const requireFromHere = createRequire(import.meta.url)
 
 /** Path to the cba CLI binary, resolved from the monorepo root. */
@@ -744,15 +744,15 @@ function resolveDnaFile(domain: string, layer: string): string | null {
 }
 
 /**
- * Schema families map to layer roots inside the `@dna/core` package. The dev
- * server streams schemas back to the RJSF-driven inspector forms, so there's
- * one source of truth across CLI, validator, and viewer.
+ * Schema families map to layer roots inside the `@dna-codes/schemas` package.
+ * The dev server streams schemas back to the RJSF-driven inspector forms, so
+ * there's one source of truth across CLI, validator, and viewer.
  */
-const DNA_CORE_ROOT = path.dirname(requireFromHere.resolve('@dna/core/package.json'))
+const DNA_SCHEMAS_ROOT = path.dirname(requireFromHere.resolve('@dna-codes/schemas/package.json'))
 const SCHEMA_DIRS: Record<string, string> = {
-  'operational': path.join(DNA_CORE_ROOT, 'schemas/operational'),
-  'product': path.join(DNA_CORE_ROOT, 'schemas/product'),
-  'technical': path.join(DNA_CORE_ROOT, 'schemas/technical'),
+  'operational': path.join(DNA_SCHEMAS_ROOT, 'operational'),
+  'product': path.join(DNA_SCHEMAS_ROOT, 'product'),
+  'technical': path.join(DNA_SCHEMAS_ROOT, 'technical'),
 }
 
 function resolveSchemaFile(family: string, name: string): string | null {
@@ -764,11 +764,11 @@ function resolveSchemaFile(family: string, name: string): string | null {
 /**
  * Dereference cross-schema `$ref`s into a self-contained document.
  *
- * JSON Schemas in this repo use absolute URIs like
- * `https://dna.local/operational/attribute` as refs across files. RJSF's
- * bundled ajv validator only resolves internal references (`#/...`), so
- * without preprocessing a form for a Noun explodes with "Could not find
- * a definition for https://dna.local/operational/attribute".
+ * JSON Schemas in `@dna-codes/schemas` use absolute URIs like
+ * `https://dna.codes/schemas/operational/attribute` as refs across files.
+ * RJSF's bundled ajv validator only resolves internal references (`#/...`),
+ * so without preprocessing a form for a Resource explodes with "Could not
+ * find a definition for https://dna.codes/schemas/operational/attribute".
  *
  * We fix that server-side by walking the loaded schema, loading each
  * referenced external schema file, and stashing it under a root `$defs`
@@ -816,17 +816,17 @@ function inlineRefs(rootSchema: unknown): unknown {
     const src = node as Record<string, unknown>
     const out: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(src)) {
-      if (key === '$ref' && typeof value === 'string' && value.startsWith('https://dna.local/')) {
+      if (key === '$ref' && typeof value === 'string' && value.startsWith('https://dna.codes/schemas/')) {
         // Strip fragment — we don't currently use subschema pointers,
-        // so `https://dna.local/operational/attribute#/foo` is unsupported.
+        // so `https://dna.codes/schemas/operational/attribute#/foo` is unsupported.
         const cleaned = value.split('#')[0]
-        // Path after `dna.local/` can be multi-segment:
+        // Path after `dna.codes/schemas/` can be multi-segment:
         //   operational/attribute          → family=operational, name=attribute
         //   product/core/resource          → family=product,     name=core/resource
         //   product/api/endpoint           → family=product,     name=api/endpoint
         // The first segment is always the family; everything else is the
         // schema name (possibly nested into a family subdirectory).
-        const m = cleaned.match(/^https:\/\/dna\.local\/(.+)$/)
+        const m = cleaned.match(/^https:\/\/dna\.codes\/schemas\/(.+)$/)
         if (m) {
           const parts = m[1].split('/')
           if (parts.length >= 2) {

@@ -1,5 +1,5 @@
 import { materializeProductCore } from './product-core'
-import { DnaValidator } from '@dna/validator'
+import { DnaValidator } from '@dna-codes/core'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -94,27 +94,4 @@ describe('materializeProductCore', () => {
     expect(core.relationships?.length).toBe(1)
   })
 
-  it('includes signals emitted by surfaced capability outcomes', () => {
-    const operational = {
-      domain: {
-        name: 'lending',
-        path: 'acme.finance.lending',
-        nouns: [{ name: 'Loan', attributes: [], verbs: [{ name: 'Approve' }] }],
-      },
-      capabilities: [{ noun: 'Loan', verb: 'Approve', name: 'Loan.Approve' }],
-      outcomes: [{ capability: 'Loan.Approve', emits: ['lending.Loan.Disbursed'] }],
-      signals: [
-        {
-          name: 'lending.Loan.Disbursed',
-          capability: 'Loan.Approve',
-          description: '',
-          payload: [{ name: 'id', type: 'string', required: true }],
-        },
-      ],
-    }
-    const api = { resources: [{ name: 'Loan', noun: 'Loan' }] }
-
-    const core = materializeProductCore(operational, api)
-    expect(core.signals?.map((s: any) => s.name)).toEqual(['lending.Loan.Disbursed'])
-  })
 })

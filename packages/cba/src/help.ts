@@ -4,7 +4,7 @@ USAGE
   cba <command> [args] [--flags]
 
 DNA LAYERS
-  operational    Nouns, Verbs, Capabilities, Causes, Rules, Outcomes, Signals, SOPs (Positions, Tasks, Processes)
+  operational    Nouns, Verbs, Capabilities, Causes, Rules, Outcomes, SOPs (Positions, Tasks, Processes)
   product        Product surface — api (Resources, Endpoints) or ui (Pages, Routes, Blocks)
   technical      Environments, Constructs, Cells, Variables, Providers, Views
 
@@ -66,7 +66,7 @@ COMMANDS
 
 PRIMITIVES
   Noun, Verb, Attribute, Capability, Domain, Relationship, Cause, Rule, Outcome,
-  Signal, Equation, Position, Person, Task, Process
+  Equation, Position, Person, Task, Process
 
 EXAMPLES
   cba operational list lending
@@ -455,8 +455,7 @@ CONCERN SHORTHANDS
   product                            → product/AGENTS.md
   technical                          → technical/AGENTS.md
   dna                                → dna/AGENTS.md (DNA generator meta-agent)
-  api-cell | ui-cell | db-cell | event-bus-cell
-                                     → technical/cells/<name>/AGENTS.md
+  api-cell | ui-cell | db-cell       → technical/cells/<name>/AGENTS.md
 
 EXAMPLES
   cba agent list                            # see every contract in the repo

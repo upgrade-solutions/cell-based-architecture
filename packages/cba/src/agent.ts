@@ -10,8 +10,8 @@
  * Usage:
  *   cba agent list                     # list every AGENTS.md in the repo
  *   cba agent <name-or-path>           # show the contract for a concern
- *   cba agent dna-core                 # shorthand for @dna/core's AGENTS.md (dispatcher)
- *   cba agent operational              # shorthand for @dna/core/docs/operational.md
+ *   cba agent dna-core                 # shorthand for @dna-codes/core's AGENTS.md (dispatcher)
+ *   cba agent operational              # shorthand for @dna-codes/core/docs/operational.md
  *   cba agent api-cell                 # shorthand for technical/cells/api-cell/AGENTS.md
  *   cba agent dna                      # shorthand for dna/AGENTS.md (DNA generator meta-agent)
  *
@@ -28,10 +28,10 @@ import { AGENT_HELP } from './help'
 
 /**
  * The three DNA layer docs (operational, product, technical) live inside the
- * @dna/core package now, not at the repo root. This resolver points lookups
- * at the installed package so agent-mode resolution still works.
+ * @dna-codes/core package. This resolver points lookups at the installed
+ * package so agent-mode resolution still works.
  */
-const DNA_CORE_ROOT = path.dirname(require.resolve('@dna/core/package.json'))
+const DNA_CORE_ROOT = path.dirname(require.resolve('@dna-codes/core/package.json'))
 const DNA_DOCS_ROOT = path.join(DNA_CORE_ROOT, 'docs')
 const DNA_CORE_AGENTS = path.join(DNA_CORE_ROOT, 'AGENTS.md')
 const DNA_LAYERS = ['operational', 'product', 'technical'] as const
@@ -151,8 +151,7 @@ function runShow(nameOrPath: string, _rest: string[], opts: { json: boolean }): 
  *   product                        → product/AGENTS.md
  *   technical                      → technical/AGENTS.md
  *   dna                            → dna/AGENTS.md (DNA generator meta-agent)
- *   api-cell|ui-cell|db-cell|event-bus-cell
- *                                  → technical/cells/<name>/AGENTS.md
+ *   api-cell|ui-cell|db-cell        → technical/cells/<name>/AGENTS.md
  *   any absolute or relative path to an AGENTS.md file
  */
 function resolveAgentFile(
@@ -174,14 +173,14 @@ function resolveAgentFile(
     }
   }
 
-  // DNA layer docs — shipped inside @dna/core
+  // DNA layer docs — shipped inside @dna-codes/core
   if ((DNA_LAYERS as readonly string[]).includes(nameOrPath)) {
     const f = dnaLayerDoc(nameOrPath as DnaLayer)
     if (fs.existsSync(f)) return { concern: nameOrPath, file: f }
   }
 
-  // @dna/core package-level contract (dispatcher across the three layers)
-  if (nameOrPath === 'dna-core' || nameOrPath === '@dna/core') {
+  // @dna-codes/core package-level contract (dispatcher across the three layers)
+  if (nameOrPath === 'dna-core' || nameOrPath === '@dna-codes/core') {
     if (fs.existsSync(DNA_CORE_AGENTS)) return { concern: 'dna-core', file: DNA_CORE_AGENTS }
   }
 
@@ -204,9 +203,9 @@ function resolveAgentFile(
  * Used for listing and error messages.
  */
 function concernFor(file: string, root: string): string {
-  // @dna/core package-level contract
+  // @dna-codes/core package-level contract
   if (file === DNA_CORE_AGENTS) return 'dna-core'
-  // DNA layer docs shipped inside @dna/core
+  // DNA layer docs shipped inside @dna-codes/core
   if (file.startsWith(DNA_DOCS_ROOT + path.sep)) {
     const base = path.basename(file, '.md')
     if ((DNA_LAYERS as readonly string[]).includes(base)) return base
@@ -225,11 +224,11 @@ function concernFor(file: string, root: string): string {
 function findAllAgentsFiles(root: string): AgentContract[] {
   const candidates: string[] = []
 
-  // @dna/core package-level contract — listed before the per-layer docs so
+  // @dna-codes/core package-level contract — listed before the per-layer docs so
   // a reader scanning top-down gets the dispatcher first.
   if (fs.existsSync(DNA_CORE_AGENTS)) candidates.push(DNA_CORE_AGENTS)
 
-  // Layer-level — shipped inside @dna/core
+  // Layer-level — shipped inside @dna-codes/core
   for (const layer of DNA_LAYERS) {
     const f = dnaLayerDoc(layer)
     if (fs.existsSync(f)) candidates.push(f)

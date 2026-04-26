@@ -14,8 +14,7 @@
     "test": "node --experimental-vm-modules ../../node_modules/.bin/jest"
   },
   "dependencies": {
-    "@dna/validator": "*",
-    "@dna/core": "*"
+    "@dna-codes/core": "^0.3.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

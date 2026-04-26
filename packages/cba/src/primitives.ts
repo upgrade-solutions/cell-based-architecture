@@ -28,7 +28,6 @@ export const PRIMITIVES: PrimitiveSpec[] = [
   { type: 'Outcome', layer: 'operational', location: 'outcomes' },
   { type: 'Equation', layer: 'operational', location: 'equations' },
   { type: 'Relationship', layer: 'operational', location: 'relationships' },
-  { type: 'Signal', layer: 'operational', location: 'signals' },
   { type: 'Position', layer: 'operational', location: 'positions' },
   { type: 'Person', layer: 'operational', location: 'persons' },
   { type: 'Task', layer: 'operational', location: 'tasks' },

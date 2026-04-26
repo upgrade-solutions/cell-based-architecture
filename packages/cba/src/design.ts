@@ -1,7 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { resolveSchemaFile as resolveDnaSchemaFile } from '@dna/core'
-import { DnaValidator } from '@dna/validator'
+import { resolveSchemaFile as resolveDnaSchemaFile, DnaValidator } from '@dna-codes/core'
 import { Layer, LAYERS, resolveDomain, loadLayer, saveLayer } from './context'
 import {
   PRIMITIVES,
