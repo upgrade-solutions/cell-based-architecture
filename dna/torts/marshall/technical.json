@@ -127,36 +127,66 @@
           "id": "ui-cell",
           "name": "ui-cell",
           "type": "cell",
-          "position": { "x": 40, "y": 70 },
-          "size": { "width": 160, "height": 70 }
+          "position": {
+            "x": 40,
+            "y": 70
+          },
+          "size": {
+            "width": 160,
+            "height": 70
+          }
         },
         {
           "id": "admin-ui-cell",
           "name": "admin-ui-cell",
           "type": "cell",
-          "position": { "x": 240, "y": 70 },
-          "size": { "width": 160, "height": 70 }
+          "position": {
+            "x": 240,
+            "y": 70
+          },
+          "size": {
+            "width": 160,
+            "height": 70
+          }
         },
         {
           "id": "api-cell",
           "name": "api-cell",
           "type": "cell",
-          "position": { "x": 140, "y": 230 },
-          "size": { "width": 160, "height": 70 }
+          "position": {
+            "x": 140,
+            "y": 230
+          },
+          "size": {
+            "width": 160,
+            "height": 70
+          }
         },
         {
           "id": "primary-db",
           "name": "primary-db",
           "type": "construct",
-          "position": { "x": 40, "y": 440 },
-          "size": { "width": 160, "height": 70 }
+          "position": {
+            "x": 40,
+            "y": 440
+          },
+          "size": {
+            "width": 160,
+            "height": 70
+          }
         },
         {
           "id": "event-bus",
           "name": "event-bus",
           "type": "construct",
-          "position": { "x": 240, "y": 440 },
-          "size": { "width": 160, "height": 70 }
+          "position": {
+            "x": 240,
+            "y": 440
+          },
+          "size": {
+            "width": 160,
+            "height": 70
+          }
         }
       ],
       "zones": []
@@ -216,55 +246,6 @@
       "variables": []
     },
     {
-      "name": "event-bus-cell",
-      "description": "Reads Product Core DNA Signals (marshall.IntakeSubmission.Received, .Claimant.Qualified, .Claimant.Registered, .Claim.Filed) and generates the schema registry, typed publishers, routing config, and subscriber worker stubs.",
-      "dna": "torts/marshall/product.core",
-      "adapter": {
-        "type": "node/event-bus",
-        "config": {
-          "engine": "eventbridge"
-        }
-      },
-      "constructs": [
-        "event-bus"
-      ],
-      "variables": [
-        {
-          "name": "EVENT_BUS_NAME",
-          "source": "secret",
-          "required": true
-        },
-        {
-          "name": "EVENT_BUS_QUEUE_URL",
-          "source": "secret",
-          "required": true
-        }
-      ]
-    },
-    {
-      "name": "event-bus-cell",
-      "environment": "dev",
-      "description": "Dev overlay — generates amqplib publisher/subscriber stubs bound to the dev RabbitMQ broker.",
-      "dna": "torts/marshall/product.core",
-      "adapter": {
-        "type": "node/event-bus",
-        "config": {
-          "engine": "rabbitmq"
-        }
-      },
-      "constructs": [
-        "event-bus"
-      ],
-      "variables": [
-        {
-          "name": "EVENT_BUS_URL",
-          "source": "secret",
-          "description": "AMQP connection URL for the dev RabbitMQ broker.",
-          "required": true
-        }
-      ]
-    },
-    {
       "name": "api-cell",
       "label": "Intake API",
       "description": "Reads Product API DNA and generates a dynamic Express + drizzle interpreter for all Marshall endpoints (intake, claimants, claims, evidence, firms, attorneys).",
@@ -273,8 +254,7 @@
         "type": "node/express",
         "config": {
           "core_dna": "torts/marshall/product.core",
-          "port": 3001,
-          "event_bus_engine": "eventbridge"
+          "port": 3001
         }
       },
       "constructs": [
@@ -323,8 +303,7 @@
         "type": "node/express",
         "config": {
           "core_dna": "torts/marshall/product.core",
-          "port": 3001,
-          "event_bus_engine": "rabbitmq"
+          "port": 3001
         }
       },
       "constructs": [

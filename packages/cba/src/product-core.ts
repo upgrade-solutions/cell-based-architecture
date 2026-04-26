@@ -105,8 +105,16 @@ export function materializeProductCore(
   // 4. Build the surfaced Resource list (preserve operational.json declaration order)
   const resources = allResources.filter((r) => surfaced.has(r.name))
 
-  // 5. Filter Operations to those targeting a surfaced Resource
-  const operations = (operational.operations ?? []).filter((op: any) => surfaced.has(op.target))
+  // 5. Filter Operations to those targeting a surfaced Resource. Product
+  //    Core Operations require a `resource` field (the target as a Resource);
+  //    rewrite operational `target` → `resource` while preserving the rest.
+  const operations = (operational.operations ?? [])
+    .filter((op: any) => surfaced.has(op.target))
+    .map((op: any) => {
+      const projected: any = { ...op, resource: op.target }
+      delete projected.target
+      return projected
+    })
   const operationNames = new Set<string>(operations.map((op: any) => op.name))
 
   // 6. Filter Triggers to those firing surfaced Operations / surfaced Processes

@@ -15,7 +15,6 @@
     {
       "name": "Borrower",
       "description": "A registered borrower in the lending system.",
-      "noun": "Borrower",
       "fields": [
         {
           "name": "id",
@@ -64,8 +63,8 @@
       "actions": [
         {
           "name": "Register",
-          "verb": "Register",
-          "description": "Create a new borrower profile."
+          "description": "Create a new borrower profile.",
+          "action": "Register"
         },
         {
           "name": "View",
@@ -75,12 +74,12 @@
           "name": "List",
           "description": "List all borrowers."
         }
-      ]
+      ],
+      "resource": "Borrower"
     },
     {
       "name": "Loan",
       "description": "A loan application or active loan.",
-      "noun": "Loan",
       "fields": [
         {
           "name": "id",
@@ -165,8 +164,8 @@
       "actions": [
         {
           "name": "Apply",
-          "verb": "Apply",
-          "description": "Submit a new loan application."
+          "description": "Submit a new loan application.",
+          "action": "Apply"
         },
         {
           "name": "View",
@@ -178,25 +177,25 @@
         },
         {
           "name": "Approve",
-          "verb": "Approve",
-          "description": "Approve a loan under review."
+          "description": "Approve a loan under review.",
+          "action": "Approve"
         },
         {
           "name": "Reject",
-          "verb": "Reject",
-          "description": "Reject a loan under review."
+          "description": "Reject a loan under review.",
+          "action": "Reject"
         },
         {
           "name": "Repay",
-          "verb": "Repay",
-          "description": "Submit a repayment against an active loan."
+          "description": "Submit a repayment against an active loan.",
+          "action": "Repay"
         }
-      ]
+      ],
+      "resource": "Loan"
     },
     {
       "name": "Lender",
       "description": "A lending institution funding loans on the platform.",
-      "noun": "Lender",
       "fields": [
         {
           "name": "id",
@@ -260,8 +259,8 @@
       "actions": [
         {
           "name": "Onboard",
-          "verb": "Onboard",
-          "description": "Onboard a new lender."
+          "description": "Onboard a new lender.",
+          "action": "Onboard"
         },
         {
           "name": "View",
@@ -273,15 +272,16 @@
         },
         {
           "name": "Activate",
-          "verb": "Activate",
-          "description": "Activate a lender."
+          "description": "Activate a lender.",
+          "action": "Activate"
         },
         {
           "name": "Deactivate",
-          "verb": "Deactivate",
-          "description": "Deactivate a lender."
+          "description": "Deactivate a lender.",
+          "action": "Deactivate"
         }
-      ]
+      ],
+      "resource": "Lender"
     }
   ],
   "operations": [
@@ -289,7 +289,6 @@
       "resource": "Borrower",
       "action": "Register",
       "name": "Borrower.Register",
-      "capability": "Borrower.Register",
       "description": "Register a new borrower."
     },
     {
@@ -308,7 +307,6 @@
       "resource": "Loan",
       "action": "Apply",
       "name": "Loan.Apply",
-      "capability": "Loan.Apply",
       "description": "Submit a loan application."
     },
     {
@@ -327,28 +325,24 @@
       "resource": "Loan",
       "action": "Approve",
       "name": "Loan.Approve",
-      "capability": "Loan.Approve",
       "description": "Approve a loan application."
     },
     {
       "resource": "Loan",
       "action": "Reject",
       "name": "Loan.Reject",
-      "capability": "Loan.Reject",
       "description": "Reject a loan application."
     },
     {
       "resource": "Loan",
       "action": "Repay",
       "name": "Loan.Repay",
-      "capability": "Loan.Repay",
       "description": "Submit a loan repayment."
     },
     {
       "resource": "Lender",
       "action": "Onboard",
       "name": "Lender.Onboard",
-      "capability": "Lender.Onboard",
       "description": "Onboard a new lender."
     },
     {
@@ -367,14 +361,12 @@
       "resource": "Lender",
       "action": "Activate",
       "name": "Lender.Activate",
-      "capability": "Lender.Activate",
       "description": "Activate a lender."
     },
     {
       "resource": "Lender",
       "action": "Deactivate",
       "name": "Lender.Deactivate",
-      "capability": "Lender.Deactivate",
       "description": "Deactivate a lender."
     }
   ],

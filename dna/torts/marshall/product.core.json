@@ -4,11 +4,10 @@
     "path": "marshall-fire-justice.masstort.marshall",
     "description": "Marshall Fire mass tort — Boulder County, Colorado, December 30, 2021. Representing homeowners, renters, and business owners affected by the most destructive wildfire in Colorado history."
   },
-  "nouns": [
+  "resources": [
     {
       "name": "IntakeSubmission",
       "description": "A public submission from a potential Marshall Fire claimant seeking a free case review.",
-      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -89,7 +88,7 @@
           "description": "Timestamp the intake was submitted."
         }
       ],
-      "verbs": [
+      "actions": [
         {
           "name": "Submit",
           "description": "A public visitor submits the intake form."
@@ -97,6 +96,14 @@
         {
           "name": "Qualify",
           "description": "Intake staff qualify the submission as a legitimate claimant."
+        },
+        {
+          "name": "List",
+          "type": "read"
+        },
+        {
+          "name": "View",
+          "type": "read"
         }
       ],
       "examples": [
@@ -131,7 +138,6 @@
     {
       "name": "Claimant",
       "description": "A person whose intake submission has been reviewed and qualified as a legitimate Marshall Fire victim pursuing a legal claim.",
-      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -178,16 +184,16 @@
         },
         {
           "name": "intake_submission_id",
-          "type": "string",
+          "type": "reference",
           "required": true,
           "description": "Reference to the originating IntakeSubmission.",
-          "reference": "IntakeSubmission"
+          "resource": "IntakeSubmission"
         },
         {
           "name": "assigned_attorney_id",
-          "type": "string",
+          "type": "reference",
           "description": "Reference to the Attorney assigned to represent this claimant.",
-          "reference": "Attorney"
+          "resource": "Attorney"
         },
         {
           "name": "registered_at",
@@ -200,7 +206,7 @@
           "description": "When an attorney was assigned."
         }
       ],
-      "verbs": [
+      "actions": [
         {
           "name": "Register",
           "description": "Creates a claimant record from a qualified intake submission."
@@ -216,6 +222,10 @@
         {
           "name": "Withdraw",
           "description": "Claimant voluntarily exits the case."
+        },
+        {
+          "name": "List",
+          "type": "read"
         }
       ],
       "examples": [
@@ -248,7 +258,6 @@
     {
       "name": "Claim",
       "description": "A specific cause of action filed by a Claimant against the defendants responsible for the Marshall Fire. A single Claimant may file multiple Claims (e.g., real property and personal injury).",
-      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -258,10 +267,10 @@
         },
         {
           "name": "claimant_id",
-          "type": "string",
+          "type": "reference",
           "required": true,
           "description": "Reference to the Claimant filing this claim.",
-          "reference": "Claimant"
+          "resource": "Claimant"
         },
         {
           "name": "damage_type",
@@ -311,7 +320,7 @@
           "description": "When the claim status was last changed."
         }
       ],
-      "verbs": [
+      "actions": [
         {
           "name": "File",
           "description": "Formally submit a claim on behalf of a claimant."
@@ -323,6 +332,14 @@
         {
           "name": "UpdateStatus",
           "description": "Advance or change the status of a claim (e.g., to settled or dismissed)."
+        },
+        {
+          "name": "List",
+          "type": "read"
+        },
+        {
+          "name": "View",
+          "type": "read"
         }
       ],
       "examples": [
@@ -348,9 +365,103 @@
       ]
     },
     {
+      "name": "Property",
+      "description": "A real-property address within the Marshall Fire affected zone. Linked to one or more Claims; used to verify jurisdiction and assess property damage.",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Unique identifier."
+        },
+        {
+          "name": "street_address",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "city",
+          "type": "enum",
+          "required": true,
+          "values": [
+            "Superior",
+            "Louisville",
+            "Unincorporated Boulder County"
+          ]
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "required": true,
+          "description": "Always CO for Marshall Fire."
+        },
+        {
+          "name": "zip_code",
+          "type": "string"
+        },
+        {
+          "name": "parcel_number",
+          "type": "string",
+          "description": "County assessor parcel number for official identification."
+        },
+        {
+          "name": "damage_assessment",
+          "type": "enum",
+          "values": [
+            "total_loss",
+            "major_damage",
+            "minor_damage",
+            "undamaged",
+            "unknown"
+          ],
+          "description": "Official or estimated damage level for this parcel."
+        },
+        {
+          "name": "claimant_id",
+          "type": "reference",
+          "description": "Reference to the Claimant who owns or occupied this property.",
+          "resource": "Claimant"
+        },
+        {
+          "name": "in_affected_zone",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether this address falls within the verified Marshall Fire damage perimeter."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Assess",
+          "description": "Record or update the official damage assessment for this property."
+        }
+      ],
+      "examples": [
+        {
+          "id": "property-1",
+          "street_address": "1284 Paragon Dr",
+          "city": "Superior",
+          "state": "CO",
+          "zip_code": "80027",
+          "parcel_number": "158521312001",
+          "damage_assessment": "total_loss",
+          "claimant_id": "claimant-1",
+          "in_affected_zone": true
+        },
+        {
+          "id": "property-2",
+          "street_address": "448 Walnut St",
+          "city": "Louisville",
+          "state": "CO",
+          "zip_code": "80027",
+          "damage_assessment": "major_damage",
+          "claimant_id": "claimant-2",
+          "in_affected_zone": true
+        }
+      ]
+    },
+    {
       "name": "Evidence",
       "description": "A supporting document uploaded by a claimant or staff member to substantiate a Claim — such as insurance policies, photographs, damage assessments, receipts, or government records.",
-      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -360,10 +471,10 @@
         },
         {
           "name": "claim_id",
-          "type": "string",
+          "type": "reference",
           "required": true,
           "description": "Reference to the Claim this evidence supports.",
-          "reference": "Claim"
+          "resource": "Claim"
         },
         {
           "name": "document_type",
@@ -429,7 +540,7 @@
           "description": "Staff notes from the verification review."
         }
       ],
-      "verbs": [
+      "actions": [
         {
           "name": "Upload",
           "description": "A claimant or attorney uploads a supporting document to a claim."
@@ -437,6 +548,14 @@
         {
           "name": "Verify",
           "description": "Staff confirm the document is authentic and relevant to the claim."
+        },
+        {
+          "name": "List",
+          "type": "read"
+        },
+        {
+          "name": "View",
+          "type": "read"
         }
       ],
       "examples": [
@@ -468,7 +587,6 @@
     {
       "name": "CaseStatus",
       "description": "A milestone record tracking the progression of a Claimant's overall case through the mass-tort pipeline — from intake through settlement or dismissal.",
-      "domain": "marshall-fire-justice.masstort.marshall",
       "attributes": [
         {
           "name": "id",
@@ -478,10 +596,10 @@
         },
         {
           "name": "claimant_id",
-          "type": "string",
+          "type": "reference",
           "required": true,
           "description": "Reference to the Claimant this case status tracks.",
-          "reference": "Claimant"
+          "resource": "Claimant"
         },
         {
           "name": "stage",
@@ -515,10 +633,14 @@
           "description": "Timestamp of the last stage advancement."
         }
       ],
-      "verbs": [
+      "actions": [
         {
           "name": "Advance",
           "description": "Move a case to the next milestone stage."
+        },
+        {
+          "name": "View",
+          "type": "read"
         }
       ],
       "examples": [
@@ -539,759 +661,13 @@
           "advanced_at": "2026-01-22T10:00:00Z"
         }
       ]
-    },
-    {
-      "name": "Firm",
-      "description": "A participating law firm in the Marshall Fire mass-tort coordination network. Supports multi-firm coordination where multiple firms jointly represent claimants.",
-      "domain": "marshall-fire-justice.masstort.marshall",
-      "attributes": [
-        {
-          "name": "id",
-          "type": "string",
-          "required": true,
-          "description": "Unique identifier."
-        },
-        {
-          "name": "name",
-          "type": "string",
-          "required": true,
-          "description": "Official firm name."
-        },
-        {
-          "name": "bar_number",
-          "type": "string",
-          "description": "State bar registration number."
-        },
-        {
-          "name": "primary_contact_email",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "primary_contact_phone",
-          "type": "string"
-        },
-        {
-          "name": "status",
-          "type": "enum",
-          "required": true,
-          "values": [
-            "pending",
-            "active",
-            "suspended"
-          ],
-          "description": "Participation status of the firm in the mass tort."
-        },
-        {
-          "name": "onboarded_at",
-          "type": "datetime",
-          "description": "When the firm was approved and activated in the system."
-        }
-      ],
-      "verbs": [
-        {
-          "name": "Onboard",
-          "description": "Approve and activate a law firm to participate in the mass-tort matter."
-        }
-      ],
-      "examples": [
-        {
-          "id": "firm-1",
-          "name": "Rocky Mountain Justice LLC",
-          "bar_number": "CO-2018-1042",
-          "primary_contact_email": "intake@rmjustice.example.com",
-          "primary_contact_phone": "303-555-2200",
-          "status": "active",
-          "onboarded_at": "2026-01-05T08:00:00Z"
-        },
-        {
-          "id": "firm-2",
-          "name": "Boulder Wildfire Advocates",
-          "bar_number": "CO-2015-0883",
-          "primary_contact_email": "cases@bwadvocates.example.com",
-          "primary_contact_phone": "720-555-3300",
-          "status": "active",
-          "onboarded_at": "2026-01-06T08:00:00Z"
-        }
-      ]
-    },
-    {
-      "name": "Attorney",
-      "description": "An individual attorney at a participating Firm who is assigned to represent one or more Claimants in the Marshall Fire mass-tort matter.",
-      "domain": "marshall-fire-justice.masstort.marshall",
-      "attributes": [
-        {
-          "name": "id",
-          "type": "string",
-          "required": true,
-          "description": "Unique identifier."
-        },
-        {
-          "name": "first_name",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "last_name",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "email",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "bar_number",
-          "type": "string",
-          "description": "Individual state bar number."
-        },
-        {
-          "name": "firm_id",
-          "type": "string",
-          "required": true,
-          "description": "Reference to the Firm this attorney belongs to.",
-          "reference": "Firm"
-        },
-        {
-          "name": "status",
-          "type": "enum",
-          "required": true,
-          "values": [
-            "active",
-            "inactive"
-          ],
-          "description": "Whether this attorney is currently accepting assignments."
-        }
-      ],
-      "verbs": [
-        {
-          "name": "Assign",
-          "description": "Assign this attorney to represent a Claimant."
-        }
-      ],
-      "examples": [
-        {
-          "id": "attorney-1",
-          "first_name": "Marcus",
-          "last_name": "Thornton",
-          "email": "m.thornton@rmjustice.example.com",
-          "bar_number": "CO-ATT-44821",
-          "firm_id": "firm-1",
-          "status": "active"
-        },
-        {
-          "id": "attorney-2",
-          "first_name": "Elena",
-          "last_name": "Vasquez",
-          "email": "e.vasquez@bwadvocates.example.com",
-          "bar_number": "CO-ATT-52103",
-          "firm_id": "firm-2",
-          "status": "active"
-        }
-      ]
-    },
-    {
-      "name": "Property",
-      "description": "A real-property address within the Marshall Fire affected zone. Linked to one or more Claims; used to verify jurisdiction and assess property damage.",
-      "domain": "marshall-fire-justice.masstort.marshall",
-      "attributes": [
-        {
-          "name": "id",
-          "type": "string",
-          "required": true,
-          "description": "Unique identifier."
-        },
-        {
-          "name": "street_address",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "city",
-          "type": "enum",
-          "required": true,
-          "values": [
-            "Superior",
-            "Louisville",
-            "Unincorporated Boulder County"
-          ]
-        },
-        {
-          "name": "state",
-          "type": "string",
-          "required": true,
-          "description": "Always CO for Marshall Fire."
-        },
-        {
-          "name": "zip_code",
-          "type": "string"
-        },
-        {
-          "name": "parcel_number",
-          "type": "string",
-          "description": "County assessor parcel number for official identification."
-        },
-        {
-          "name": "damage_assessment",
-          "type": "enum",
-          "values": [
-            "total_loss",
-            "major_damage",
-            "minor_damage",
-            "undamaged",
-            "unknown"
-          ],
-          "description": "Official or estimated damage level for this parcel."
-        },
-        {
-          "name": "claimant_id",
-          "type": "string",
-          "description": "Reference to the Claimant who owns or occupied this property.",
-          "reference": "Claimant"
-        },
-        {
-          "name": "in_affected_zone",
-          "type": "boolean",
-          "required": true,
-          "description": "Whether this address falls within the verified Marshall Fire damage perimeter."
-        }
-      ],
-      "verbs": [
-        {
-          "name": "Assess",
-          "description": "Record or update the official damage assessment for this property."
-        }
-      ],
-      "examples": [
-        {
-          "id": "property-1",
-          "street_address": "1284 Paragon Dr",
-          "city": "Superior",
-          "state": "CO",
-          "zip_code": "80027",
-          "parcel_number": "158521312001",
-          "damage_assessment": "total_loss",
-          "claimant_id": "claimant-1",
-          "in_affected_zone": true
-        },
-        {
-          "id": "property-2",
-          "street_address": "448 Walnut St",
-          "city": "Louisville",
-          "state": "CO",
-          "zip_code": "80027",
-          "damage_assessment": "major_damage",
-          "claimant_id": "claimant-2",
-          "in_affected_zone": true
-        }
-      ]
     }
   ],
-  "capabilities": [
+  "operations": [
     {
-      "noun": "IntakeSubmission",
-      "verb": "Submit",
       "name": "IntakeSubmission.Submit",
-      "description": "Records a new intake submission from a public visitor."
-    },
-    {
-      "noun": "IntakeSubmission",
-      "verb": "Qualify",
-      "name": "IntakeSubmission.Qualify",
-      "description": "Intake staff review a received submission and qualify it, which triggers creation of a Claimant record."
-    },
-    {
-      "noun": "Claimant",
-      "verb": "Register",
-      "name": "Claimant.Register",
-      "description": "Creates a Claimant record from a qualified IntakeSubmission."
-    },
-    {
-      "noun": "Claimant",
-      "verb": "View",
-      "name": "Claimant.View",
-      "description": "Retrieve full profile and case details for a specific Claimant."
-    },
-    {
-      "noun": "Claimant",
-      "verb": "Assign",
-      "name": "Claimant.Assign",
-      "description": "Assign an Attorney to represent a Claimant."
-    },
-    {
-      "noun": "Claim",
-      "verb": "File",
-      "name": "Claim.File",
-      "description": "Formally file a cause of action for a Claimant."
-    },
-    {
-      "noun": "Claim",
-      "verb": "Review",
-      "name": "Claim.Review",
-      "description": "Legal staff review the claim details and supporting evidence."
-    },
-    {
-      "noun": "Claim",
-      "verb": "UpdateStatus",
-      "name": "Claim.UpdateStatus",
-      "description": "Advance or change the status of a claim (e.g., to settled or dismissed)."
-    },
-    {
-      "noun": "Evidence",
-      "verb": "Upload",
-      "name": "Evidence.Upload",
-      "description": "Upload a supporting document to a claim."
-    },
-    {
-      "noun": "Evidence",
-      "verb": "Verify",
-      "name": "Evidence.Verify",
-      "description": "Staff confirm a document is authentic and relevant."
-    },
-    {
-      "noun": "CaseStatus",
-      "verb": "Advance",
-      "name": "CaseStatus.Advance",
-      "description": "Move a case to the next milestone stage."
-    },
-    {
-      "noun": "Firm",
-      "verb": "Onboard",
-      "name": "Firm.Onboard",
-      "description": "Approve and activate a law firm to participate in the mass-tort matter."
-    },
-    {
-      "noun": "Attorney",
-      "verb": "Assign",
-      "name": "Attorney.Assign",
-      "description": "Assign an attorney to represent a Claimant."
-    },
-    {
-      "noun": "Claimant",
-      "verb": "Withdraw",
-      "name": "Claimant.Withdraw",
-      "description": "A claimant voluntarily exits the case. All open claims are dismissed and the claimant record is marked withdrawn."
-    },
-    {
-      "noun": "Property",
-      "verb": "Assess",
-      "name": "Property.Assess",
-      "description": "Record or update the official damage assessment for a property, sourced from county records, insurance reports, or on-site inspection."
-    }
-  ],
-  "causes": [
-    {
-      "capability": "IntakeSubmission.Submit",
-      "source": "user",
-      "description": "Public visitor submits the intake form from the marketing site."
-    },
-    {
-      "capability": "IntakeSubmission.Qualify",
-      "source": "user",
-      "description": "Intake staff member reviews a received submission and marks it as qualified."
-    },
-    {
-      "capability": "Claimant.Register",
-      "source": "capability",
-      "after": "IntakeSubmission.Qualify",
-      "description": "Automatically triggered when an IntakeSubmission is qualified, creating the Claimant record."
-    },
-    {
-      "capability": "Claimant.View",
-      "source": "user",
-      "description": "Attorney or staff member retrieves claimant details."
-    },
-    {
-      "capability": "Claimant.Assign",
-      "source": "user",
-      "description": "Intake staff assigns an attorney to a newly registered claimant."
-    },
-    {
-      "capability": "Claim.File",
-      "source": "user",
-      "description": "Attorney formally files a claim on behalf of a claimant."
-    },
-    {
-      "capability": "Claim.Review",
-      "source": "user",
-      "description": "Legal staff initiate a review of a filed claim."
-    },
-    {
-      "capability": "Claim.UpdateStatus",
-      "source": "user",
-      "description": "Attorney or staff updates the status of a claim following a legal development."
-    },
-    {
-      "capability": "Evidence.Upload",
-      "source": "user",
-      "description": "Claimant or attorney uploads a supporting document to a claim."
-    },
-    {
-      "capability": "Evidence.Verify",
-      "source": "user",
-      "description": "Staff member reviews and verifies an uploaded document."
-    },
-    {
-      "capability": "CaseStatus.Advance",
-      "source": "user",
-      "description": "Attorney or staff advances the case to the next milestone stage."
-    },
-    {
-      "capability": "Firm.Onboard",
-      "source": "user",
-      "description": "System administrator onboards a new participating law firm."
-    },
-    {
-      "capability": "Attorney.Assign",
-      "source": "signal",
-      "signal": "marshall.Claimant.Registered",
-      "description": "Triggered by the Claimant.Registered signal to prompt attorney assignment workflow."
-    },
-    {
-      "capability": "Claimant.Withdraw",
-      "source": "user",
-      "description": "Claimant or case manager initiates voluntary withdrawal from the case."
-    },
-    {
-      "capability": "Property.Assess",
-      "source": "user",
-      "description": "Paralegal records damage assessment from county records, insurance report, or site visit."
-    }
-  ],
-  "rules": [
-    {
-      "capability": "IntakeSubmission.Submit",
-      "type": "access",
-      "allow": [
-        {
-          "role": "public"
-        }
-      ],
-      "description": "Intake is open to the public. No authentication required."
-    },
-    {
-      "capability": "IntakeSubmission.Submit",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "intake_submission.city",
-          "operator": "in",
-          "value": [
-            "Superior",
-            "Louisville",
-            "Unincorporated Boulder County"
-          ]
-        }
-      ],
-      "description": "Property must fall within the affected Boulder County jurisdictions."
-    },
-    {
-      "capability": "IntakeSubmission.Qualify",
-      "type": "access",
-      "allow": [
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only intake staff or admins may qualify a submission."
-    },
-    {
-      "capability": "IntakeSubmission.Qualify",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "intake_submission.status",
-          "operator": "in",
-          "value": [
-            "received",
-            "under_review"
-          ]
-        }
-      ],
-      "description": "A submission must be in received or under_review state before it can be qualified."
-    },
-    {
-      "capability": "Claimant.Register",
-      "type": "access",
-      "allow": [
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only intake staff or admins may register a claimant."
-    },
-    {
-      "capability": "Claimant.View",
-      "type": "access",
-      "allow": [
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Attorneys and intake staff may view claimant profiles."
-    },
-    {
-      "capability": "Claimant.Assign",
-      "type": "access",
-      "allow": [
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only intake staff or admins may assign an attorney to a claimant."
-    },
-    {
-      "capability": "Claimant.Assign",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "claimant.status",
-          "operator": "in",
-          "value": [
-            "registered",
-            "active"
-          ]
-        }
-      ],
-      "description": "Claimant must be in registered or active state to receive an attorney assignment."
-    },
-    {
-      "capability": "Claim.File",
-      "type": "access",
-      "allow": [
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Attorneys and intake staff may file claims on behalf of claimants."
-    },
-    {
-      "capability": "Claim.File",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "claimant.status",
-          "operator": "in",
-          "value": [
-            "assigned",
-            "active"
-          ]
-        }
-      ],
-      "description": "A claim may only be filed for a claimant who has been assigned an attorney."
-    },
-    {
-      "capability": "Claim.Review",
-      "type": "access",
-      "allow": [
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Attorneys and intake staff may review claims."
-    },
-    {
-      "capability": "Claim.Review",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "claim.status",
-          "operator": "eq",
-          "value": "filed"
-        }
-      ],
-      "description": "Only filed claims are eligible for review."
-    },
-    {
-      "capability": "Claim.UpdateStatus",
-      "type": "access",
-      "allow": [
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only attorneys or admins may update the status of a claim."
-    },
-    {
-      "capability": "Evidence.Upload",
-      "type": "access",
-      "allow": [
-        {
-          "role": "public",
-          "ownership": true
-        },
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Claimants (owning the claim) and legal staff may upload evidence."
-    },
-    {
-      "capability": "Evidence.Upload",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "claim.status",
-          "operator": "not_in",
-          "value": [
-            "settled",
-            "dismissed"
-          ]
-        }
-      ],
-      "description": "Evidence may not be uploaded to settled or dismissed claims."
-    },
-    {
-      "capability": "Evidence.Verify",
-      "type": "access",
-      "allow": [
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only legal staff or attorneys may verify evidence."
-    },
-    {
-      "capability": "CaseStatus.Advance",
-      "type": "access",
-      "allow": [
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Attorneys and intake staff may advance a case stage."
-    },
-    {
-      "capability": "Firm.Onboard",
-      "type": "access",
-      "allow": [
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only system admins may onboard a new firm."
-    },
-    {
-      "capability": "Attorney.Assign",
-      "type": "access",
-      "allow": [
-        {
-          "role": "intake_staff"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only intake staff or admins may assign an attorney."
-    },
-    {
-      "capability": "Attorney.Assign",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "attorney.status",
-          "operator": "eq",
-          "value": "active"
-        }
-      ],
-      "description": "Only active attorneys may be assigned to claimants."
-    },
-    {
-      "capability": "Claimant.Withdraw",
-      "type": "access",
-      "allow": [
-        {
-          "role": "attorney"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Only the assigned attorney or an admin may process a withdrawal."
-    },
-    {
-      "capability": "Claimant.Withdraw",
-      "type": "condition",
-      "conditions": [
-        {
-          "attribute": "claimant.status",
-          "operator": "in",
-          "value": [
-            "registered",
-            "assigned",
-            "active"
-          ]
-        }
-      ],
-      "description": "Only claimants who have not already settled or withdrawn may withdraw."
-    },
-    {
-      "capability": "Property.Assess",
-      "type": "access",
-      "allow": [
-        {
-          "role": "paralegal"
-        },
-        {
-          "role": "admin"
-        }
-      ],
-      "description": "Paralegals and admins may record property damage assessments."
-    }
-  ],
-  "outcomes": [
-    {
-      "capability": "IntakeSubmission.Submit",
-      "description": "Records the submission and starts the review workflow.",
+      "action": "Submit",
+      "description": "Records a new intake submission from a public visitor.",
       "changes": [
         {
           "attribute": "intake_submission.status",
@@ -1302,29 +678,24 @@
           "set": "now"
         }
       ],
-      "emits": [
-        "marshall.IntakeSubmission.Received"
-      ]
+      "resource": "IntakeSubmission"
     },
     {
-      "capability": "IntakeSubmission.Qualify",
-      "description": "Marks the submission as qualified and initiates claimant registration.",
+      "name": "IntakeSubmission.Qualify",
+      "action": "Qualify",
+      "description": "Intake staff review a received submission and qualify it, which triggers creation of a Claimant record.",
       "changes": [
         {
           "attribute": "intake_submission.status",
           "set": "qualified"
         }
       ],
-      "initiates": [
-        "Claimant.Register"
-      ],
-      "emits": [
-        "marshall.Claimant.Qualified"
-      ]
+      "resource": "IntakeSubmission"
     },
     {
-      "capability": "Claimant.Register",
-      "description": "Creates the Claimant record and sets status to registered.",
+      "name": "Claimant.Register",
+      "action": "Register",
+      "description": "Creates a Claimant record from a qualified IntakeSubmission.",
       "changes": [
         {
           "attribute": "claimant.status",
@@ -1335,13 +706,18 @@
           "set": "now"
         }
       ],
-      "emits": [
-        "marshall.Claimant.Registered"
-      ]
+      "resource": "Claimant"
     },
     {
-      "capability": "Claimant.Assign",
-      "description": "Records the attorney assignment and advances the claimant to assigned status.",
+      "name": "Claimant.View",
+      "action": "View",
+      "description": "Retrieve full profile and case details for a specific Claimant.",
+      "resource": "Claimant"
+    },
+    {
+      "name": "Claimant.Assign",
+      "action": "Assign",
+      "description": "Assign an Attorney to represent a Claimant.",
       "changes": [
         {
           "attribute": "claimant.assigned_attorney_id",
@@ -1355,11 +731,13 @@
           "attribute": "claimant.assigned_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Claimant"
     },
     {
-      "capability": "Claim.File",
-      "description": "Formally files the claim and sets its status to filed.",
+      "name": "Claim.File",
+      "action": "File",
+      "description": "Formally file a cause of action for a Claimant.",
       "changes": [
         {
           "attribute": "claim.status",
@@ -1374,13 +752,12 @@
           "set": "now"
         }
       ],
-      "emits": [
-        "marshall.Claim.Filed"
-      ]
+      "resource": "Claim"
     },
     {
-      "capability": "Claim.Review",
-      "description": "Advances the claim to under_review status.",
+      "name": "Claim.Review",
+      "action": "Review",
+      "description": "Legal staff review the claim details and supporting evidence.",
       "changes": [
         {
           "attribute": "claim.status",
@@ -1390,21 +767,25 @@
           "attribute": "claim.updated_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Claim"
     },
     {
-      "capability": "Claim.UpdateStatus",
-      "description": "Updates the claim status to the new value.",
+      "name": "Claim.UpdateStatus",
+      "action": "UpdateStatus",
+      "description": "Advance or change the status of a claim (e.g., to settled or dismissed).",
       "changes": [
         {
           "attribute": "claim.updated_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Claim"
     },
     {
-      "capability": "Evidence.Upload",
-      "description": "Creates an evidence record with status pending.",
+      "name": "Evidence.Upload",
+      "action": "Upload",
+      "description": "Upload a supporting document to a claim.",
       "changes": [
         {
           "attribute": "evidence.status",
@@ -1414,11 +795,13 @@
           "attribute": "evidence.uploaded_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Evidence"
     },
     {
-      "capability": "Evidence.Verify",
-      "description": "Marks the evidence as verified.",
+      "name": "Evidence.Verify",
+      "action": "Verify",
+      "description": "Staff confirm a document is authentic and relevant.",
       "changes": [
         {
           "attribute": "evidence.status",
@@ -1428,21 +811,25 @@
           "attribute": "evidence.verified_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Evidence"
     },
     {
-      "capability": "CaseStatus.Advance",
-      "description": "Records the stage advancement and timestamp.",
+      "name": "CaseStatus.Advance",
+      "action": "Advance",
+      "description": "Move a case to the next milestone stage.",
       "changes": [
         {
           "attribute": "case_status.advanced_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "CaseStatus"
     },
     {
-      "capability": "Firm.Onboard",
-      "description": "Activates the firm and records the onboarding timestamp.",
+      "name": "Firm.Onboard",
+      "action": "Onboard",
+      "description": "Approve and activate a law firm to participate in the mass-tort matter.",
       "changes": [
         {
           "attribute": "firm.status",
@@ -1452,11 +839,13 @@
           "attribute": "firm.onboarded_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Firm"
     },
     {
-      "capability": "Attorney.Assign",
-      "description": "Links the attorney to the claimant.",
+      "name": "Attorney.Assign",
+      "action": "Assign",
+      "description": "Assign an attorney to represent a Claimant.",
       "changes": [
         {
           "attribute": "claimant.assigned_attorney_id",
@@ -1470,21 +859,25 @@
           "attribute": "claimant.assigned_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Attorney"
     },
     {
-      "capability": "Claimant.Withdraw",
-      "description": "Marks the claimant as withdrawn. Open claims should be dismissed as a downstream effect.",
+      "name": "Claimant.Withdraw",
+      "action": "Withdraw",
+      "description": "A claimant voluntarily exits the case. All open claims are dismissed and the claimant record is marked withdrawn.",
       "changes": [
         {
           "attribute": "claimant.status",
           "set": "withdrawn"
         }
-      ]
+      ],
+      "resource": "Claimant"
     },
     {
-      "capability": "Property.Assess",
-      "description": "Records the damage assessment level for the property.",
+      "name": "Property.Assess",
+      "action": "Assess",
+      "description": "Record or update the official damage assessment for a property, sourced from county records, insurance reports, or on-site inspection.",
       "changes": [
         {
           "attribute": "property.damage_assessment",
@@ -1494,141 +887,136 @@
           "attribute": "property.assessed_at",
           "set": "now"
         }
-      ]
+      ],
+      "resource": "Property"
+    },
+    {
+      "name": "IntakeSubmission.List",
+      "action": "List",
+      "resource": "IntakeSubmission"
+    },
+    {
+      "name": "Claimant.List",
+      "action": "List",
+      "resource": "Claimant"
+    },
+    {
+      "name": "Firm.List",
+      "action": "List",
+      "resource": "Firm"
+    },
+    {
+      "name": "Attorney.List",
+      "action": "List",
+      "resource": "Attorney"
+    },
+    {
+      "name": "CaseStatus.View",
+      "action": "View",
+      "resource": "CaseStatus"
+    },
+    {
+      "name": "Claim.List",
+      "action": "List",
+      "resource": "Claim"
+    },
+    {
+      "name": "Claim.View",
+      "action": "View",
+      "resource": "Claim"
+    },
+    {
+      "name": "Evidence.List",
+      "action": "List",
+      "resource": "Evidence"
+    },
+    {
+      "name": "Evidence.View",
+      "action": "View",
+      "resource": "Evidence"
+    },
+    {
+      "name": "Firm.View",
+      "action": "View",
+      "resource": "Firm"
+    },
+    {
+      "name": "IntakeSubmission.View",
+      "action": "View",
+      "resource": "IntakeSubmission"
     }
   ],
-  "equations": [
+  "triggers": [
     {
-      "name": "days_since_incident",
-      "description": "Computes the number of calendar days elapsed since the Marshall Fire (December 30, 2021). Used for statute-of-limitations checks — Colorado's two-year limit means new claims cannot be accepted once this value exceeds the incident's statute_of_limitations_date.",
-      "input": [
-        "incident.date",
-        "intake_submission.submitted_at"
-      ],
-      "output": {
-        "name": "days_elapsed",
-        "type": "number"
-      }
+      "source": "user",
+      "operation": "IntakeSubmission.Submit",
+      "description": "Public visitor submits the intake form from the marketing site."
     },
     {
-      "name": "estimated_claim_value",
-      "description": "Produces a rough estimated claim value in USD based on damage type and, where available, property damage assessment. Real property total-loss claims are valued higher than personal property or evacuation claims. This is a preliminary bucket estimate — not a legal settlement figure.",
-      "input": [
-        "claim.damage_type",
-        "property.damage_assessment"
-      ],
-      "output": {
-        "name": "estimated_value_usd",
-        "type": "number"
-      }
-    }
-  ],
-  "signals": [
-    {
-      "name": "marshall.IntakeSubmission.Received",
-      "capability": "IntakeSubmission.Submit",
-      "description": "Emitted when a public intake form is submitted. Triggers the internal review queue.",
-      "payload": [
-        {
-          "name": "intake_submission_id",
-          "type": "string",
-          "description": "ID of the submitted intake."
-        },
-        {
-          "name": "first_name",
-          "type": "string"
-        },
-        {
-          "name": "last_name",
-          "type": "string"
-        },
-        {
-          "name": "email",
-          "type": "string"
-        },
-        {
-          "name": "city",
-          "type": "string",
-          "description": "Affected jurisdiction."
-        },
-        {
-          "name": "damage_type",
-          "type": "string",
-          "description": "Primary category of loss."
-        },
-        {
-          "name": "submitted_at",
-          "type": "datetime"
-        }
-      ]
+      "source": "user",
+      "operation": "IntakeSubmission.Qualify",
+      "description": "Intake staff member reviews a received submission and marks it as qualified."
     },
     {
-      "name": "marshall.Claimant.Qualified",
-      "capability": "IntakeSubmission.Qualify",
-      "description": "Emitted when an intake submission is qualified by staff. Triggers claimant registration.",
-      "payload": [
-        {
-          "name": "intake_submission_id",
-          "type": "string",
-          "description": "ID of the qualified intake."
-        },
-        {
-          "name": "first_name",
-          "type": "string"
-        },
-        {
-          "name": "last_name",
-          "type": "string"
-        },
-        {
-          "name": "email",
-          "type": "string"
-        }
-      ]
+      "source": "operation",
+      "operation": "Claimant.Register",
+      "description": "Automatically triggered when an IntakeSubmission is qualified, creating the Claimant record.",
+      "after": "IntakeSubmission.Qualify"
     },
     {
-      "name": "marshall.Claimant.Registered",
-      "capability": "Claimant.Register",
-      "description": "Emitted when a Claimant record is created. Triggers attorney assignment workflow.",
-      "payload": [
-        {
-          "name": "claimant_id",
-          "type": "string",
-          "description": "ID of the newly registered claimant."
-        },
-        {
-          "name": "intake_submission_id",
-          "type": "string"
-        },
-        {
-          "name": "registered_at",
-          "type": "datetime"
-        }
-      ]
+      "source": "user",
+      "operation": "Claimant.View",
+      "description": "Attorney or staff member retrieves claimant details."
     },
     {
-      "name": "marshall.Claim.Filed",
-      "capability": "Claim.File",
-      "description": "Emitted when a Claim is formally filed. Triggers downstream court-filing integration.",
-      "payload": [
-        {
-          "name": "claim_id",
-          "type": "string",
-          "description": "ID of the filed claim."
-        },
-        {
-          "name": "claimant_id",
-          "type": "string"
-        },
-        {
-          "name": "damage_type",
-          "type": "string"
-        },
-        {
-          "name": "filed_at",
-          "type": "datetime"
-        }
-      ]
+      "source": "user",
+      "operation": "Claimant.Assign",
+      "description": "Intake staff assigns an attorney to a newly registered claimant."
+    },
+    {
+      "source": "user",
+      "operation": "Claim.File",
+      "description": "Attorney formally files a claim on behalf of a claimant."
+    },
+    {
+      "source": "user",
+      "operation": "Claim.Review",
+      "description": "Legal staff initiate a review of a filed claim."
+    },
+    {
+      "source": "user",
+      "operation": "Claim.UpdateStatus",
+      "description": "Attorney or staff updates the status of a claim following a legal development."
+    },
+    {
+      "source": "user",
+      "operation": "Evidence.Upload",
+      "description": "Claimant or attorney uploads a supporting document to a claim."
+    },
+    {
+      "source": "user",
+      "operation": "Evidence.Verify",
+      "description": "Staff member reviews and verifies an uploaded document."
+    },
+    {
+      "source": "user",
+      "operation": "CaseStatus.Advance",
+      "description": "Attorney or staff advances the case to the next milestone stage."
+    },
+    {
+      "source": "user",
+      "operation": "Firm.Onboard",
+      "description": "System administrator onboards a new participating law firm."
+    },
+    {
+      "source": "user",
+      "operation": "Claimant.Withdraw",
+      "description": "Claimant or case manager initiates voluntary withdrawal from the case."
+    },
+    {
+      "source": "user",
+      "operation": "Property.Assess",
+      "description": "Paralegal records damage assessment from county records, insurance report, or site visit."
     }
   ],
   "relationships": [

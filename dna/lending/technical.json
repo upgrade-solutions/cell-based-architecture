@@ -116,27 +116,6 @@
   },
   "cells": [
     {
-      "name": "event-bus-cell",
-      "description": "Reads Product Core DNA Signals and generates schema registry, typed publishers, routing config, and subscriber worker stubs.",
-      "dna": "lending/product.core",
-      "adapter": {
-        "type": "node/event-bus",
-        "config": {
-          "engine": "rabbitmq"
-        }
-      },
-      "constructs": [
-        "event-bus"
-      ],
-      "variables": [
-        {
-          "name": "EVENT_BUS_URL",
-          "source": "secret",
-          "required": true
-        }
-      ]
-    },
-    {
       "name": "api-cell",
       "description": "Reads Product API DNA and generates a dynamic Express runtime interpreter.",
       "dna": "lending/product.api",
@@ -303,8 +282,13 @@
           "type": "cell",
           "status": "planned",
           "source": "technical:cell:api-cell-rails",
-          "position": { "x": 100, "y": 160 },
-          "metadata": { "adapter": "ruby/rails" }
+          "position": {
+            "x": 100,
+            "y": 160
+          },
+          "metadata": {
+            "adapter": "ruby/rails"
+          }
         },
         {
           "id": "ui-cell",
@@ -312,8 +296,13 @@
           "type": "cell",
           "status": "planned",
           "source": "technical:cell:ui-cell",
-          "position": { "x": 500, "y": 160 },
-          "metadata": { "adapter": "vite/react" }
+          "position": {
+            "x": 500,
+            "y": 160
+          },
+          "metadata": {
+            "adapter": "vite/react"
+          }
         },
         {
           "id": "event-bus-cell",
@@ -321,8 +310,13 @@
           "type": "cell",
           "status": "planned",
           "source": "technical:cell:event-bus-cell",
-          "position": { "x": 300, "y": 320 },
-          "metadata": { "adapter": "node/event-bus" }
+          "position": {
+            "x": 300,
+            "y": 320
+          },
+          "metadata": {
+            "adapter": "node/event-bus"
+          }
         },
         {
           "id": "primary-db",
@@ -330,8 +324,14 @@
           "type": "construct",
           "status": "planned",
           "source": "technical:construct:primary-db",
-          "position": { "x": 100, "y": 480 },
-          "metadata": { "category": "storage", "engine": "postgres" }
+          "position": {
+            "x": 100,
+            "y": 480
+          },
+          "metadata": {
+            "category": "storage",
+            "engine": "postgres"
+          }
         }
       ],
       "connections": [
@@ -362,14 +362,20 @@
           "id": "compute-tier",
           "name": "Compute",
           "type": "tier",
-          "nodes": ["api-cell-rails", "ui-cell", "event-bus-cell"],
+          "nodes": [
+            "api-cell-rails",
+            "ui-cell",
+            "event-bus-cell"
+          ],
           "description": "Application cells."
         },
         {
           "id": "storage-tier",
           "name": "Storage",
           "type": "tier",
-          "nodes": ["primary-db"],
+          "nodes": [
+            "primary-db"
+          ],
           "description": "Database cell and construct."
         }
       ]

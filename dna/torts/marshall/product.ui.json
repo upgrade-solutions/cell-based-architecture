@@ -12,15 +12,30 @@
       "eyebrow": "Marshall Fire Mass Tort",
       "title": "If you lost your home in the Marshall Fire, we can help.",
       "subtitle": "Free case review for Superior, Louisville, and unincorporated Boulder County residents affected by the December 30, 2021 fire.",
-      "cta": { "label": "Start Intake", "route": "/intake" },
-      "secondaryCta": { "label": "Check Eligibility", "route": "/eligibility" }
+      "cta": {
+        "label": "Start Intake",
+        "route": "/intake"
+      },
+      "secondaryCta": {
+        "label": "Check Eligibility",
+        "route": "/eligibility"
+      }
     },
     "footer": {
       "text": "© 2026 Marshall Fire Claims Group — Not legal advice. No attorney-client relationship formed by website use.",
       "links": [
-        { "label": "Privacy", "href": "#" },
-        { "label": "Terms", "href": "#" },
-        { "label": "Contact", "href": "mailto:hello@marshall-preview.local" }
+        {
+          "label": "Privacy",
+          "href": "#"
+        },
+        {
+          "label": "Terms",
+          "href": "#"
+        },
+        {
+          "label": "Contact",
+          "href": "mailto:hello@marshall-preview.local"
+        }
       ]
     },
     "theme": {
@@ -86,14 +101,64 @@
           "operation": "IntakeSubmission.Submit",
           "description": "Tell us about your property and what was lost. An attorney will review your submission within two business days.",
           "fields": [
-            { "name": "first_name", "label": "First name", "type": "string", "required": true },
-            { "name": "last_name", "label": "Last name", "type": "string", "required": true },
-            { "name": "email", "label": "Email address", "type": "email", "required": true },
-            { "name": "phone", "label": "Phone", "type": "phone" },
-            { "name": "address", "label": "Street address of the affected property", "type": "string", "required": true },
-            { "name": "city", "label": "Jurisdiction", "type": "enum", "required": true, "values": ["Superior", "Louisville", "Unincorporated Boulder County"] },
-            { "name": "damage_type", "label": "Primary type of loss", "type": "enum", "required": true, "values": ["real_property", "personal_property", "business_loss", "personal_injury", "evacuation"] },
-            { "name": "description", "label": "Tell us what happened and what was lost", "type": "text" }
+            {
+              "name": "first_name",
+              "label": "First name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "last_name",
+              "label": "Last name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "email",
+              "label": "Email address",
+              "type": "email",
+              "required": true
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "type": "phone"
+            },
+            {
+              "name": "address",
+              "label": "Street address of the affected property",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "city",
+              "label": "Jurisdiction",
+              "type": "enum",
+              "required": true,
+              "values": [
+                "Superior",
+                "Louisville",
+                "Unincorporated Boulder County"
+              ]
+            },
+            {
+              "name": "damage_type",
+              "label": "Primary type of loss",
+              "type": "enum",
+              "required": true,
+              "values": [
+                "real_property",
+                "personal_property",
+                "business_loss",
+                "personal_injury",
+                "evacuation"
+              ]
+            },
+            {
+              "name": "description",
+              "label": "Tell us what happened and what was lost",
+              "type": "text"
+            }
           ]
         }
       ]
@@ -112,9 +177,21 @@
     }
   ],
   "routes": [
-    { "path": "/", "page": "Home" },
-    { "path": "/eligibility", "page": "Eligibility" },
-    { "path": "/intake", "page": "Intake" },
-    { "path": "/faq", "page": "FAQ" }
+    {
+      "path": "/",
+      "page": "Home"
+    },
+    {
+      "path": "/eligibility",
+      "page": "Eligibility"
+    },
+    {
+      "path": "/intake",
+      "page": "Intake"
+    },
+    {
+      "path": "/faq",
+      "page": "FAQ"
+    }
   ]
 }

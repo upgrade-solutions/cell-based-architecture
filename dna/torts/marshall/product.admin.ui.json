@@ -18,44 +18,69 @@
       {
         "label": "Intake",
         "children": [
-          { "route": "/intake", "label": "Intake Queue", "icon": "\uD83D\uDCE5" }
+          {
+            "route": "/intake",
+            "label": "Intake Queue",
+            "icon": "📥"
+          }
         ]
       },
       {
         "label": "Claimants",
         "children": [
-          { "route": "/claimants", "label": "All Claimants" }
+          {
+            "route": "/claimants",
+            "label": "All Claimants"
+          }
         ]
       },
       {
         "label": "Claims",
         "children": [
-          { "route": "/claims", "label": "All Claims" }
+          {
+            "route": "/claims",
+            "label": "All Claims"
+          }
         ]
       },
       {
         "label": "Evidence",
         "children": [
-          { "route": "/evidence", "label": "All Evidence" }
+          {
+            "route": "/evidence",
+            "label": "All Evidence"
+          }
         ]
       },
       {
         "label": "Firms",
         "children": [
-          { "route": "/firms", "label": "All Firms" },
-          { "route": "/firms/onboard", "label": "Onboard Firm" }
+          {
+            "route": "/firms",
+            "label": "All Firms"
+          },
+          {
+            "route": "/firms/onboard",
+            "label": "Onboard Firm"
+          }
         ]
       },
       {
         "label": "Attorneys",
         "children": [
-          { "route": "/attorneys", "label": "All Attorneys" }
+          {
+            "route": "/attorneys",
+            "label": "All Attorneys"
+          }
         ]
       },
       {
         "label": "Case Status",
         "children": [
-          { "route": "/case-status", "label": "Case Status" }
+          {
+            "route": "/case-status",
+            "label": "Case Status"
+          }
         ]
       }
     ],
@@ -128,7 +153,17 @@
           "description": "Filter controls for submission status.",
           "operation": "IntakeSubmission.List",
           "fields": [
-            { "name": "status", "label": "Status", "type": "enum", "values": ["submitted", "qualified", "rejected", "converted"] }
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "enum",
+              "values": [
+                "submitted",
+                "qualified",
+                "rejected",
+                "converted"
+              ]
+            }
           ]
         },
         {
@@ -137,14 +172,46 @@
           "description": "Tabular list of intake submissions sorted newest first. Row click navigates to IntakeDetail.",
           "operation": "IntakeSubmission.List",
           "fields": [
-            { "name": "id", "label": "Submission ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "city", "label": "Jurisdiction", "type": "string" },
-            { "name": "damage_type", "label": "Loss Type", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "submitted_at", "label": "Submitted", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Submission ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "city",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "damage_type",
+              "label": "Loss Type",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "submitted_at",
+              "label": "Submitted",
+              "type": "datetime"
+            }
           ]
         },
         {
@@ -165,17 +232,61 @@
           "description": "All fields captured from the public intake form.",
           "operation": "IntakeSubmission.View",
           "fields": [
-            { "name": "id", "label": "Submission ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "phone", "label": "Phone", "type": "string" },
-            { "name": "address", "label": "Affected Address", "type": "string" },
-            { "name": "city", "label": "Jurisdiction", "type": "string" },
-            { "name": "damage_type", "label": "Loss Type", "type": "string" },
-            { "name": "description", "label": "Description", "type": "text" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "submitted_at", "label": "Submitted", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Submission ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "type": "string"
+            },
+            {
+              "name": "address",
+              "label": "Affected Address",
+              "type": "string"
+            },
+            {
+              "name": "city",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "damage_type",
+              "label": "Loss Type",
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "label": "Description",
+              "type": "text"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "submitted_at",
+              "label": "Submitted",
+              "type": "datetime"
+            }
           ]
         },
         {
@@ -197,7 +308,17 @@
           "description": "Filter controls for claimant status.",
           "operation": "Claimant.List",
           "fields": [
-            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "inactive", "settled", "withdrawn"] }
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "enum",
+              "values": [
+                "active",
+                "inactive",
+                "settled",
+                "withdrawn"
+              ]
+            }
           ]
         },
         {
@@ -206,12 +327,36 @@
           "description": "Tabular list of claimants.",
           "operation": "Claimant.List",
           "fields": [
-            { "name": "id", "label": "Claimant ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Claimant ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -232,15 +377,51 @@
           "description": "Core claimant attributes.",
           "operation": "Claimant.View",
           "fields": [
-            { "name": "id", "label": "Claimant ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "phone", "label": "Phone", "type": "string" },
-            { "name": "address", "label": "Address", "type": "string" },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
-            { "name": "attorney_id", "label": "Assigned Attorney", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Claimant ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "type": "string"
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "type": "string"
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "attorney_id",
+              "label": "Assigned Attorney",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -255,11 +436,31 @@
           "description": "All claims filed by this claimant.",
           "operation": "Claim.List",
           "fields": [
-            { "name": "id", "label": "Claim ID", "type": "string" },
-            { "name": "damage_type", "label": "Loss Type", "type": "string" },
-            { "name": "amount_sought", "label": "Amount Sought", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "filed_at", "label": "Filed", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Claim ID",
+              "type": "string"
+            },
+            {
+              "name": "damage_type",
+              "label": "Loss Type",
+              "type": "string"
+            },
+            {
+              "name": "amount_sought",
+              "label": "Amount Sought",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "filed_at",
+              "label": "Filed",
+              "type": "datetime"
+            }
           ]
         }
       ]
@@ -275,7 +476,18 @@
           "description": "Filter controls for claim status.",
           "operation": "Claim.List",
           "fields": [
-            { "name": "status", "label": "Status", "type": "enum", "values": ["filed", "under_review", "approved", "rejected", "settled"] }
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "enum",
+              "values": [
+                "filed",
+                "under_review",
+                "approved",
+                "rejected",
+                "settled"
+              ]
+            }
           ]
         },
         {
@@ -284,12 +496,36 @@
           "description": "Tabular list of claims.",
           "operation": "Claim.List",
           "fields": [
-            { "name": "id", "label": "Claim ID", "type": "string" },
-            { "name": "claimant_id", "label": "Claimant", "type": "string" },
-            { "name": "damage_type", "label": "Loss Type", "type": "string" },
-            { "name": "amount_sought", "label": "Amount Sought", "type": "number" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "filed_at", "label": "Filed", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Claim ID",
+              "type": "string"
+            },
+            {
+              "name": "claimant_id",
+              "label": "Claimant",
+              "type": "string"
+            },
+            {
+              "name": "damage_type",
+              "label": "Loss Type",
+              "type": "string"
+            },
+            {
+              "name": "amount_sought",
+              "label": "Amount Sought",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "filed_at",
+              "label": "Filed",
+              "type": "datetime"
+            }
           ]
         },
         {
@@ -310,14 +546,46 @@
           "description": "Core claim attributes.",
           "operation": "Claim.View",
           "fields": [
-            { "name": "id", "label": "Claim ID", "type": "string" },
-            { "name": "claimant_id", "label": "Claimant", "type": "string" },
-            { "name": "attorney_id", "label": "Attorney", "type": "string" },
-            { "name": "damage_type", "label": "Loss Type", "type": "string" },
-            { "name": "amount_sought", "label": "Amount Sought", "type": "number" },
-            { "name": "description", "label": "Description", "type": "text" },
-            { "name": "status", "label": "Status", "type": "string" },
-            { "name": "filed_at", "label": "Filed", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Claim ID",
+              "type": "string"
+            },
+            {
+              "name": "claimant_id",
+              "label": "Claimant",
+              "type": "string"
+            },
+            {
+              "name": "attorney_id",
+              "label": "Attorney",
+              "type": "string"
+            },
+            {
+              "name": "damage_type",
+              "label": "Loss Type",
+              "type": "string"
+            },
+            {
+              "name": "amount_sought",
+              "label": "Amount Sought",
+              "type": "number"
+            },
+            {
+              "name": "description",
+              "label": "Description",
+              "type": "text"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            },
+            {
+              "name": "filed_at",
+              "label": "Filed",
+              "type": "datetime"
+            }
           ]
         },
         {
@@ -344,11 +612,31 @@
           "description": "All evidence items attached to this claim.",
           "operation": "Evidence.List",
           "fields": [
-            { "name": "id", "label": "Evidence ID", "type": "string" },
-            { "name": "kind", "label": "Kind", "type": "string" },
-            { "name": "filename", "label": "File", "type": "string" },
-            { "name": "verified", "label": "Verified", "type": "boolean" },
-            { "name": "uploaded_at", "label": "Uploaded", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Evidence ID",
+              "type": "string"
+            },
+            {
+              "name": "kind",
+              "label": "Kind",
+              "type": "string"
+            },
+            {
+              "name": "filename",
+              "label": "File",
+              "type": "string"
+            },
+            {
+              "name": "verified",
+              "label": "Verified",
+              "type": "boolean"
+            },
+            {
+              "name": "uploaded_at",
+              "label": "Uploaded",
+              "type": "datetime"
+            }
           ]
         }
       ]
@@ -364,8 +652,27 @@
           "description": "Filter controls for verification status and kind.",
           "operation": "Evidence.List",
           "fields": [
-            { "name": "verified", "label": "Verified", "type": "enum", "values": ["true", "false"] },
-            { "name": "kind", "label": "Kind", "type": "enum", "values": ["photo", "document", "receipt", "policy", "other"] }
+            {
+              "name": "verified",
+              "label": "Verified",
+              "type": "enum",
+              "values": [
+                "true",
+                "false"
+              ]
+            },
+            {
+              "name": "kind",
+              "label": "Kind",
+              "type": "enum",
+              "values": [
+                "photo",
+                "document",
+                "receipt",
+                "policy",
+                "other"
+              ]
+            }
           ]
         },
         {
@@ -374,12 +681,36 @@
           "description": "Tabular list of evidence items. Row click opens EvidenceDetail.",
           "operation": "Evidence.List",
           "fields": [
-            { "name": "id", "label": "Evidence ID", "type": "string" },
-            { "name": "claim_id", "label": "Claim", "type": "string" },
-            { "name": "kind", "label": "Kind", "type": "string" },
-            { "name": "filename", "label": "File", "type": "string" },
-            { "name": "verified", "label": "Verified", "type": "boolean" },
-            { "name": "uploaded_at", "label": "Uploaded", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Evidence ID",
+              "type": "string"
+            },
+            {
+              "name": "claim_id",
+              "label": "Claim",
+              "type": "string"
+            },
+            {
+              "name": "kind",
+              "label": "Kind",
+              "type": "string"
+            },
+            {
+              "name": "filename",
+              "label": "File",
+              "type": "string"
+            },
+            {
+              "name": "verified",
+              "label": "Verified",
+              "type": "boolean"
+            },
+            {
+              "name": "uploaded_at",
+              "label": "Uploaded",
+              "type": "datetime"
+            }
           ]
         }
       ]
@@ -395,13 +726,41 @@
           "description": "Core evidence metadata.",
           "operation": "Evidence.View",
           "fields": [
-            { "name": "id", "label": "Evidence ID", "type": "string" },
-            { "name": "claim_id", "label": "Claim", "type": "string" },
-            { "name": "kind", "label": "Kind", "type": "string" },
-            { "name": "filename", "label": "File", "type": "string" },
-            { "name": "description", "label": "Description", "type": "text" },
-            { "name": "verified", "label": "Verified", "type": "boolean" },
-            { "name": "uploaded_at", "label": "Uploaded", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Evidence ID",
+              "type": "string"
+            },
+            {
+              "name": "claim_id",
+              "label": "Claim",
+              "type": "string"
+            },
+            {
+              "name": "kind",
+              "label": "Kind",
+              "type": "string"
+            },
+            {
+              "name": "filename",
+              "label": "File",
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "label": "Description",
+              "type": "text"
+            },
+            {
+              "name": "verified",
+              "label": "Verified",
+              "type": "boolean"
+            },
+            {
+              "name": "uploaded_at",
+              "label": "Uploaded",
+              "type": "datetime"
+            }
           ]
         },
         {
@@ -423,7 +782,16 @@
           "description": "Filter controls for firm status.",
           "operation": "Firm.List",
           "fields": [
-            { "name": "status", "label": "Status", "type": "enum", "values": ["active", "inactive", "suspended"] }
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "enum",
+              "values": [
+                "active",
+                "inactive",
+                "suspended"
+              ]
+            }
           ]
         },
         {
@@ -432,11 +800,31 @@
           "description": "Tabular list of firms. Row click opens FirmDetail.",
           "operation": "Firm.List",
           "fields": [
-            { "name": "id", "label": "Firm ID", "type": "string" },
-            { "name": "name", "label": "Name", "type": "string" },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Firm ID",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string"
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -445,11 +833,34 @@
           "description": "Inline onboarding form for registering a new partner firm.",
           "operation": "Firm.Onboard",
           "fields": [
-            { "name": "name", "label": "Firm Name", "type": "string", "required": true },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string", "required": true },
-            { "name": "email", "label": "Email", "type": "email", "required": true },
-            { "name": "phone", "label": "Phone", "type": "phone" },
-            { "name": "address", "label": "Address", "type": "string" }
+            {
+              "name": "name",
+              "label": "Firm Name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "email",
+              "required": true
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "type": "phone"
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "type": "string"
+            }
           ]
         }
       ]
@@ -465,13 +876,41 @@
           "description": "Core firm attributes.",
           "operation": "Firm.View",
           "fields": [
-            { "name": "id", "label": "Firm ID", "type": "string" },
-            { "name": "name", "label": "Name", "type": "string" },
-            { "name": "jurisdiction", "label": "Jurisdiction", "type": "string" },
-            { "name": "email", "label": "Email", "type": "string" },
-            { "name": "phone", "label": "Phone", "type": "string" },
-            { "name": "address", "label": "Address", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Firm ID",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "label": "Name",
+              "type": "string"
+            },
+            {
+              "name": "jurisdiction",
+              "label": "Jurisdiction",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "label": "Email",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "type": "string"
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         },
         {
@@ -486,11 +925,31 @@
           "description": "Attorneys affiliated with this firm.",
           "operation": "Attorney.List",
           "fields": [
-            { "name": "id", "label": "Attorney ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "bar_number", "label": "Bar Number", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Attorney ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "bar_number",
+              "label": "Bar Number",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         }
       ]
@@ -506,12 +965,36 @@
           "description": "Tabular list of all attorneys.",
           "operation": "Attorney.List",
           "fields": [
-            { "name": "id", "label": "Attorney ID", "type": "string" },
-            { "name": "first_name", "label": "First Name", "type": "string" },
-            { "name": "last_name", "label": "Last Name", "type": "string" },
-            { "name": "firm_id", "label": "Firm", "type": "string" },
-            { "name": "bar_number", "label": "Bar Number", "type": "string" },
-            { "name": "status", "label": "Status", "type": "string" }
+            {
+              "name": "id",
+              "label": "Attorney ID",
+              "type": "string"
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "type": "string"
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "type": "string"
+            },
+            {
+              "name": "firm_id",
+              "label": "Firm",
+              "type": "string"
+            },
+            {
+              "name": "bar_number",
+              "label": "Bar Number",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "label": "Status",
+              "type": "string"
+            }
           ]
         }
       ]
@@ -527,10 +1010,26 @@
           "description": "Current stage of the master case status and timestamps.",
           "operation": "CaseStatus.View",
           "fields": [
-            { "name": "id", "label": "Case Status ID", "type": "string" },
-            { "name": "stage", "label": "Stage", "type": "string" },
-            { "name": "notes", "label": "Notes", "type": "text" },
-            { "name": "updated_at", "label": "Updated", "type": "datetime" }
+            {
+              "name": "id",
+              "label": "Case Status ID",
+              "type": "string"
+            },
+            {
+              "name": "stage",
+              "label": "Stage",
+              "type": "string"
+            },
+            {
+              "name": "notes",
+              "label": "Notes",
+              "type": "text"
+            },
+            {
+              "name": "updated_at",
+              "label": "Updated",
+              "type": "datetime"
+            }
           ]
         },
         {
@@ -543,17 +1042,65 @@
     }
   ],
   "routes": [
-    { "path": "/intake", "page": "IntakeQueue", "description": "Intake submission queue for staff qualification." },
-    { "path": "/intake/:id", "page": "IntakeDetail", "description": "Single intake submission with Qualify action." },
-    { "path": "/claimants", "page": "Claimants", "description": "List of all claimants." },
-    { "path": "/claimants/:id", "page": "ClaimantDetail", "description": "Claimant profile with claims sub-list." },
-    { "path": "/claims", "page": "Claims", "description": "List of all claims." },
-    { "path": "/claims/:id", "page": "ClaimDetail", "description": "Claim detail with review and evidence actions." },
-    { "path": "/evidence", "page": "EvidenceList", "description": "Cross-claim evidence list." },
-    { "path": "/evidence/:id", "page": "EvidenceDetail", "description": "Evidence detail with Verify action." },
-    { "path": "/firms", "page": "Firms", "description": "Firm list with inline onboarding." },
-    { "path": "/firms/:id", "page": "FirmDetail", "description": "Firm detail with attorney roster." },
-    { "path": "/attorneys", "page": "Attorneys", "description": "Attorney roster across all firms." },
-    { "path": "/case-status", "page": "CaseStatusPage", "description": "Master case status dashboard." }
+    {
+      "path": "/intake",
+      "page": "IntakeQueue",
+      "description": "Intake submission queue for staff qualification."
+    },
+    {
+      "path": "/intake/:id",
+      "page": "IntakeDetail",
+      "description": "Single intake submission with Qualify action."
+    },
+    {
+      "path": "/claimants",
+      "page": "Claimants",
+      "description": "List of all claimants."
+    },
+    {
+      "path": "/claimants/:id",
+      "page": "ClaimantDetail",
+      "description": "Claimant profile with claims sub-list."
+    },
+    {
+      "path": "/claims",
+      "page": "Claims",
+      "description": "List of all claims."
+    },
+    {
+      "path": "/claims/:id",
+      "page": "ClaimDetail",
+      "description": "Claim detail with review and evidence actions."
+    },
+    {
+      "path": "/evidence",
+      "page": "EvidenceList",
+      "description": "Cross-claim evidence list."
+    },
+    {
+      "path": "/evidence/:id",
+      "page": "EvidenceDetail",
+      "description": "Evidence detail with Verify action."
+    },
+    {
+      "path": "/firms",
+      "page": "Firms",
+      "description": "Firm list with inline onboarding."
+    },
+    {
+      "path": "/firms/:id",
+      "page": "FirmDetail",
+      "description": "Firm detail with attorney roster."
+    },
+    {
+      "path": "/attorneys",
+      "page": "Attorneys",
+      "description": "Attorney roster across all firms."
+    },
+    {
+      "path": "/case-status",
+      "page": "CaseStatusPage",
+      "description": "Master case status dashboard."
+    }
   ]
 }

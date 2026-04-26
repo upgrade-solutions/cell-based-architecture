@@ -11,7 +11,6 @@
   "resources": [
     {
       "name": "IntakeSubmission",
-      "noun": "IntakeSubmission",
       "description": "A public intake submission from a potential Marshall Fire claimant.",
       "fields": [
         {
@@ -81,8 +80,8 @@
       "actions": [
         {
           "name": "Submit",
-          "verb": "Submit",
-          "description": "Submit the intake form."
+          "description": "Submit the intake form.",
+          "action": "Submit"
         },
         {
           "name": "List",
@@ -90,14 +89,14 @@
         },
         {
           "name": "Qualify",
-          "verb": "Qualify",
-          "description": "Intake staff qualify the submission as a legitimate claimant."
+          "description": "Intake staff qualify the submission as a legitimate claimant.",
+          "action": "Qualify"
         }
-      ]
+      ],
+      "resource": "IntakeSubmission"
     },
     {
       "name": "Claimant",
-      "noun": "Claimant",
       "description": "A person whose intake submission has been reviewed and qualified as a legitimate Marshall Fire victim pursuing a legal claim.",
       "fields": [
         {
@@ -182,14 +181,14 @@
         },
         {
           "name": "Assign",
-          "verb": "Assign",
-          "description": "Assign an attorney to represent this claimant."
+          "description": "Assign an attorney to represent this claimant.",
+          "action": "Assign"
         }
-      ]
+      ],
+      "resource": "Claimant"
     },
     {
       "name": "Claim",
-      "noun": "Claim",
       "description": "A specific cause of action filed by a Claimant against the defendants responsible for the Marshall Fire.",
       "fields": [
         {
@@ -256,24 +255,24 @@
       "actions": [
         {
           "name": "File",
-          "verb": "File",
-          "description": "Formally submit a claim on behalf of a claimant."
+          "description": "Formally submit a claim on behalf of a claimant.",
+          "action": "File"
         },
         {
           "name": "Review",
-          "verb": "Review",
-          "description": "Legal staff review the claim details and supporting evidence."
+          "description": "Legal staff review the claim details and supporting evidence.",
+          "action": "Review"
         },
         {
           "name": "UpdateStatus",
-          "verb": "UpdateStatus",
-          "description": "Advance or change the status of a claim."
+          "description": "Advance or change the status of a claim.",
+          "action": "UpdateStatus"
         }
-      ]
+      ],
+      "resource": "Claim"
     },
     {
       "name": "Evidence",
-      "noun": "Evidence",
       "description": "A supporting document uploaded to substantiate a Claim — insurance policies, photographs, damage assessments, receipts, or government records.",
       "fields": [
         {
@@ -356,19 +355,19 @@
       "actions": [
         {
           "name": "Upload",
-          "verb": "Upload",
-          "description": "Upload a supporting document to a claim."
+          "description": "Upload a supporting document to a claim.",
+          "action": "Upload"
         },
         {
           "name": "Verify",
-          "verb": "Verify",
-          "description": "Staff confirm the document is authentic and relevant."
+          "description": "Staff confirm the document is authentic and relevant.",
+          "action": "Verify"
         }
-      ]
+      ],
+      "resource": "Evidence"
     },
     {
       "name": "CaseStatus",
-      "noun": "CaseStatus",
       "description": "A milestone record tracking the progression of a Claimant's overall case through the mass-tort pipeline.",
       "fields": [
         {
@@ -419,14 +418,14 @@
       "actions": [
         {
           "name": "Advance",
-          "verb": "Advance",
-          "description": "Move a case to the next milestone stage."
+          "description": "Move a case to the next milestone stage.",
+          "action": "Advance"
         }
-      ]
+      ],
+      "resource": "CaseStatus"
     },
     {
       "name": "Firm",
-      "noun": "Firm",
       "description": "A participating law firm in the Marshall Fire mass-tort coordination network.",
       "fields": [
         {
@@ -477,18 +476,18 @@
       "actions": [
         {
           "name": "Onboard",
-          "verb": "Onboard",
-          "description": "Approve and activate a law firm to participate."
+          "description": "Approve and activate a law firm to participate.",
+          "action": "Onboard"
         },
         {
           "name": "List",
           "description": "List participating firms."
         }
-      ]
+      ],
+      "resource": "Firm"
     },
     {
       "name": "Attorney",
-      "noun": "Attorney",
       "description": "An individual attorney at a participating Firm assigned to represent Claimants in the Marshall Fire mass-tort matter.",
       "fields": [
         {
@@ -541,18 +540,18 @@
       "actions": [
         {
           "name": "Assign",
-          "verb": "Assign",
-          "description": "Assign this attorney to represent a Claimant via a Firm."
+          "description": "Assign this attorney to represent a Claimant via a Firm.",
+          "action": "Assign"
         }
-      ]
+      ],
+      "resource": "Attorney"
     }
   ],
   "operations": [
     {
       "resource": "IntakeSubmission",
       "action": "Submit",
-      "name": "IntakeSubmission.Submit",
-      "capability": "IntakeSubmission.Submit"
+      "name": "IntakeSubmission.Submit"
     },
     {
       "resource": "IntakeSubmission",
@@ -564,7 +563,6 @@
       "resource": "IntakeSubmission",
       "action": "Qualify",
       "name": "IntakeSubmission.Qualify",
-      "capability": "IntakeSubmission.Qualify",
       "description": "Intake staff qualify the submission, which triggers creation of a Claimant record."
     },
     {
@@ -577,56 +575,48 @@
       "resource": "Claimant",
       "action": "View",
       "name": "Claimant.View",
-      "capability": "Claimant.View",
       "description": "Retrieve full profile and case details for a specific Claimant."
     },
     {
       "resource": "Claimant",
       "action": "Assign",
       "name": "Claimant.Assign",
-      "capability": "Claimant.Assign",
       "description": "Assign an Attorney to represent a Claimant."
     },
     {
       "resource": "Claim",
       "action": "File",
       "name": "Claim.File",
-      "capability": "Claim.File",
       "description": "Formally file a cause of action on behalf of a Claimant."
     },
     {
       "resource": "Claim",
       "action": "UpdateStatus",
       "name": "Claim.UpdateStatus",
-      "capability": "Claim.UpdateStatus",
       "description": "Advance or change the status of a claim."
     },
     {
       "resource": "Claim",
       "action": "Review",
       "name": "Claim.Review",
-      "capability": "Claim.Review",
       "description": "Legal staff review the claim details and supporting evidence."
     },
     {
       "resource": "Evidence",
       "action": "Upload",
       "name": "Evidence.Upload",
-      "capability": "Evidence.Upload",
       "description": "Upload a supporting document to a claim (multipart)."
     },
     {
       "resource": "Evidence",
       "action": "Verify",
       "name": "Evidence.Verify",
-      "capability": "Evidence.Verify",
       "description": "Staff confirm an uploaded document is authentic and relevant."
     },
     {
       "resource": "CaseStatus",
       "action": "Advance",
       "name": "CaseStatus.Advance",
-      "capability": "CaseStatus.Advance",
       "description": "Move a case to the next milestone stage."
     },
     {
@@ -639,14 +629,12 @@
       "resource": "Firm",
       "action": "Onboard",
       "name": "Firm.Onboard",
-      "capability": "Firm.Onboard",
       "description": "Approve and activate a new law firm to participate in the mass-tort matter."
     },
     {
       "resource": "Attorney",
       "action": "Assign",
       "name": "Attorney.Assign",
-      "capability": "Attorney.Assign",
       "description": "Assign an attorney (of a firm) to represent a Claimant."
     },
     {
