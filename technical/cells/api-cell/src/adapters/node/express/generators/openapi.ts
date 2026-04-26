@@ -10,7 +10,7 @@ export function generateOpenApi(): string {
   reference: 'string',
 }
 
-export function buildOpenApiSpec(api: any, operational: any): object {
+export function buildOpenApiSpec(api: any, core: any): object {
   const paths: Record<string, any> = {}
 
   for (const endpoint of api.endpoints ?? []) {
@@ -20,10 +20,8 @@ export function buildOpenApiSpec(api: any, operational: any): object {
     const method = endpoint.method.toLowerCase()
     const [resource] = endpoint.operation.split('.')
 
-    const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
-    const capability = operation?.capability ?? endpoint.operation
-    const rule = (operational.rules ?? []).find(
-      (r: any) => r.capability === capability && r.type === 'access',
+    const rule = (core.rules ?? []).find(
+      (r: any) => r.operation === endpoint.operation && r.type === 'access',
     )
     const roles: string[] = rule?.allow?.map((a: any) => a.role) ?? []
 

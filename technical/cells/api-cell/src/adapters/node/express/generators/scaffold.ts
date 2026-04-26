@@ -1,9 +1,4 @@
-export function generatePackageJson(appName: string, eventBusEngine?: string): string {
-  const eventBusDeps: Record<string, string> =
-    eventBusEngine === 'eventbridge'
-      ? { '@aws-sdk/client-eventbridge': '^3.0.0' }
-      : { amqplib: '^0.10.0' }
-
+export function generatePackageJson(appName: string): string {
   return JSON.stringify(
     {
       name: appName,
@@ -26,7 +21,6 @@ export function generatePackageJson(appName: string, eventBusEngine?: string): s
         'jwks-rsa': '^3.1.0',
         pg: '^8.11.0',
         'swagger-ui-express': '^5.0.0',
-        ...eventBusDeps,
       },
       devDependencies: {
         '@types/bcryptjs': '^2.4.0',

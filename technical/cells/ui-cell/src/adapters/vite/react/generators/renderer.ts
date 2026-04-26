@@ -330,7 +330,7 @@ export interface AllowEntry {
 }
 
 export interface Rule {
-  capability: string
+  operation: string
   type?: 'access' | 'condition'
   description?: string
   allow?: AllowEntry[]
@@ -556,9 +556,9 @@ function decodeJwt(token: string | null): CurrentUser {
 
 function collectStubs(core: unknown): Record<string, Record<string, unknown>[]> {
   const stubs: Record<string, Record<string, unknown>[]> = {}
-  const typed = core as { nouns?: { name: string; examples?: Record<string, unknown>[] }[] } | null
-  for (const noun of typed?.nouns ?? []) {
-    if (noun.examples?.length) stubs[noun.name] = noun.examples
+  const typed = core as { resources?: { name: string; examples?: Record<string, unknown>[] }[] } | null
+  for (const resource of typed?.resources ?? []) {
+    if (resource.examples?.length) stubs[resource.name] = resource.examples
   }
   return stubs
 }
@@ -2673,10 +2673,10 @@ import type { FlagSnapshot } from './flags-context'
 
 export function findAccessRule(
   operational: OperationalDNA | null,
-  capability: string,
+  operationName: string,
 ): Rule | undefined {
   if (!operational?.rules) return undefined
-  return operational.rules.find(r => r.capability === capability && r.type !== 'condition')
+  return operational.rules.find(r => r.operation === operationName && r.type !== 'condition')
 }
 
 /** Returns the list of flags that *this* allow entry requires but are not

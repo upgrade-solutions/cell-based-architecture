@@ -1,4 +1,4 @@
-import { Noun, Attribute } from '../../../../types'
+import { CoreResource, Attribute } from '../../../../types'
 import { toTableName, toRailsColumnType } from './naming'
 
 function columnLine(attr: Attribute): string {
@@ -8,13 +8,13 @@ function columnLine(attr: Attribute): string {
   return `      t.${colType} :${attr.name}${nullable}`
 }
 
-export function generateMigration(nouns: Noun[], timestamp: string): string {
+export function generateMigration(nouns: CoreResource[], timestamp: string): string {
   const className = 'CreateDnaTables'
   const tableBlocks: string[] = []
 
   for (const noun of nouns) {
     const tableName = toTableName(noun.name)
-    const attrs = (noun.attributes ?? []).filter(a => a.name !== 'id')
+    const attrs = (noun.attributes ?? []).filter((a: Attribute) => a.name !== 'id')
     const comment = noun.description ? `      # ${noun.description}` : ''
 
     const columns = attrs.map(columnLine).filter(Boolean)

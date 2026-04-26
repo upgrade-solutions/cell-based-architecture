@@ -1,4 +1,4 @@
-import { Noun, Attribute } from '../../../../types'
+import { CoreResource, Attribute } from '../../../../types'
 import { toSnakeCase, toTableName, toSqlalchemyType } from './naming'
 
 function columnLine(attr: Attribute): string {
@@ -27,10 +27,10 @@ function needsDateImport(attrs: Attribute[]): boolean {
   return attrs.some(a => a.type === 'date' || a.type === 'datetime')
 }
 
-export function generateModel(noun: Noun): string {
+export function generateModel(noun: CoreResource): string {
   const attrs = noun.attributes ?? []
   const tableName = toTableName(noun.name)
-  const columns = attrs.filter(a => a.name !== 'id').map(columnLine)
+  const columns = attrs.filter((a: Attribute) => a.name !== 'id').map(columnLine)
   const hasDate = needsDateImport(attrs)
   const comment = noun.description ? `    """${noun.description}"""\n` : ''
 
@@ -68,7 +68,7 @@ function collectSaTypes(attrs: Attribute[]): string {
 }
 
 /** Generate the models __init__.py that re-exports all models */
-export function generateModelsInit(nouns: Noun[]): string {
+export function generateModelsInit(nouns: CoreResource[]): string {
   const imports = nouns.map(n => `from app.models.${toSnakeCase(n.name)} import ${n.name}`)
   const all = nouns.map(n => `    "${n.name}",`)
 

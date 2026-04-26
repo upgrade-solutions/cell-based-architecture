@@ -1,7 +1,7 @@
-import { Noun } from '../../../../types'
+import { CoreResource } from '../../../../types'
 import { toSnakeCase } from './naming'
 
-function nounSeedBlock(noun: Noun): string {
+function nounSeedBlock(noun: CoreResource): string {
   const examples = (noun as any).examples as Array<Record<string, unknown>> | undefined
   if (!examples?.length) return ''
 
@@ -27,7 +27,7 @@ function nounSeedBlock(noun: Noun): string {
   return lines.join('\n')
 }
 
-export function generateSeed(nouns: Noun[]): string {
+export function generateSeed(nouns: CoreResource[]): string {
   const blocks = nouns.map(nounSeedBlock).filter(Boolean)
   const modelImports = nouns.map(n => `from app.models.${toSnakeCase(n.name)} import ${n.name}`)
 

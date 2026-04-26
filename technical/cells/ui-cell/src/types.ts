@@ -52,7 +52,11 @@ export interface Attribute {
   description?: string
 }
 
-export interface Noun {
+/**
+ * Product Core noun primitive (a Resource flattened from operational DNA).
+ * Renamed from `Noun` with the operational rewrite — same wire shape.
+ */
+export interface Resource {
   name: string
   description?: string
   attributes?: Attribute[]
@@ -67,7 +71,7 @@ export interface Domain {
 
 export interface ProductCoreDNA {
   domain: Domain
-  nouns?: Noun[]
+  resources?: Resource[]
 }
 
 // ── Product API DNA (minimal — used for operation→endpoint resolution) ───────

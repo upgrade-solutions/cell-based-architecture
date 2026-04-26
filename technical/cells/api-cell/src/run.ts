@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { DnaValidator } from '@dna-codes/core'
-import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, SignalDispatchConfig, ApiCellAdapter } from './types'
+import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, ApiCellAdapter } from './types'
 import * as nestjsAdapter from './adapters/node/nestjs'
 import * as expressAdapter from './adapters/node/express'
 import * as railsAdapter from './adapters/ruby/rails'
@@ -126,16 +126,10 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
         }
     : undefined
 
-  // ── Extract signal dispatch config ──────────────────────────────────────────
-  const signalDispatch = cell.adapter.config?.signal_dispatch as SignalDispatchConfig | undefined
-
-  // ── Extract event bus engine (rabbitmq, eventbridge, etc.) ─────────────────
-  const eventBusEngine = cell.adapter.config?.event_bus_engine as string | undefined
-
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(apiDnaRaw as ProductApiDNA, coreRaw as ProductCoreDNA, path.resolve(outputDir), authConfig, signalDispatch, eventBusEngine)
+  adapter.generate(apiDnaRaw as ProductApiDNA, coreRaw as ProductCoreDNA, path.resolve(outputDir), authConfig)
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

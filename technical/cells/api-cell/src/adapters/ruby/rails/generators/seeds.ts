@@ -1,8 +1,7 @@
-import { Noun } from '../../../../types'
-import { collectNouns } from '../../../../utils'
+import { CoreResource } from '../../../../types'
 import { toSnakeCase } from './naming'
 
-function nounSeedBlock(noun: Noun): string {
+function nounSeedBlock(noun: CoreResource): string {
   const examples = (noun as any).examples as Array<Record<string, unknown>> | undefined
   if (!examples?.length) return ''
 
@@ -22,7 +21,7 @@ function nounSeedBlock(noun: Noun): string {
   return lines.join('\n')
 }
 
-export function generateSeeds(nouns: Noun[]): string {
+export function generateSeeds(nouns: CoreResource[]): string {
   const blocks = nouns.map(nounSeedBlock).filter(Boolean)
   if (!blocks.length) {
     return `# Seeds generated from DNA examples.\n# No example data found in Operational DNA.\n`

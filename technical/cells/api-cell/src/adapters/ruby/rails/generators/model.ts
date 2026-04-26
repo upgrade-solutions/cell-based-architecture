@@ -1,4 +1,4 @@
-import { Noun, Attribute, Resource } from '../../../../types'
+import { CoreResource, Attribute } from '../../../../types'
 import { toSnakeCase } from './naming'
 
 function validationLines(attrs: Attribute[]): string[] {
@@ -15,7 +15,7 @@ function validationLines(attrs: Attribute[]): string[] {
   return lines
 }
 
-export function generateModel(noun: Noun): string {
+export function generateModel(noun: CoreResource): string {
   const attrs = noun.attributes ?? []
   const validations = validationLines(attrs)
   const comment = noun.description ? `# ${noun.description}\n` : ''

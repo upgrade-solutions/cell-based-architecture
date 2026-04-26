@@ -38,15 +38,15 @@ function coerceType(value: unknown, type: string): { valid: boolean; coerced: un
 
 // ── Resolve attribute metadata from Product Core DNA ────────────────────────
 
-function findAttribute(nounName: string, attrName: string, core: any): any | null {
-  const noun = (core?.nouns ?? []).find((n: any) => n.name === nounName)
-  if (!noun) return null
-  return (noun.attributes ?? []).find((a: any) => a.name === attrName) ?? null
+function findAttribute(resourceName: string, attrName: string, core: any): any | null {
+  const resource = (core?.resources ?? []).find((r: any) => r.name === resourceName)
+  if (!resource) return null
+  return (resource.attributes ?? []).find((a: any) => a.name === attrName) ?? null
 }
 
 // ── Request schema validation middleware ─────────────────────────────────────
 
-export function createRequestValidator(endpoint: any, api: any, operational: any) {
+export function createRequestValidator(endpoint: any, api: any, core: any) {
   const fields = endpoint.request?.fields ?? []
   const [resourceName] = endpoint.operation.split('.')
 
@@ -75,8 +75,8 @@ export function createRequestValidator(endpoint: any, api: any, operational: any
         continue
       }
 
-      // Enum values check — look up from Operational DNA attribute
-      const attr = findAttribute(resourceName, field.name, operational)
+      // Enum values check — look up from Product Core DNA attribute
+      const attr = findAttribute(resourceName, field.name, core)
       if (attr?.values?.length) {
         if (!attr.values.includes(value)) {
           errors.push(\`\${field.name} must be one of: \${attr.values.join(', ')}\`)
@@ -187,10 +187,8 @@ function evaluateCondition(
 // PascalCase resource name → camelCase + 's' (IntakeSubmission → intakeSubmissions).
 const toResourceKey = (n: string) => n.charAt(0).toLowerCase() + n.slice(1) + 's'
 
-export function createRuleValidator(endpoint: any, api: any, operational: any) {
-  const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
-  const capability = operation?.capability ?? endpoint.operation
-  const rule = (operational.rules ?? []).find((r: any) => r.capability === capability && r.type !== 'access')
+export function createRuleValidator(endpoint: any, api: any, core: any) {
+  const rule = (core.rules ?? []).find((r: any) => r.operation === endpoint.operation && r.type !== 'access')
   const [resourceName] = endpoint.operation.split('.')
   const resourceKey = toResourceKey(resourceName)
   const hasIdParam = (endpoint.params ?? []).some((p: any) => p.in === 'path' && p.name === 'id')
@@ -220,7 +218,7 @@ export function createRuleValidator(endpoint: any, api: any, operational: any) {
 
       if (errors.length) {
         return res.status(422).json({
-          message: \`Rule violation: \${rule.description ?? capability}\`,
+          message: \`Rule violation: \${rule.description ?? endpoint.operation}\`,
           errors,
         })
       }

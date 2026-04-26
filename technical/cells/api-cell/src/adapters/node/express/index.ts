@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, SignalDispatchConfig, ApiCellAdapter } from '../../../types'
+import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, ApiCellAdapter } from '../../../types'
 import { collectNouns } from '../../../utils'
 import { generateDockerfile, generateDockerIgnore } from '../docker'
 import { generateDrizzleSchema, generateDrizzleConfig } from '../shared/drizzle'
@@ -10,8 +10,6 @@ import { generateAuth, generateFlags } from './generators/auth'
 import { generateAuthRoutes } from './generators/auth-routes'
 import { generateStore } from './generators/store'
 import { generateHandler } from './generators/handler'
-import { generateSignalMiddleware } from './generators/signal-middleware'
-import { generateSignalReceiver } from './generators/signal-receiver'
 import { generateOpenApi } from './generators/openapi'
 import { generateRouter } from './generators/router'
 import { generateValidators } from './generators/validators'
@@ -29,8 +27,6 @@ export const generate: ApiCellAdapter['generate'] = (
   core: ProductCoreDNA,
   outputDir: string,
   authConfig?: AuthProviderConfig,
-  signalDispatch?: SignalDispatchConfig,
-  eventBusEngine?: string,
 ): void => {
   const appName = api.namespace.name.toLowerCase() + '-api'
   const nouns = collectNouns(core)
@@ -42,7 +38,6 @@ export const generate: ApiCellAdapter['generate'] = (
   if (authConfig) {
     write(outputDir, 'src/dna/auth.json', JSON.stringify(authConfig, null, 2) + '\n')
   }
-  write(outputDir, 'src/dna/signal-dispatch.json', JSON.stringify(signalDispatch ?? {}, null, 2) + '\n')
 
   // ── Database — Drizzle schema + connection ──────────────────────────────────
   write(outputDir, 'src/db/schema.ts', generateDrizzleSchema(nouns))
@@ -58,8 +53,6 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/interpreter/drizzle-store.ts', generateDrizzleStore())
   write(outputDir, 'src/interpreter/validators.ts', generateValidators())
   write(outputDir, 'src/interpreter/handler.ts', generateHandler())
-  write(outputDir, 'src/interpreter/signal-middleware.ts', generateSignalMiddleware(eventBusEngine))
-  write(outputDir, 'src/interpreter/signal-receiver.ts', generateSignalReceiver())
   write(outputDir, 'src/interpreter/openapi.ts', generateOpenApi())
   write(outputDir, 'src/interpreter/router.ts', generateRouter())
 
@@ -68,7 +61,7 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/seed.ts', generateSeed())
 
   // ── Scaffold ────────────────────────────────────────────────────────────────
-  write(outputDir, 'package.json', generatePackageJson(appName, eventBusEngine))
+  write(outputDir, 'package.json', generatePackageJson(appName))
   write(outputDir, 'tsconfig.json', generateTsConfig())
   write(outputDir, '.env', generateEnv())
   write(outputDir, 'drizzle.config.ts', generateDrizzleConfig())

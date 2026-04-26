@@ -41,7 +41,7 @@ export const generate: ApiCellAdapter['generate'] = (
   const resources = api.resources ?? []
   const operations = api.operations ?? []
   const rules = core.rules ?? []
-  const outcomes = core.outcomes ?? []
+  const coreOperations = core.operations ?? []
   const nouns = collectNouns(core)
 
   // ── Database ──────────────────────────────────────────────────────────────
@@ -68,8 +68,10 @@ export const generate: ApiCellAdapter['generate'] = (
   // ── Routers (one per Resource) ────────────────────────────────────────────
   for (const resource of resources) {
     const endpoints = endpointsForResource(resource.name, api.endpoints)
+    // The signals/Outcome plumbing was removed with the operational rewrite —
+    // emit_signal helpers are intentionally absent now.
     write(outputDir, `app/routers/${toRouterFileName(resource.name)}`,
-      generateRouter(resource, endpoints, operations, rules, outcomes, api.namespace, core.signals))
+      generateRouter(resource, endpoints, operations, rules, coreOperations, api.namespace))
   }
   write(outputDir, 'app/routers/__init__.py', generateRoutersInit(resources, api.namespace))
 

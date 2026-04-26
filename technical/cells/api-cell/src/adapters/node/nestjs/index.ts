@@ -37,7 +37,7 @@ export const generate: ApiCellAdapter['generate'] = (
   const resources = api.resources ?? []
   const operations = api.operations ?? []
   const rules = core.rules ?? []
-  const outcomes = core.outcomes ?? []
+  const coreOperations = core.operations ?? []
   const nouns = collectNouns(core)
 
   // ── Per-resource files ──────────────────────────────────────────────────────
@@ -50,9 +50,10 @@ export const generate: ApiCellAdapter['generate'] = (
     write(outputDir, `${dir}/${fileName}.controller.ts`,
       generateController(resource, endpoints, operations, rules, api.namespace))
 
-    // Service
+    // Service — passes core operations so the generator can consult `changes[]`.
+    // (Signal/Outcome plumbing was removed with the operational rewrite.)
     write(outputDir, `${dir}/${fileName}.service.ts`,
-      generateService(resource, endpoints, operations, rules, outcomes, core.signals))
+      generateService(resource, endpoints, coreOperations, rules))
 
     // Module
     write(outputDir, `${dir}/${fileName}.module.ts`,

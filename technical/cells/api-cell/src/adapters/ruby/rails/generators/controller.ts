@@ -1,6 +1,5 @@
-import { Resource, Endpoint, Operation, Rule, Outcome, Signal, Namespace } from '../../../../types'
-import { resolveCapability } from '../../../../utils'
-import { toSnakeCase, toPlural, toActionMethod } from './naming'
+import { Resource, Endpoint, ApiOperation, Rule, CoreOperation, Namespace } from '../../../../types'
+import { toSnakeCase, toActionMethod } from './naming'
 
 type OpKind = 'create' | 'view' | 'list' | 'update'
 
@@ -10,6 +9,10 @@ function classifyEndpoint(ep: Endpoint): OpKind {
   if (ep.method === 'GET') return 'list'
   if (!hasIdParam) return 'create'
   return 'update'
+}
+
+function findCoreOp(name: string, ops: CoreOperation[]): CoreOperation | undefined {
+  return ops.find(o => o.name === name)
 }
 
 function resolveEffectSet(set: unknown, entityVar: string): string | null {
@@ -30,14 +33,10 @@ function resolveEffectSet(set: unknown, entityVar: string): string | null {
 function buildCreateBody(
   ep: Endpoint,
   resource: Resource,
-  outcomes: Outcome[],
-  capability: string,
-  signals?: Signal[],
+  operation: CoreOperation | undefined,
 ): string[] {
   const modelName = resource.name
   const entityFields = new Set(resource.fields.map(f => f.name))
-  const dtoFields = (ep.request?.fields ?? []).filter(f => entityFields.has(f.name))
-  const outcome = outcomes.find(o => o.capability === capability)
 
   const permitFields = (ep.request?.fields ?? []).map(f => `:${f.name}`)
   const lines: string[] = [
@@ -46,8 +45,8 @@ function buildCreateBody(
     `      record.id = SecureRandom.uuid`,
   ]
 
-  if (outcome) {
-    for (const ch of outcome.changes) {
+  if (operation?.changes?.length) {
+    for (const ch of operation.changes) {
       const attr = ch.attribute.split('.').pop()!
       if (!entityFields.has(attr)) continue
       const val = resolveEffectSet(ch.set, 'record')
@@ -55,10 +54,8 @@ function buildCreateBody(
     }
   }
 
-  const emitLines = buildEmitLines(outcome, signals)
   lines.push(
     `      if record.save`,
-    ...emitLines.map(l => `  ${l}`),
     `        render json: record, status: :created`,
     `      else`,
     `        render json: { errors: record.errors.full_messages }, status: :unprocessable_entity`,
@@ -96,13 +93,10 @@ function buildListBody(ep: Endpoint, resource: Resource): string[] {
 function buildUpdateBody(
   ep: Endpoint,
   resource: Resource,
-  outcomes: Outcome[],
-  capability: string,
-  signals?: Signal[],
+  operation: CoreOperation | undefined,
 ): string[] {
   const entityFields = new Set(resource.fields.map(f => f.name))
   const dtoFields = (ep.request?.fields ?? []).filter(f => entityFields.has(f.name))
-  const outcome = outcomes.find(o => o.capability === capability)
   const varName = toSnakeCase(resource.name)
 
   const permitFields = dtoFields.map(f => `:${f.name}`)
@@ -115,8 +109,8 @@ function buildUpdateBody(
     lines.push(`      ${varName}.assign_attributes(attrs)`)
   }
 
-  if (outcome) {
-    for (const ch of outcome.changes) {
+  if (operation?.changes?.length) {
+    for (const ch of operation.changes) {
       const attr = ch.attribute.split('.').pop()!
       if (!entityFields.has(attr)) continue
       const val = resolveEffectSet(ch.set, varName)
@@ -124,10 +118,8 @@ function buildUpdateBody(
     }
   }
 
-  const emitLines = buildEmitLines(outcome, signals, varName)
   lines.push(
     `      if ${varName}.save`,
-    ...emitLines.map(l => `  ${l}`),
     `        render json: ${varName}`,
     `      else`,
     `        render json: { errors: ${varName}.errors.full_messages }, status: :unprocessable_entity`,
@@ -136,26 +128,13 @@ function buildUpdateBody(
   return lines
 }
 
-function buildEmitLines(outcome: Outcome | undefined, signals?: Signal[], varName = 'record'): string[] {
-  if (!outcome?.emits?.length) return []
-  const lines: string[] = []
-  for (const signalName of outcome.emits) {
-    const signal = (signals ?? []).find(s => s.name === signalName)
-    if (!signal) continue
-    const payloadFields = signal.payload.map(f => `${f.name}: ${varName}.${f.name}`).join(', ')
-    lines.push(`        EventBus.publish('${signalName}', { ${payloadFields} }) rescue nil`)
-  }
-  return lines
-}
-
 export function generateController(
   resource: Resource,
   endpoints: Endpoint[],
-  operations: Operation[],
+  _apiOperations: ApiOperation[],
   rules: Rule[],
-  outcomes: Outcome[],
-  namespace: Namespace,
-  signals?: Signal[],
+  coreOperations: CoreOperation[],
+  _namespace: Namespace,
 ): string {
   const className = `${resource.name}sController`
   const methods: string[] = []
@@ -163,18 +142,18 @@ export function generateController(
   for (const ep of endpoints) {
     const action = ep.operation.split('.')[1]
     const methodName = toActionMethod(action)
-    const capability = resolveCapability(ep.operation, operations)
+    const op = findCoreOp(ep.operation, coreOperations)
     const kind = classifyEndpoint(ep)
 
-    const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
-    const roles = accessRule?.allow?.map(a => a.role) ?? []
+    const accessRule = rules.find(r => r.operation === ep.operation && r.type === 'access')
+    const roles = accessRule?.allow?.map(a => a.role).filter((r): r is string => !!r) ?? []
     const requiresOwnership = accessRule?.allow?.some(a => a.ownership) ?? false
 
     let body: string[]
-    if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability, signals)
+    if (kind === 'create') body = buildCreateBody(ep, resource, op)
     else if (kind === 'view') body = buildViewBody(resource)
     else if (kind === 'list') body = buildListBody(ep, resource)
-    else body = buildUpdateBody(ep, resource, outcomes, capability, signals)
+    else body = buildUpdateBody(ep, resource, op)
 
     const roleComment = roles.length ? `      # Roles: ${roles.join(', ')}` : null
     const ownerComment = requiresOwnership ? '      # Requires ownership' : null
@@ -195,8 +174,7 @@ export function generateController(
   for (const ep of endpoints) {
     const action = ep.operation.split('.')[1]
     const methodName = toActionMethod(action)
-    const capability = resolveCapability(ep.operation, operations)
-    const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
+    const accessRule = rules.find(r => r.operation === ep.operation && r.type === 'access')
     const allowEntries: Array<{ role?: string; ownership?: boolean; flags?: string[] }> =
       accessRule?.allow ?? []
     const roles = allowEntries.map(a => a.role).filter((r): r is string => !!r)
@@ -208,7 +186,7 @@ export function generateController(
         if (e.role) parts.push(`role: '${e.role}'`)
         if (e.ownership) parts.push(`ownership: true`)
         if (e.flags && e.flags.length > 0) {
-          parts.push(`flags: [${e.flags.map(f => `'${f}'`).join(', ')}]`)
+          parts.push(`flags: [${e.flags.map((f: string) => `'${f}'`).join(', ')}]`)
         }
         return `{ ${parts.join(', ')} }`
       }).join(', ')

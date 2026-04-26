@@ -26,19 +26,19 @@ const minimalUi: ProductUiDNA = {
 
 const minimalCore: ProductCoreDNA = {
   domain: { name: 'demo', path: 'demo' },
-  nouns: [],
+  resources: [],
 }
 
 // Sibling operational.json with a mix of rules — including one that uses the
 // new flags field — to drive the generator's copy + wire path end-to-end.
 const operational = {
-  capabilities: [
-    { noun: 'Loan', verb: 'Approve', name: 'Loan.Approve' },
-    { noun: 'Loan', verb: 'Reject', name: 'Loan.Reject' },
+  operations: [
+    { resource: 'Loan', action: 'Approve', name: 'Loan.Approve' },
+    { resource: 'Loan', action: 'Reject', name: 'Loan.Reject' },
   ],
   rules: [
     {
-      capability: 'Loan.Approve',
+      operation: 'Loan.Approve',
       type: 'access',
       allow: [
         { role: 'underwriter', flags: ['new_approval_flow'] },
@@ -46,7 +46,7 @@ const operational = {
       ],
     },
     {
-      capability: 'Loan.Reject',
+      operation: 'Loan.Reject',
       type: 'access',
       allow: [{ role: 'underwriter' }],
     },
@@ -171,8 +171,8 @@ describe.each(ADAPTERS)('flag-aware guards — $name', adapter => {
         const parsed = JSON.parse(fs.readFileSync(copied, 'utf-8'))
         // Flag survived the copy — the generator doesn't mangle the DNA.
         const approve = parsed.rules.find(
-          (r: { capability: string; type?: string }) =>
-            r.capability === 'Loan.Approve' && r.type === 'access',
+          (r: { operation: string; type?: string }) =>
+            r.operation === 'Loan.Approve' && r.type === 'access',
         )
         expect(approve).toBeDefined()
         expect(approve.allow[0].flags).toEqual(['new_approval_flow'])

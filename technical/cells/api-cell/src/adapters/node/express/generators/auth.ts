@@ -63,11 +63,9 @@ function entryMatches(entry: any, userRoles: string[]): boolean {
 // if one is present (so handlers can use req.user when the caller happens to
 // be authenticated), but we do NOT reject for missing/invalid tokens.
 
-export function createAuthMiddleware(endpoint: any, api: any, operational: any) {
-  const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
-  const capability = operation?.capability ?? endpoint.operation
-  const rule = (operational.rules ?? []).find(
-    (r: any) => r.capability === capability && r.type === 'access',
+export function createAuthMiddleware(endpoint: any, api: any, core: any) {
+  const rule = (core.rules ?? []).find(
+    (r: any) => r.operation === endpoint.operation && r.type === 'access',
   )
   const allowEntries: any[] = rule?.allow ?? []
   const requiresOwnership = allowEntries.some((a: any) => a.ownership)
@@ -188,11 +186,9 @@ function entryMatches(entry: any, userRoles: string[]): boolean {
 // granting the "public" pseudo-role with no ownership constraint and no
 // feature-flag gate. See built-in JWT variant for the full rationale.
 
-export function createAuthMiddleware(endpoint: any, api: any, operational: any) {
-  const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
-  const capability = operation?.capability ?? endpoint.operation
-  const rule = (operational.rules ?? []).find(
-    (r: any) => r.capability === capability && r.type === 'access',
+export function createAuthMiddleware(endpoint: any, api: any, core: any) {
+  const rule = (core.rules ?? []).find(
+    (r: any) => r.operation === endpoint.operation && r.type === 'access',
   )
   const allowEntries: any[] = rule?.allow ?? []
   const requiresOwnership = allowEntries.some((a: any) => a.ownership)

@@ -53,14 +53,16 @@ export const generate: ApiCellAdapter['generate'] = (
   const resources = api.resources ?? []
   const operations = api.operations ?? []
   const rules = core.rules ?? []
-  const outcomes = core.outcomes ?? []
+  const coreOperations = core.operations ?? []
   const nouns = collectNouns(core)
 
   // ── Per-resource controllers ──────────────────────────────────────────────
+  // Signals/Outcome plumbing was dropped with the operational rewrite —
+  // controllers no longer publish events.
   for (const resource of resources) {
     const endpoints = endpointsForResource(resource.name, api.endpoints)
     write(outputDir, `app/controllers/${toControllerFileName(resource.name)}`,
-      generateController(resource, endpoints, operations, rules, outcomes, api.namespace, core.signals))
+      generateController(resource, endpoints, operations, rules, coreOperations, api.namespace))
   }
 
   // ── Models (one per Noun) ─────────────────────────────────────────────────

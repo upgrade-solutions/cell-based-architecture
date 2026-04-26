@@ -30,16 +30,16 @@ async function seed() {
   // PascalCase noun name → camelCase + 's' (e.g. IntakeSubmission → intakeSubmissions).
   const toResourceKey = (n: string) => n.charAt(0).toLowerCase() + n.slice(1) + 's'
 
-  for (const noun of core?.nouns ?? []) {
-    if (!noun.examples?.length) continue
-    const key = toResourceKey(noun.name)
+  for (const resource of core?.resources ?? []) {
+    if (!resource.examples?.length) continue
+    const key = toResourceKey(resource.name)
     const table = tables[key]
     if (!table) {
-      console.log(\`[seed] skipping \${noun.name} — no table "\${key}"\`)
+      console.log(\`[seed] skipping \${resource.name} — no table "\${key}"\`)
       continue
     }
     const now = new Date()
-    const rows = noun.examples.map((ex: any) => {
+    const rows = resource.examples.map((ex: any) => {
       const row: Record<string, any> = { ...ex }
       // Convert ISO date strings to Date objects for timestamp columns
       for (const [k, val] of Object.entries(row)) {
@@ -52,7 +52,7 @@ async function seed() {
       return row
     })
     await db.insert(table).values(rows).onConflictDoNothing()
-    console.log(\`[seed] \${noun.name}: \${noun.examples.length} records\`)
+    console.log(\`[seed] \${resource.name}: \${resource.examples.length} records\`)
   }
 
   await pool.end()

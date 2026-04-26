@@ -1,4 +1,4 @@
-import { Noun, Attribute } from '../../../types'
+import { CoreResource, Attribute } from '../../../types'
 import { toTableName, toCamelCase } from '../../../utils'
 
 const DRIZZLE_FN: Record<string, string> = {
@@ -33,15 +33,15 @@ function columnExpr(attr: Attribute): string {
   return `  ${attr.name}: ${call}${primaryKey}${notNull},${enumComment}`
 }
 
-function tableBlock(noun: Noun): string {
+function tableBlock(noun: CoreResource): string {
   const tableName = toTableName(noun.name)
   const varName = toCamelCase(noun.name) + 's'
   const attrs = noun.attributes ?? []
 
-  // Auto-add created_at / updated_at, but only if the noun didn't already
+  // Auto-add created_at / updated_at, but only if the resource didn't already
   // declare them — otherwise the operational author and the generator both
   // emit a column with the same name and tsc fails on the duplicate key.
-  const declared = new Set(attrs.map((a) => a.name))
+  const declared = new Set(attrs.map((a: Attribute) => a.name))
   const autoTimestamps: string[] = []
   if (!declared.has('created_at')) {
     autoTimestamps.push(
@@ -60,7 +60,7 @@ function tableBlock(noun: Noun): string {
   return `${comment}export const ${varName} = pgTable('${tableName}', {\n${columns}\n})`
 }
 
-export function generateDrizzleSchema(nouns: Noun[]): string {
+export function generateDrizzleSchema(nouns: CoreResource[]): string {
   const usedFns = new Set<string>(['timestamp'])
   for (const noun of nouns) {
     for (const attr of noun.attributes ?? []) {

@@ -1,7 +1,6 @@
-import { Resource, Endpoint, Operation, Rule, Outcome, Signal } from '../../../../types'
-import { toCamelCase, resolveCapability } from '../../../../utils'
+import { Resource, Endpoint, CoreOperation, Rule } from '../../../../types'
+import { toCamelCase } from '../../../../utils'
 import { dtoClassName, dtoFileName } from './dto'
-import { toFileName } from '../../../../utils'
 
 type OpKind = 'create' | 'view' | 'list' | 'update'
 
@@ -17,6 +16,13 @@ function mapFieldType(type: string): string {
   if (type === 'number') return 'number'
   if (type === 'boolean') return 'boolean'
   return 'string'
+}
+
+function findOperation(
+  operationName: string,
+  operations: CoreOperation[],
+): CoreOperation | undefined {
+  return operations.find(o => o.name === operationName)
 }
 
 function resolveEffectSet(
@@ -52,15 +58,13 @@ function generateInterface(resource: Resource): string {
 
 function buildComment(
   operationName: string,
-  capability: string,
   rules: Rule[],
-  outcomes: Outcome[],
+  operation: CoreOperation | undefined,
 ): string[] {
   const lines: string[] = [`  // Operation: ${operationName}`]
-  const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
-  const conditionRule = rules.find(r => r.capability === capability && r.type !== 'access')
-  const outcome = outcomes.find(o => o.capability === capability)
-  if (!accessRule && !conditionRule && !outcome) return lines
+  const accessRule = rules.find(r => r.operation === operationName && r.type === 'access')
+  const conditionRule = rules.find(r => r.operation === operationName && r.type !== 'access')
+  if (!accessRule && !conditionRule && !operation?.changes?.length) return lines
   if (accessRule) {
     const roles = (accessRule.allow ?? []).map(a => (a.ownership ? `${a.role} (owner)` : a.role)).join(', ')
     lines.push(`  // Access:     ${roles}`)
@@ -72,14 +76,11 @@ function buildComment(
       lines.push(i === 0 ? `  // Rules:      ${line}` : `  //             ${line}`)
     })
   }
-  if (outcome?.changes.length) {
-    outcome.changes.forEach((ch, i) => {
+  if (operation?.changes?.length) {
+    operation.changes.forEach((ch, i) => {
       const line = `${ch.attribute} → ${JSON.stringify(ch.set)}`
       lines.push(i === 0 ? `  // Outcome:    ${line}` : `  //             ${line}`)
     })
-    if (outcome.initiates?.length) {
-      lines.push(`  //             initiates: ${outcome.initiates.join(', ')}`)
-    }
   }
   return lines
 }
@@ -103,13 +104,11 @@ function methodSignature(ep: Endpoint, resource: string): string {
 function buildCreateBody(
   ep: Endpoint,
   resource: Resource,
-  outcomes: Outcome[],
-  capability: string,
+  operation: CoreOperation | undefined,
 ): string[] {
   const varName = resource.name.toLowerCase()
   const entityFieldNames = new Set(resource.fields.map(f => f.name))
   const dtoFields = (ep.request?.fields ?? []).filter(f => entityFieldNames.has(f.name))
-  const outcome = outcomes.find(o => o.capability === capability)
 
   const lines: string[] = [
     '    const now = new Date().toISOString()',
@@ -118,8 +117,8 @@ function buildCreateBody(
     ...dtoFields.map(f => `      ${f.name}: dto.${f.name},`),
   ]
 
-  if (outcome) {
-    for (const ch of outcome.changes) {
+  if (operation?.changes?.length) {
+    for (const ch of operation.changes) {
       const attr = ch.attribute.split('.').pop()!
       if (!entityFieldNames.has(attr)) continue
       const val = resolveEffectSet(ch.set, varName)
@@ -129,11 +128,6 @@ function buildCreateBody(
 
   lines.push('      created_at: now,', '      updated_at: now,', '    }')
   lines.push(`    store.set(entity.id, entity)`)
-
-  if (outcome?.emits?.length) {
-    lines.push(`    await emitSignals('${capability}', entity)`)
-  }
-
   lines.push(`    return entity`)
   return lines
 }
@@ -168,13 +162,11 @@ function buildListBody(ep: Endpoint, resource: Resource): string[] {
 function buildUpdateBody(
   ep: Endpoint,
   resource: Resource,
-  outcomes: Outcome[],
-  capability: string,
+  operation: CoreOperation | undefined,
 ): string[] {
   const varName = resource.name.toLowerCase()
   const entityFieldNames = new Set(resource.fields.map(f => f.name))
   const dtoFields = (ep.request?.fields ?? []).filter(f => entityFieldNames.has(f.name))
-  const outcome = outcomes.find(o => o.capability === capability)
 
   const lines: string[] = [
     `    const ${varName} = store.get(id)`,
@@ -184,8 +176,8 @@ function buildUpdateBody(
     ...dtoFields.map(f => `    updates.${f.name} = dto.${f.name}`),
   ]
 
-  if (outcome) {
-    for (const ch of outcome.changes) {
+  if (operation?.changes?.length) {
+    for (const ch of operation.changes) {
       const attr = ch.attribute.split('.').pop()!
       if (!entityFieldNames.has(attr)) continue
       const val = resolveEffectSet(ch.set, varName)
@@ -198,10 +190,6 @@ function buildUpdateBody(
     `    store.set(id, updated)`,
   )
 
-  if (outcome?.emits?.length) {
-    lines.push(`    await emitSignals('${capability}', updated)`)
-  }
-
   lines.push(`    return updated`)
   return lines
 }
@@ -209,10 +197,8 @@ function buildUpdateBody(
 export function generateService(
   resource: Resource,
   endpoints: Endpoint[],
-  operations: Operation[],
+  operations: CoreOperation[],
   rules: Rule[],
-  outcomes: Outcome[],
-  signals?: Signal[],
 ): string {
   const className = `${resource.name}sService`
   const dtosNeeded = endpoints
@@ -226,30 +212,21 @@ export function generateService(
 
   const methods: string[] = []
   for (const ep of endpoints) {
-    const capability = resolveCapability(ep.operation, operations)
-    const comment = buildComment(ep.operation, capability, rules, outcomes)
+    const op = findOperation(ep.operation, operations)
+    const comment = buildComment(ep.operation, rules, op)
     const sig = methodSignature(ep, resource.name)
     const kind = classifyEndpoint(ep)
 
     let body: string[]
-    if (kind === 'create') body = buildCreateBody(ep, resource, outcomes, capability)
+    if (kind === 'create') body = buildCreateBody(ep, resource, op)
     else if (kind === 'view') body = buildViewBody(resource)
     else if (kind === 'list') body = buildListBody(ep, resource)
-    else body = buildUpdateBody(ep, resource, outcomes, capability)
+    else body = buildUpdateBody(ep, resource, op)
 
     methods.push([...comment, `${sig} {`, ...body, '  }'].join('\n'))
   }
 
   const iface = generateInterface(resource)
-
-  // Check if any endpoint's outcome emits signals
-  const hasEmits = endpoints.some(ep => {
-    const capability = resolveCapability(ep.operation, operations)
-    const outcome = outcomes.find(o => o.capability === capability)
-    return outcome?.emits?.length
-  })
-
-  const emitHelper = hasEmits ? generateEmitHelper(outcomes, signals ?? []) : ''
 
   return [
     `import { Injectable, NotFoundException } from '@nestjs/common'`,
@@ -265,53 +242,5 @@ export function generateService(
     methods.join('\n\n'),
     '}',
     '',
-    emitHelper,
   ].join('\n')
-}
-
-function generateEmitHelper(outcomes: Outcome[], signals: Signal[]): string {
-  // Build a static mapping of capability → signal names + payload fields
-  const emitMap: Record<string, { signalName: string; fields: string[] }[]> = {}
-  for (const outcome of outcomes) {
-    if (!outcome.emits?.length) continue
-    emitMap[outcome.capability] = outcome.emits.map(signalName => {
-      const signal = signals.find(s => s.name === signalName)
-      return { signalName, fields: (signal?.payload ?? []).map(f => f.name) }
-    })
-  }
-
-  if (Object.keys(emitMap).length === 0) return ''
-
-  const mapEntries = Object.entries(emitMap).map(([cap, sigs]) => {
-    const sigEntries = sigs.map(s =>
-      `    { signal: '${s.signalName}', fields: [${s.fields.map(f => `'${f}'`).join(', ')}] }`
-    ).join(',\n')
-    return `  '${cap}': [\n${sigEntries}\n  ]`
-  }).join(',\n')
-
-  return `
-const EVENT_BUS_URL = process.env.EVENT_BUS_URL || ''
-
-const EMIT_MAP: Record<string, { signal: string; fields: string[] }[]> = {
-${mapEntries}
-}
-
-async function emitSignals(capability: string, entity: Record<string, any>): Promise<void> {
-  const entries = EMIT_MAP[capability]
-  if (!entries?.length || !EVENT_BUS_URL) return
-  for (const { signal, fields } of entries) {
-    const payload: Record<string, any> = {}
-    for (const f of fields) {
-      if (entity[f] !== undefined) payload[f] = entity[f]
-    }
-    const message = JSON.stringify({ signal, capability, payload, timestamp: new Date().toISOString() })
-    console.log(\`[event-bus] Emitting \${signal}\`, JSON.stringify(payload))
-    fetch(EVENT_BUS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: message,
-    }).catch(err => console.error(\`[event-bus] Failed to emit \${signal}:\`, err.message))
-  }
-}
-`
 }

@@ -18,11 +18,11 @@ import {
 } from './adapters/node/express/generators/auth'
 import { generateDockerfile, generateDockerIgnore } from './adapters/node/docker'
 import { run } from './run'
-import { Noun, Resource, Endpoint, Namespace } from './types'
+import { CoreResource, Resource, Endpoint, Namespace } from './types'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const loanNoun: Noun = {
+const loanNoun: CoreResource = {
   name: 'Loan',
   description: 'A financial loan.',
   attributes: [
@@ -116,9 +116,9 @@ describe('utils', () => {
     expect(toFileName('Borrower')).toBe('borrowers')
   })
 
-  test('collectNouns returns the flat nouns array from a product core', () => {
+  test('collectNouns returns the flat resources array from a product core', () => {
     const nouns = collectNouns({
-      nouns: [{ name: 'Borrower' }, { name: 'Loan' }],
+      resources: [{ name: 'Borrower' }, { name: 'Loan' }],
     })
     expect(nouns).toHaveLength(2)
     expect(nouns.map(n => n.name)).toEqual(['Borrower', 'Loan'])
@@ -215,8 +215,8 @@ describe('generateDto', () => {
 describe('generateController', () => {
   const endpoints = [applyEndpoint, viewEndpoint, listEndpoint, approveEndpoint]
   const rules = [
-    { capability: 'Loan.Apply', type: 'access' as const, allow: [{ role: 'borrower' }] },
-    { capability: 'Loan.Approve', type: 'access' as const, allow: [{ role: 'underwriter' }] },
+    { operation: 'Loan.Apply', type: 'access' as const, allow: [{ role: 'borrower' }] },
+    { operation: 'Loan.Approve', type: 'access' as const, allow: [{ role: 'underwriter' }] },
   ]
   const ctrl = generateController(loanResource, endpoints, [], rules, namespace)
 
@@ -247,7 +247,7 @@ describe('generateController', () => {
 
   test('emits @AccessAllow with full entries when rule has flags, and no @Roles for that op', () => {
     const ruleWithFlag = {
-      capability: 'Loan.Approve',
+      operation: 'Loan.Approve',
       type: 'access' as const,
       allow: [
         { role: 'underwriter', flags: ['new_approval_flow'] },
@@ -289,15 +289,19 @@ describe('generateController', () => {
 describe('generateService', () => {
   const endpoints = [applyEndpoint, approveEndpoint, viewEndpoint]
   const rules = [
-    { capability: 'Loan.Apply', type: 'access' as const, allow: [{ role: 'borrower' }] },
-    { capability: 'Loan.Apply', type: 'condition' as const, conditions: [{ attribute: 'loan.amount', operator: 'gt', value: 0 }] },
+    { operation: 'Loan.Apply', type: 'access' as const, allow: [{ role: 'borrower' }] },
+    { operation: 'Loan.Apply', type: 'condition' as const, conditions: [{ attribute: 'loan.amount', operator: 'gt', value: 0 }] },
   ]
-  const outcomes = [{
-    capability: 'Loan.Apply',
+  // CoreOperation now carries `changes[]` directly; the old separate Outcome
+  // primitive was deleted with the operational rewrite.
+  const coreOperations = [{
+    resource: 'Loan',
+    action: 'Apply',
+    name: 'Loan.Apply',
     changes: [{ attribute: 'loan.status', set: 'under_review' }],
   }]
 
-  const svc = generateService(loanResource, endpoints, [], rules, outcomes)
+  const svc = generateService(loanResource, endpoints, coreOperations, rules)
 
   test('is an @Injectable() class', () => {
     expect(svc).toContain('@Injectable()')
@@ -309,7 +313,7 @@ describe('generateService', () => {
     expect(svc).toContain('NotFoundException')
   })
 
-  test('annotates capability operations with Access/Rules/Outcome', () => {
+  test('annotates operations with Access/Rules/Outcome', () => {
     expect(svc).toContain('// Access:')
     expect(svc).toContain('// Rules:')
     expect(svc).toContain('// Outcome:')

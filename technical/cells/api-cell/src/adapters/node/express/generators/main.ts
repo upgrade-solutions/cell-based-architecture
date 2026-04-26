@@ -11,9 +11,7 @@ import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
 import { buildRouter } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
-import { buildSignalReceiver } from './interpreter/signal-receiver'
-import { seedFromProductCoreDna, getStoreMode } from './interpreter/store'
-import { connectEventBus, disconnectEventBus } from './interpreter/signal-middleware'${authMode === 'built-in' ? `\nimport authRoutes from './interpreter/auth-routes'` : ''}
+import { seedFromProductCoreDna, getStoreMode } from './interpreter/store'${authMode === 'built-in' ? `\nimport authRoutes from './interpreter/auth-routes'` : ''}
 
 const DNA_API = path.resolve(__dirname, 'dna/api.json')
 const DNA_CORE = path.resolve(__dirname, 'dna/product.core.json')
@@ -27,14 +25,12 @@ function loadDNA() {
 
 let currentSpec: object
 let currentRouter: Router
-let currentSignalReceiver: Router
 
 function reload(label = 'loaded') {
   try {
     const { api, core } = loadDNA()
     currentSpec = buildOpenApiSpec(api, core)
     currentRouter = buildRouter(api, core)
-    currentSignalReceiver = buildSignalReceiver(api, core)
     console.log(\`[dna] \${label}\`)
   } catch (err: any) {
     console.error(\`[dna] reload failed: \${err.message}\`)
@@ -61,9 +57,6 @@ async function bootstrap() {
   await runMigrations()
 
   reload('loaded')
-
-  // Connect to event bus (RabbitMQ) for signal emission
-  await connectEventBus()
 
   // Seed store with examples from Product Core DNA
   const { core } = loadDNA()
@@ -101,9 +94,6 @@ async function bootstrap() {
   // Delegate to current router — swapped on each DNA reload
   app.use((req, res, next) => currentRouter(req, res, next))
 
-  // Signal receiver — accepts incoming Signals via HTTP POST (Pattern A)
-  app.use('/_signals', (req, res, next) => currentSignalReceiver(req, res, next))
-
   // Watch DNA files and hot-reload on change
   let reloadTimer: ReturnType<typeof setTimeout> | null = null
   function scheduleReload() {
@@ -124,10 +114,9 @@ async function bootstrap() {
     console.log(\`[dna] watching \${DNA_CORE}\`)
   })
 
-  // Graceful shutdown — close event bus connection
+  // Graceful shutdown
   for (const sig of ['SIGTERM', 'SIGINT'] as const) {
     process.on(sig, async () => {
-      await disconnectEventBus()
       process.exit(0)
     })
   }

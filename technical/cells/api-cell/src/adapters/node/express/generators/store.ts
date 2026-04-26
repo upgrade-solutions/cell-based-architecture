@@ -89,13 +89,13 @@ export async function seedFromProductCoreDna(core: any): Promise<void> {
   // PascalCase noun name → camelCase + 's' (IntakeSubmission → intakeSubmissions).
   const toResourceKey = (n: string) => n.charAt(0).toLowerCase() + n.slice(1) + 's'
 
-  for (const noun of core?.nouns ?? []) {
-    if (!noun.examples?.length) continue
-    const key = toResourceKey(noun.name)
+  for (const resource of core?.resources ?? []) {
+    if (!resource.examples?.length) continue
+    const key = toResourceKey(resource.name)
 
     if (useDb) {
       const now = new Date()
-      const rows = noun.examples.map((ex: any) => {
+      const rows = resource.examples.map((ex: any) => {
         const row: Record<string, any> = { ...ex }
         for (const [k, val] of Object.entries(row)) {
           if (typeof val === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(val)) {
@@ -109,17 +109,17 @@ export async function seedFromProductCoreDna(core: any): Promise<void> {
       try {
         await dbSeed(key, rows)
       } catch (err: any) {
-        console.error(\`[seed] \${noun.name} failed: \${err.message}\`)
+        console.error(\`[seed] \${resource.name} failed: \${err.message}\`)
         continue
       }
     } else {
       const store = getMemStore(key)
-      for (const example of noun.examples) {
+      for (const example of resource.examples) {
         if (example.id) store.set(example.id, { ...example })
       }
     }
 
-    console.log(\`[seed] \${noun.name}: \${noun.examples.length} records\`)
+    console.log(\`[seed] \${resource.name}: \${resource.examples.length} records\`)
   }
 }
 `

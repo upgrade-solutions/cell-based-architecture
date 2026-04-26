@@ -32,13 +32,13 @@ function resolveEffectSet(
 
 function applyEffects(
   entity: Record<string, any>,
-  capability: string,
-  operational: any,
+  operationName: string,
+  core: any,
   body: Record<string, any>,
 ) {
-  const outcome = operational.outcomes?.find((o: any) => o.capability === capability)
-  if (!outcome) return
-  for (const change of outcome.changes) {
+  const operation = (core.operations ?? []).find((o: any) => o.name === operationName)
+  if (!operation?.changes?.length) return
+  for (const change of operation.changes) {
     const attr = change.attribute.split('.').pop()
     const val = resolveEffectSet(change.set, entity, body)
     if (val !== undefined) entity[attr] = val
@@ -58,11 +58,10 @@ function checkOwnership(req: Request, entity: Record<string, any>): boolean {
 // PascalCase resource name → camelCase + 's' (IntakeSubmission → intakeSubmissions).
 const toResourceKey = (n: string) => n.charAt(0).toLowerCase() + n.slice(1) + 's'
 
-export function createHandler(endpoint: any, api: any, operational: any) {
+export function createHandler(endpoint: any, api: any, core: any) {
   const [resource] = endpoint.operation.split('.')
   const resourceKey = toResourceKey(resource)
-  const operation = api.operations?.find((op: any) => op.name === endpoint.operation)
-  const capability = operation?.capability ?? endpoint.operation
+  const operationName = endpoint.operation
   const kind = classifyEndpoint(endpoint)
   const queryParams = (endpoint.params ?? []).filter((p: any) => p.in === 'query')
   const store = getDataStore()
@@ -77,7 +76,7 @@ export function createHandler(endpoint: any, api: any, operational: any) {
           created_at: now,
           updated_at: now,
         }
-        applyEffects(entity, capability, operational, req.body)
+        applyEffects(entity, operationName, core, req.body)
         const created = await store.create(resourceKey, entity)
         return res.status(201).json(created)
       }

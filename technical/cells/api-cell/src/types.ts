@@ -22,11 +22,10 @@ export interface Resource {
   actions: Action[]
 }
 
-export interface Operation {
+export interface ApiOperation {
   resource: string
   action: string
   name: string
-  capability?: string
   description?: string
 }
 
@@ -64,7 +63,7 @@ export interface Namespace {
 export interface ProductApiDNA {
   namespace: Namespace
   resources?: Resource[]
-  operations?: Operation[]
+  operations?: ApiOperation[]
   endpoints: Endpoint[]
 }
 
@@ -80,17 +79,27 @@ export interface Attribute {
   description?: string
 }
 
-export interface Verb {
+export interface ResourceAction {
   name: string
   description?: string
+  type?: 'read' | 'write' | 'destructive' | string
 }
 
-export interface Noun {
+/**
+ * Operational/Product Core noun primitive. Resources carry both attributes and
+ * the catalog of actions that can be performed on them.
+ *
+ * The api-cell historically called this `Noun`; the renamed `CoreResource`
+ * replaces it. (Resources from Product API DNA are a different shape — see
+ * `Resource` above — this one mirrors the operational `Resource`.)
+ */
+export interface CoreResource {
   name: string
   description?: string
   domain?: string
   attributes?: Attribute[]
-  verbs?: Verb[]
+  actions?: ResourceAction[]
+  parent?: string
   examples?: Record<string, unknown>[]
 }
 
@@ -101,8 +110,9 @@ export interface Domain {
 }
 
 export interface AllowEntry {
-  role: string
+  role?: string
   ownership?: boolean
+  flags?: string[]
 }
 
 export interface Condition {
@@ -112,7 +122,12 @@ export interface Condition {
 }
 
 export interface Rule {
-  capability: string
+  /**
+   * The Operation this rule applies to, expressed as `Resource.Action`.
+   * Replaces the old `capability` field — same wire shape, new name.
+   */
+  operation: string
+  name?: string
   description?: string
   type?: 'access' | 'condition'
   allow?: AllowEntry[]
@@ -124,38 +139,45 @@ export interface Change {
   set: unknown
 }
 
-export interface Outcome {
-  capability: string
+/**
+ * A core operation — a Resource:Action pair with the optional state mutations
+ * (`changes`) it applies. Replaces the old Capability + Outcome split.
+ */
+export interface CoreOperation {
+  resource: string
+  action: string
+  name?: string
   description?: string
-  changes: Change[]
-  initiates?: string[]
-  emits?: string[]
+  changes?: Change[]
 }
 
-export interface Signal {
+export interface Trigger {
+  operation?: string
+  process?: string
+  description?: string
+  source: 'user' | 'schedule' | 'webhook' | 'operation' | string
+  schedule?: string
+  event?: string
+  after?: string
+}
+
+export interface Relationship {
   name: string
-  capability: string
+  from: string
+  to: string
+  cardinality: 'one-to-one' | 'many-to-one' | 'one-to-many' | 'many-to-many'
+  attribute: string
   description?: string
-  payload: { name: string; type: string; description?: string }[]
-}
-
-export interface Cause {
-  capability: string
-  source: string
-  signal?: string
-  description?: string
+  inverse?: string
 }
 
 export interface ProductCoreDNA {
   domain: Domain
-  nouns?: Noun[]
-  capabilities?: { name: string; noun: string; verb: string }[]
-  causes?: Cause[]
+  resources?: CoreResource[]
+  operations?: CoreOperation[]
+  triggers?: Trigger[]
   rules?: Rule[]
-  outcomes?: Outcome[]
-  lifecycles?: unknown[]
-  signals?: Signal[]
-  relationships?: unknown[]
+  relationships?: Relationship[]
 }
 
 // ── Auth config (extracted from Technical DNA auth provider) ──────────────────
@@ -166,26 +188,8 @@ export interface AuthProviderConfig {
   roleClaim: string
 }
 
-// ── Signal dispatch config ────────────────────────────────────────────────────
-
-/**
- * Maps Signal names to arrays of subscriber base URLs.
- * Used by the signal middleware to HTTP POST signals to subscriber APIs
- * (Pattern A — HTTP push). Configured in Technical DNA under the cell's
- * adapter config as `signal_dispatch`.
- *
- * Example:
- * ```json
- * {
- *   "lending.Loan.Disbursed": ["http://payments-api:3002"],
- *   "lending.Loan.Defaulted": ["http://collections-api:3003"]
- * }
- * ```
- */
-export type SignalDispatchConfig = Record<string, string[]>
-
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface ApiCellAdapter {
-  generate(api: ProductApiDNA, core: ProductCoreDNA, outputDir: string, authConfig?: AuthProviderConfig, signalDispatch?: SignalDispatchConfig, eventBusEngine?: string): void
+  generate(api: ProductApiDNA, core: ProductCoreDNA, outputDir: string, authConfig?: AuthProviderConfig): void
 }

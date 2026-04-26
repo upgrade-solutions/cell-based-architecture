@@ -33,10 +33,8 @@ function extractExpressSurface(dir: string): Surface {
   const api = JSON.parse(fs.readFileSync(path.join(dir, 'src/dna/api.json'), 'utf-8'))
   const core = JSON.parse(fs.readFileSync(path.join(dir, 'src/dna/product.core.json'), 'utf-8'))
   return api.endpoints.map((ep: any) => {
-    const operation = api.operations?.find((o: any) => o.name === ep.operation)
-    const capability = operation?.capability ?? ep.operation
     const rule = (core.rules ?? []).find(
-      (r: any) => r.capability === capability && r.type === 'access',
+      (r: any) => r.operation === ep.operation && r.type === 'access',
     )
     const roles = (rule?.allow ?? []).map((a: any) => a.role).sort()
     return {
@@ -58,10 +56,8 @@ function extractRailsSurface(dir: string): Surface {
   const endpoints: Surface = []
   for (const [oaPath, methods] of Object.entries(spec.paths)) {
     for (const [method, op] of Object.entries(methods as Record<string, any>)) {
-      const operation = api.operations?.find((o: any) => o.name === op.operationId)
-      const capability = operation?.capability ?? op.operationId
       const rule = (core.rules ?? []).find(
-        (r: any) => r.capability === capability && r.type === 'access',
+        (r: any) => r.operation === op.operationId && r.type === 'access',
       )
       const roles = (rule?.allow ?? []).map((a: any) => a.role).sort()
       // Convert OpenAPI {param} back to Express :param for comparison
@@ -98,10 +94,8 @@ function extractNestJsSurface(dir: string): Surface {
   const endpoints: Surface = []
 
   for (const ep of api.endpoints) {
-    const operation = api.operations?.find((o: any) => o.name === ep.operation)
-    const capability = operation?.capability ?? ep.operation
     const rule = (core.rules ?? []).find(
-      (r: any) => r.capability === capability && r.type === 'access',
+      (r: any) => r.operation === ep.operation && r.type === 'access',
     )
     const roles = (rule?.allow ?? []).map((a: any) => a.role).sort()
     endpoints.push({
@@ -235,7 +229,7 @@ describe('api-cell adapter conformance', () => {
 
   // ── Auth conformance ─────────────────────────────────────────────────────
 
-  test('all adapters enforce the same roles per capability', () => {
+  test('all adapters enforce the same roles per operation', () => {
     const expressRoles = extractRoles(expressSurface)
     const nestjsRoles = extractRoles(nestjsSurface)
     const railsRoles = extractRoles(railsSurface)

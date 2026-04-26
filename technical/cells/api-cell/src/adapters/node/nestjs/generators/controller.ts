@@ -1,5 +1,5 @@
-import { Resource, Endpoint, Operation, Rule, Namespace } from '../../../../types'
-import { toFileName, toCamelCase, stripLeadingSlash, resolveCapability } from '../../../../utils'
+import { Resource, Endpoint, ApiOperation, Rule, Namespace } from '../../../../types'
+import { toFileName, toCamelCase, stripLeadingSlash } from '../../../../utils'
 import { dtoClassName, dtoFileName } from './dto'
 
 const HTTP_DECORATOR: Record<string, string> = {
@@ -24,7 +24,7 @@ function relativeEndpointPath(endpointPath: string, basePath: string): string {
 export function generateController(
   resource: Resource,
   endpoints: Endpoint[],
-  operations: Operation[],
+  _operations: ApiOperation[],
   rules: Rule[],
   namespace: Namespace,
 ): string {
@@ -49,8 +49,7 @@ export function generateController(
     const relPath = relativeEndpointPath(ep.path, basePath)
     const pathDec = relPath ? `@${httpDec}('${relPath}')` : `@${httpDec}()`
 
-    const capability = resolveCapability(ep.operation, operations)
-    const accessRule = rules.find(r => r.capability === capability && r.type === 'access')
+    const accessRule = rules.find(r => r.operation === ep.operation && r.type === 'access')
     const allowEntries: Array<{ role?: string; ownership?: boolean; flags?: string[] }> =
       accessRule?.allow ?? []
     const roles = allowEntries.map(a => a.role).filter((r): r is string => !!r)
