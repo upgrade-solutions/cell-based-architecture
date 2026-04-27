@@ -108,6 +108,7 @@ export interface UiCellContext {
   apiBase?: string              // e.g. http://localhost:3001
   dnaSourceDir: string          // absolute path to the dna/ directory
   vendorComponents?: boolean    // copy primitives into output instead of importing from package
+  adapterConfig?: Record<string, unknown> // raw cell.adapter.config — adapter-specific knobs
 }
 
 // ── Adapter interface ─────────────────────────────────────────────────────────

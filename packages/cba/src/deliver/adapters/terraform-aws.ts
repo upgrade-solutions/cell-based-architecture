@@ -138,6 +138,20 @@ function buildMainTf(region: string, plan: EnvironmentPlan): string {
     buildBackendStanza(plan),
   ]
 
+  // CloudFront WAFv2 (scope = CLOUDFRONT) is a global resource and must be
+  // created in us-east-1 regardless of the deployment's primary region.
+  // Declare an aliased provider once when any lambda cell is present; the
+  // WAF resources reference `provider = aws.us_east_1` to use it.
+  if (planHasLambda(plan)) {
+    parts.push(hcl(
+      '',
+      block('provider', ['"aws"'], [
+        assignment('alias', 'us_east_1'),
+        assignment('region', 'us-east-1'),
+      ]),
+    ))
+  }
+
   if (needsRandom) {
     parts.push(hcl(
       '',
@@ -317,9 +331,17 @@ function derivableSecrets(plan: EnvironmentPlan): Map<string, string> {
     //     container. `no-verify` skips chain verification while still
     //     encrypting the connection — pragmatic for managed-RDS trust
     //     and avoids shipping the cert bundle in the cell image.
+    //
+    // When the plan has a lambda cell, route through aws_db_proxy.primary_db_proxy
+    // instead of hitting RDS directly. The proxy's connection-pool model is
+    // mandatory for Lambda + RDS — without it, lambda concurrency burns RDS
+    // connections at any throughput.
+    const endpointRef = planHasLambda(plan)
+      ? 'aws_db_proxy.primary_db_proxy.endpoint'
+      : 'aws_db_instance.primary_db.endpoint'
     derived.set(
       'DATABASE_URL',
-      'format("postgres://%s:%s@%s/%s?sslmode=no-verify", aws_db_instance.primary_db.username, jsondecode(data.aws_secretsmanager_secret_version.primary_db_password.secret_string)["password"], aws_db_instance.primary_db.endpoint, aws_db_instance.primary_db.db_name)',
+      `format("postgres://%s:%s@%s/%s?sslmode=no-verify", aws_db_instance.primary_db.username, jsondecode(data.aws_secretsmanager_secret_version.primary_db_password.secret_string)["password"], ${endpointRef}, aws_db_instance.primary_db.db_name)`,
     )
   }
 
@@ -533,14 +555,18 @@ function buildVpcTf(prefix: string, plan: EnvironmentPlan): string {
     comment('Security group — RDS'),
     block('resource', ['"aws_security_group"', `"${id}_rds"`], [
       assignment('name', `${prefix}-rds-sg`),
-      assignment('description', 'Allow Postgres inbound from ECS tasks'),
+      assignment('description', 'Allow Postgres inbound from ECS tasks (and RDS Proxy when present)'),
       assignment('vpc_id', raw(`aws_vpc.${id}.id`)),
       '',
       block('ingress', [], [
         assignment('from_port', raw('5432')),
         assignment('to_port', raw('5432')),
         assignment('protocol', 'tcp'),
-        assignment('security_groups', raw(`[aws_security_group.${id}_ecs.id]`)),
+        assignment('security_groups', raw(
+          planHasLambda(plan)
+            ? `[\n      aws_security_group.${id}_ecs.id,\n      aws_security_group.${id}_rds_proxy.id,\n    ]`
+            : `[aws_security_group.${id}_ecs.id]`,
+        )),
       ]),
       '',
       block('egress', [], [
@@ -553,6 +579,47 @@ function buildVpcTf(prefix: string, plan: EnvironmentPlan): string {
       assignment('tags', objectLiteral({ Name: `${prefix}-rds-sg` })),
     ]),
     '',
+    ...(planHasLambda(plan) ? [
+      '',
+      comment('Security group — Lambda (egress only; ENI in private subnets)'),
+      hcl(block('resource', ['"aws_security_group"', `"${id}_lambda"`], [
+        assignment('name', `${prefix}-lambda-sg`),
+        assignment('description', 'Lambda function ENIs (egress to RDS Proxy + internet via NAT)'),
+        assignment('vpc_id', raw(`aws_vpc.${id}.id`)),
+        '',
+        block('egress', [], [
+          assignment('from_port', raw('0')),
+          assignment('to_port', raw('0')),
+          assignment('protocol', '-1'),
+          assignment('cidr_blocks', raw('["0.0.0.0/0"]')),
+        ]),
+        '',
+        assignment('tags', objectLiteral({ Name: `${prefix}-lambda-sg` })),
+      ])),
+      '',
+      comment('Security group — RDS Proxy (ingress from Lambda)'),
+      hcl(block('resource', ['"aws_security_group"', `"${id}_rds_proxy"`], [
+        assignment('name', `${prefix}-rds-proxy-sg`),
+        assignment('description', 'Allow Postgres inbound from Lambda'),
+        assignment('vpc_id', raw(`aws_vpc.${id}.id`)),
+        '',
+        block('ingress', [], [
+          assignment('from_port', raw('5432')),
+          assignment('to_port', raw('5432')),
+          assignment('protocol', 'tcp'),
+          assignment('security_groups', raw(`[aws_security_group.${id}_lambda.id]`)),
+        ]),
+        '',
+        block('egress', [], [
+          assignment('from_port', raw('0')),
+          assignment('to_port', raw('0')),
+          assignment('protocol', '-1'),
+          assignment('cidr_blocks', raw('["0.0.0.0/0"]')),
+        ]),
+        '',
+        assignment('tags', objectLiteral({ Name: `${prefix}-rds-proxy-sg` })),
+      ])),
+    ] : []),
     ...(hasCache ? [
       '',
       comment('Security group — ElastiCache'),
@@ -645,6 +712,81 @@ function buildStorageTf(plan: EnvironmentPlan, prefix: string): BuildResult {
         ]),
       ))
       resourceNames.push(`rds:${c.name}`)
+
+      // RDS Proxy — required when any lambda cell is in the plan. Lambdas
+      // burn DB connections at any concurrency without a proxy; the proxy
+      // pools and reuses them. ECS-only plans skip this entirely (the
+      // direct connection model is fine for long-lived containers).
+      if (planHasLambda(plan)) {
+        blocks.push(hcl(
+          '',
+          comment(`RDS Proxy for ${c.name} (lambda + RDS pairing)`),
+          block('resource', ['"aws_iam_role"', `"${rid}_proxy"`], [
+            assignment('name', `${prefix}-${c.name}-proxy-role`),
+            assignment('assume_role_policy', raw(`jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action    = "sts:AssumeRole"
+        Effect    = "Allow"
+        Principal = { Service = "rds.amazonaws.com" }
+      }
+    ]
+  })`)),
+            assignment('tags', objectLiteral({ Name: `${prefix}-${c.name}-proxy-role` })),
+          ]),
+          '',
+          block('resource', ['"aws_iam_role_policy"', `"${rid}_proxy_secrets"`], [
+            assignment('name', `${prefix}-${c.name}-proxy-secrets`),
+            assignment('role', raw(`aws_iam_role.${rid}_proxy.id`)),
+            assignment('policy', raw(`jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue", "kms:Decrypt"]
+        Resource = aws_db_instance.${rid}.master_user_secret[0].secret_arn
+      }
+    ]
+  })`)),
+          ]),
+          '',
+          block('resource', ['"aws_db_proxy"', `"${rid}_proxy"`], [
+            assignment('name', `${prefix}-${c.name}-proxy`),
+            assignment('engine_family', 'POSTGRESQL'),
+            assignment('role_arn', raw(`aws_iam_role.${rid}_proxy.arn`)),
+            assignment('vpc_subnet_ids', raw(`[\n    aws_subnet.${id}_private_a.id,\n    aws_subnet.${id}_private_b.id,\n  ]`)),
+            assignment('vpc_security_group_ids', raw(`[aws_security_group.${id}_rds_proxy.id]`)),
+            assignment('require_tls', raw('true')),
+            assignment('idle_client_timeout', raw('1800')),
+            '',
+            block('auth', [], [
+              assignment('auth_scheme', 'SECRETS'),
+              assignment('iam_auth', 'DISABLED'),
+              assignment('secret_arn', raw(`aws_db_instance.${rid}.master_user_secret[0].secret_arn`)),
+            ]),
+            '',
+            assignment('tags', objectLiteral({ Name: `${prefix}-${c.name}-proxy` })),
+          ]),
+          '',
+          block('resource', ['"aws_db_proxy_default_target_group"', `"${rid}_proxy"`], [
+            assignment('db_proxy_name', raw(`aws_db_proxy.${rid}_proxy.name`)),
+            '',
+            block('connection_pool_config', [], [
+              assignment('max_connections_percent', raw('100')),
+              assignment('max_idle_connections_percent', raw('50')),
+              assignment('connection_borrow_timeout', raw('120')),
+            ]),
+          ]),
+          '',
+          block('resource', ['"aws_db_proxy_target"', `"${rid}_proxy"`], [
+            assignment('db_proxy_name', raw(`aws_db_proxy.${rid}_proxy.name`)),
+            assignment('target_group_name', raw(`aws_db_proxy_default_target_group.${rid}_proxy.name`)),
+            assignment('db_instance_identifier', raw(`aws_db_instance.${rid}.identifier`)),
+          ]),
+        ))
+        resourceNames.push(`rds-proxy:${c.name}`)
+      }
     } else if (c.type === 'cache' && c.config?.engine === 'redis') {
       // ElastiCache subnet group
       blocks.push(hcl(
@@ -778,8 +920,9 @@ function buildComputeTf(
   // Build task definitions + services for deployable cells
   for (const cell of plan.cells) {
     const cellId = tfId(cell.name)
-    const isStatic = cell.adapterType.startsWith('vite/')
+    const isStatic = isStaticCell(cell)
     const isDb = cell.adapterType === 'postgres'
+    const isLambda = isLambdaCell(cell)
 
     if (isDb) {
       skipped.push({
@@ -787,6 +930,85 @@ function buildComputeTf(
         kind: `cell/${cell.adapterType}`,
         reason: 'database provisioning handled by RDS — no container needed',
       })
+      continue
+    }
+
+    if (isLambda) {
+      // Lambda compute: emit aws_lambda_function + aws_lambda_function_url.
+      // The function code is built by the cell's `npm run build && npm run
+      // package`, which produces lambda.zip in the cell's outputDir. Terraform
+      // resolves that path relative to the deploy dir.
+      const zipPath = path.relative(plan.deployDir, path.join(cell.outputDir, 'lambda.zip'))
+      const handlerEntry = 'handler.handler'
+      const memorySize = cell.adapterConfig?.memorySize ?? 1024
+      const timeout = cell.adapterConfig?.timeout ?? 30
+
+      // VPC config is mandatory when the lambda needs to talk to RDS Proxy.
+      // Without it, the function runs in AWS-managed networking and can't
+      // reach private subnet resources.
+      const planHasDb = plan.constructs.some(
+        (c) => c.category === 'storage' && c.type === 'database' && c.config?.engine === 'postgres',
+      )
+      const vpcConfig = planHasDb
+        ? `\n\n  ${block('vpc_config', [], [
+            assignment(
+              'subnet_ids',
+              raw(`[\n      aws_subnet.${id}_private_a.id,\n      aws_subnet.${id}_private_b.id,\n    ]`),
+            ),
+            assignment('security_group_ids', raw(`[aws_security_group.${id}_lambda.id]`)),
+          ])}`
+        : ''
+
+      const { env: envVars } = buildContainerEnv(cell, plan)
+      const envBlock = envVars.length
+        ? `\n\n  ${block('environment', [], [
+            assignment(
+              'variables',
+              raw(`{\n${envVars.map((e) => `      ${e.name} = ${e.value}`).join('\n')}\n    }`),
+            ),
+          ])}`
+        : ''
+
+      blocks.push(hcl(
+        comment(`Lambda function for ${cell.name} (compute: lambda)`),
+        block('resource', ['"aws_lambda_function"', `"${cellId}"`], [
+          assignment('function_name', `${prefix}-${cellId}`),
+          assignment('role', raw(`aws_iam_role.${cellId}_lambda.arn`)),
+          assignment('handler', handlerEntry),
+          assignment('runtime', 'nodejs20.x'),
+          assignment('filename', zipPath),
+          assignment('source_code_hash', raw(`filebase64sha256("${zipPath}")`)),
+          assignment('memory_size', raw(String(memorySize))),
+          assignment('timeout', raw(String(timeout))),
+          ...(vpcConfig ? [vpcConfig] : []),
+          ...(envBlock ? [envBlock] : []),
+          assignment('tags', objectLiteral({ Name: `${prefix}-${cellId}` })),
+        ]),
+        '',
+        comment('Function URL with response streaming (SSE-compatible)'),
+        block('resource', ['"aws_lambda_function_url"', `"${cellId}"`], [
+          assignment('function_name', raw(`aws_lambda_function.${cellId}.function_name`)),
+          assignment('authorization_type', 'NONE'),
+          assignment('invoke_mode', 'RESPONSE_STREAM'),
+          '',
+          block('cors', [], [
+            assignment('allow_origins', raw('["*"]')),
+            assignment('allow_methods', raw('["*"]')),
+            assignment('allow_headers', raw('["*"]')),
+          ]),
+        ]),
+        '',
+        comment('Allow CloudFront to invoke the Function URL'),
+        block('resource', ['"aws_lambda_permission"', `"${cellId}_cloudfront"`], [
+          assignment('statement_id', `AllowCloudFrontInvoke-${cellId}`),
+          assignment('action', 'lambda:InvokeFunctionUrl'),
+          assignment('function_name', raw(`aws_lambda_function.${cellId}.function_name`)),
+          assignment('principal', 'cloudfront.amazonaws.com'),
+          assignment('function_url_auth_type', 'NONE'),
+          assignment('source_arn', raw(`aws_cloudfront_distribution.${cellId}_lambda.arn`)),
+        ]),
+      ))
+      resourceNames.push(`lambda:${cell.name}`)
       continue
     }
 
@@ -989,10 +1211,10 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
 
   // Target groups + listener rules for HTTP-serving cells only
   // Worker cells (event-bus-cell, etc.) run as ECS services but don't receive ALB traffic
+  // Lambda cells skip the ALB entirely — they front directly via CloudFront → Function URL
   let priority = 100
   for (const cell of plan.cells) {
-    const isContainer = !cell.adapterType.startsWith('vite/') && cell.adapterType !== 'postgres'
-    if (!isContainer) continue
+    if (!isContainerCell(cell)) continue
     const isWorker = cell.adapterType === 'node/event-bus'
     if (isWorker) continue
 
@@ -1097,7 +1319,7 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
   }
 
   // CloudFront for static UI cells (vite/*)
-  const hasAlb = plan.cells.some((c) => !c.adapterType.startsWith('vite/') && c.adapterType !== 'postgres' && c.adapterType !== 'node/event-bus')
+  const hasAlb = plan.cells.some(isContainerCell) && plan.cells.some((c) => isContainerCell(c) && c.adapterType !== 'node/event-bus')
   for (const cell of plan.cells) {
     if (!cell.adapterType.startsWith('vite/')) continue
     const cellId = tfId(cell.name)
@@ -1226,6 +1448,105 @@ function buildNetworkTf(plan: EnvironmentPlan, prefix: string): BuildResult {
       ]),
     ))
     resourceNames.push(`cloudfront:${cell.name}`)
+  }
+
+  // CloudFront + WAF per lambda cell. Each lambda is fronted by its own
+  // distribution (clean separation from the static-UI distributions; matches
+  // dna-platform's "api.X / docs.X / X" subdomain split). The WAF rate-based
+  // rule attaches via `aws_wafv2_web_acl_association` -> distribution arn.
+  for (const cell of plan.cells) {
+    if (!isLambdaCell(cell)) continue
+    const cellId = tfId(cell.name)
+    const rate = wafRateLimit(cell)
+
+    blocks.push(hcl(
+      '',
+      comment(`CloudFront distribution for ${cell.name} (lambda Function URL)`),
+      block('resource', ['"aws_cloudfront_distribution"', `"${cellId}_lambda"`], [
+        assignment('enabled', raw('true')),
+        '',
+        block('origin', [], [
+          assignment(
+            'domain_name',
+            raw(`replace(replace(aws_lambda_function_url.${cellId}.function_url, "https://", ""), "/", "")`),
+          ),
+          assignment('origin_id', `lambda-${cellId}`),
+          '',
+          block('custom_origin_config', [], [
+            assignment('http_port', raw('80')),
+            assignment('https_port', raw('443')),
+            assignment('origin_protocol_policy', 'https-only'),
+            assignment('origin_ssl_protocols', raw('["TLSv1.2"]')),
+          ]),
+        ]),
+        '',
+        comment('All API traffic — no caching (Managed-CachingDisabled), all methods'),
+        block('default_cache_behavior', [], [
+          assignment('allowed_methods', raw('["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]')),
+          assignment('cached_methods', raw('["GET", "HEAD"]')),
+          assignment('target_origin_id', `lambda-${cellId}`),
+          assignment('viewer_protocol_policy', 'redirect-to-https'),
+          assignment('cache_policy_id', '4135ea2d-6df8-44a3-9df3-4b5a84be39ad'), // Managed-CachingDisabled
+          assignment('origin_request_policy_id', 'b689b0a8-53d0-40ab-baf2-68738e2966ac'), // Managed-AllViewerExceptHostHeader
+        ]),
+        '',
+        block('restrictions', [], [
+          block('geo_restriction', [], [
+            assignment('restriction_type', 'none'),
+          ]),
+        ]),
+        '',
+        block('viewer_certificate', [], [
+          assignment('cloudfront_default_certificate', raw('true')),
+        ]),
+        '',
+        assignment('web_acl_id', raw(`aws_wafv2_web_acl.${cellId}.arn`)),
+        '',
+        assignment('tags', objectLiteral({ Name: `${prefix}-${cellId}-lambda-cdn` })),
+      ]),
+      '',
+      comment(`WAF rate-based rule for ${cell.name} (${rate} req / 5min per IP)`),
+      block('resource', ['"aws_wafv2_web_acl"', `"${cellId}"`], [
+        assignment('name', `${prefix}-${cellId}-waf`),
+        assignment('scope', 'CLOUDFRONT'),
+        assignment('provider', raw('aws.us_east_1')),
+        '',
+        block('default_action', [], [
+          block('allow', [], []),
+        ]),
+        '',
+        block('rule', [], [
+          assignment('name', 'rate-limit'),
+          assignment('priority', raw('1')),
+          '',
+          block('action', [], [
+            block('block', [], []),
+          ]),
+          '',
+          block('statement', [], [
+            block('rate_based_statement', [], [
+              assignment('limit', raw(String(rate))),
+              assignment('aggregate_key_type', 'IP'),
+            ]),
+          ]),
+          '',
+          block('visibility_config', [], [
+            assignment('cloudwatch_metrics_enabled', raw('true')),
+            assignment('metric_name', `${prefix}-${cellId}-rate-limit`),
+            assignment('sampled_requests_enabled', raw('true')),
+          ]),
+        ]),
+        '',
+        block('visibility_config', [], [
+          assignment('cloudwatch_metrics_enabled', raw('true')),
+          assignment('metric_name', `${prefix}-${cellId}-waf`),
+          assignment('sampled_requests_enabled', raw('true')),
+        ]),
+        '',
+        assignment('tags', objectLiteral({ Name: `${prefix}-${cellId}-waf` })),
+      ]),
+    ))
+    resourceNames.push(`cloudfront:${cell.name}`, `waf:${cell.name}`)
   }
 
   return { content: blocks.join('\n'), resourceNames, skipped }
@@ -1388,6 +1709,64 @@ function buildIamTf(prefix: string, plan: EnvironmentPlan): string {
     ))
   }
 
+  // Per-lambda execution role — Lambda needs basic execution + Secrets Manager
+  // read for any sensitive variables consumed by the function. Each lambda
+  // cell gets its own role so policy diffs stay scoped per-cell.
+  const planHasDb = plan.constructs.some(
+    (c) => c.category === 'storage' && c.type === 'database' && c.config?.engine === 'postgres',
+  )
+  for (const cell of plan.cells) {
+    if (!isLambdaCell(cell)) continue
+    const cellId = tfId(cell.name)
+    parts.push(hcl(
+      '',
+      comment(`Lambda execution role for ${cell.name}`),
+      block('resource', ['"aws_iam_role"', `"${cellId}_lambda"`], [
+        assignment('name', `${prefix}-${cellId}-lambda`),
+        assignment('assume_role_policy', raw(`jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action    = "sts:AssumeRole"
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+      }
+    ]
+  })`)),
+        assignment('tags', objectLiteral({ Name: `${prefix}-${cellId}-lambda` })),
+      ]),
+      '',
+      block('resource', ['"aws_iam_role_policy_attachment"', `"${cellId}_lambda_basic"`], [
+        assignment('role', raw(`aws_iam_role.${cellId}_lambda.name`)),
+        assignment('policy_arn', 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'),
+      ]),
+      ...(planHasDb ? [
+        '',
+        comment(`Lambda VPC access (ENI lifecycle) — needed for ${cell.name} to reach RDS Proxy`),
+        block('resource', ['"aws_iam_role_policy_attachment"', `"${cellId}_lambda_vpc"`], [
+          assignment('role', raw(`aws_iam_role.${cellId}_lambda.name`)),
+          assignment('policy_arn', 'arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole'),
+        ]),
+      ] : []),
+      '',
+      comment(`Allow ${cell.name} lambda role to read scoped Secrets Manager values`),
+      block('resource', ['"aws_iam_role_policy"', `"${cellId}_lambda_secrets"`], [
+        assignment('name', `${prefix}-${cellId}-lambda-secrets`),
+        assignment('role', raw(`aws_iam_role.${cellId}_lambda.id`)),
+        assignment('policy', raw(`jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:*:*:secret:${prefix}/*"
+      }
+    ]
+  })`)),
+      ]),
+    ))
+  }
+
   return parts.join('\n')
 }
 
@@ -1402,8 +1781,7 @@ function buildEcrTf(
 
   for (const cell of plan.cells) {
     // Only container-deployable cells need ECR repos
-    if (cell.adapterType === 'postgres') continue
-    if (cell.adapterType.startsWith('vite/')) continue
+    if (!isContainerCell(cell)) continue
 
     const cellId = tfId(cell.name)
     blocks.push(hcl(
@@ -1715,6 +2093,44 @@ function awsName(name: string, maxLen?: number): string {
 /** Convert a variable name to a Terraform-safe variable name */
 function tfVarName(name: string): string {
   return name.toLowerCase()
+}
+
+// ── Compute target detection ──────────────────────────────────────────────────
+
+/**
+ * Cells with `adapter.config.compute === 'lambda'` deploy as AWS Lambda
+ * Function URLs instead of ECS tasks. The api-cell fastify adapter is the
+ * first/only producer; other adapters fall through to the default ECS path.
+ */
+function isLambdaCell(cell: ResolvedCell): boolean {
+  return cell.adapterConfig?.compute === 'lambda'
+}
+
+function isStaticCell(cell: ResolvedCell): boolean {
+  return cell.adapterType.startsWith('vite/') || cell.adapterType.startsWith('astro/')
+}
+
+function isContainerCell(cell: ResolvedCell): boolean {
+  return (
+    !isStaticCell(cell) &&
+    cell.adapterType !== 'postgres' &&
+    !isLambdaCell(cell)
+  )
+}
+
+function planHasLambda(plan: EnvironmentPlan): boolean {
+  return plan.cells.some(isLambdaCell)
+}
+
+/**
+ * WAF rate limit defaults — overridable per cell via
+ * `adapter.config.wafRateLimit` (requests per 5 min per IP). 100 was chosen
+ * as a sane default for a single-call /v1/text-style API; raise for higher
+ * traffic surfaces, lower for sensitive auth endpoints.
+ */
+function wafRateLimit(cell: ResolvedCell): number {
+  const v = cell.adapterConfig?.wafRateLimit
+  return typeof v === 'number' ? v : 100
 }
 
 // ── Launch / teardown (for `cba up` / `cba down`) ─────────────────────────────

@@ -5,6 +5,7 @@ import { ProductUiDNA, ProductCoreDNA, UiCellContext, UiCellAdapter } from './ty
 import * as viteReactAdapter from './adapters/vite/react'
 import * as viteVueAdapter from './adapters/vite/vue'
 import * as nextReactAdapter from './adapters/next/react'
+import * as astroAdapter from './adapters/astro'
 
 interface TechnicalCell {
   name: string
@@ -23,6 +24,7 @@ const ADAPTERS: Record<string, UiCellAdapter> = {
   'vite/react': viteReactAdapter,
   'vite/vue': viteVueAdapter,
   'next/react': nextReactAdapter,
+  'astro': astroAdapter,
 }
 
 function resolveAdapter(type: string): UiCellAdapter {
@@ -134,6 +136,7 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
     apiBase,
     dnaSourceDir: dnaBase,
     vendorComponents,
+    adapterConfig: cell.adapter.config,
   }
 
   // ── Resolve adapter and generate ────────────────────────────────────────────

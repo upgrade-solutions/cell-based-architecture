@@ -191,5 +191,11 @@ export interface AuthProviderConfig {
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
 export interface ApiCellAdapter {
-  generate(api: ProductApiDNA, core: ProductCoreDNA, outputDir: string, authConfig?: AuthProviderConfig): void
+  generate(
+    api: ProductApiDNA,
+    core: ProductCoreDNA,
+    outputDir: string,
+    authConfig?: AuthProviderConfig,
+    adapterConfig?: Record<string, unknown>,
+  ): void
 }

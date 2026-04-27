@@ -70,10 +70,40 @@ The `api-cell` supports multiple adapters that produce the same API surface from
 |---------|----------|------|--------|
 | `node/nestjs` | Static code generation — typed controllers, services, DTOs | 3000 | `output/lending/<env>/api-nestjs/` |
 | `node/express` | Dynamic runtime interpreter — reads DNA at startup, hot-reloads on DNA file changes | 3001 | `output/lending/<env>/api/` |
+| `node/fastify` | Dynamic runtime interpreter — Fastify primitives; runs on ECS or Lambda via the `compute` hint | 3001 | `output/lending/<env>/api-fastify/` |
 | `ruby/rails` | Static code generation — Rails API-mode app with controllers, models, migrations | 3000 | `output/lending/<env>/api-rails/` |
 | `python/fastapi` | Static code generation — FastAPI app with Pydantic schemas, SQLAlchemy models, APIRouters | 8000 | `output/lending/<env>/api-fastapi/` |
 
 The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw OpenAPI JSON (`/api-json`).
+
+### `compute` hint (ECS vs Lambda)
+
+The Fastify adapter accepts a `compute: 'ecs' | 'lambda'` cell config. The default is `ecs` — the same long-running server every other Node adapter produces. Set `compute: 'lambda'` to emit a Lambda-targeted variant that wraps Fastify with `@fastify/aws-lambda` v4+ in streaming mode (`awslambda.streamifyResponse`), suitable for Lambda Function URLs with `invoke_mode = RESPONSE_STREAM`.
+
+```json
+{
+  "name": "api",
+  "dna": "lending/product.api",
+  "adapter": {
+    "type": "node/fastify",
+    "config": { "compute": "lambda", "core_dna": "lending/product.core" }
+  }
+}
+```
+
+| | `compute: 'ecs'` (default) | `compute: 'lambda'` |
+|---|---|---|
+| Entrypoint | `src/main.ts` calls `app.listen()` | `src/handler.ts` exports a Lambda handler |
+| Packaging | Docker image → ECR → ECS Fargate | `lambda.zip` artifact (via `npm run package`) |
+| SSE | Works (Fastify `reply.raw.write`) | Works (streaming wrapper forwards to Function URL) |
+| Hot DNA reload | Yes (fs.watch + restart warning) | No (cold-start reload only) |
+| terraform-aws emits | ECS task def + ALB target group | `aws_lambda_function` + `aws_lambda_function_url` (RESPONSE_STREAM) + CloudFront + WAF |
+
+Existing `node/nestjs`, `node/express`, `ruby/rails`, `python/fastapi` adapters target ECS exclusively and ignore the hint — only the Fastify adapter currently has a Lambda path.
+
+### OpenAPI as the contract (forward direction)
+
+The Fastify Lambda path is the first api-cell adapter that consumes the OpenAPI document emitted by `@dna-codes/output-openapi` instead of reading `product.api.json` directly. The seam is marked `SEAM` in the generated `src/handler.ts` so the swap is mechanical when the upstream package publishes; until then, both compute targets read `product.api.json`. Migrating the existing adapters to OpenAPI consumption is a separate, larger initiative — this change establishes the precedent without forcing it.
 
 The Express adapter watches `src/dna/api.json` and `src/dna/operational.json` at runtime. When either file changes, routes and the OpenAPI spec are rebuilt in-process — no restart needed.
 
@@ -197,8 +227,22 @@ Or — use `cba deploy` to run the whole stack as one compose file (see Deployme
 | `vite/react` | DNA-driven React SPA — React Router, React Context, hooks | 5173 | `output/lending/<env>/ui/` |
 | `vite/vue` | DNA-driven Vue 3 app — Vue Router, provide/inject, Composition API | 5174 | `output/lending/<env>/vue-ui/` |
 | `next/react` | DNA-driven Next.js App Router app — client-side DNA loading with SSR-ready structure | 5175 | `output/lending/<env>/ui-next/` |
+| `astro` | Static-site generation — `flavor: 'marketing' \| 'starlight'`. Each DNA `Page` becomes an `.astro` page (marketing) or a Starlight Markdown entry (docs). | n/a | `output/lending/<env>/site/` |
 
 All adapters fetch all three DNA layers at startup through a `DnaLoader` abstraction (currently `StaticFetchLoader`; designed for future API/SSE delivery). Blocks use their `operation` field to resolve API endpoints from Product API DNA.
+
+### Astro adapter (marketing + starlight flavors)
+
+The `astro` adapter ships two flavors selected via cell config:
+
+```json
+{ "type": "astro", "config": { "flavor": "marketing" } }
+{ "type": "astro", "config": { "flavor": "starlight", "openapiPath": "./openapi.json" } }
+```
+
+**Marketing** — plain Astro SSG. Each DNA `Page` → `src/pages/<route>.astro`; the `Layout` → `src/layouts/Site.astro`; each unique `Block` → `src/components/Block<Name>.astro`. Routes with `:id`-style params become Astro `[id]` segments. Output is static HTML; terraform-aws delivers via S3 + CloudFront, the same path used for `vite/*` cells.
+
+**Starlight** — Astro + `@astrojs/starlight` (docs UI). Each DNA `Page` becomes a Markdown entry under `src/content/docs/`; sidebar order matches the page list. When `openapiPath` is set in cell config, the `starlight-openapi` plugin renders an API reference section sourced from a document emitted by `@dna-codes/output-openapi`.
 
 ### Layout system
 
@@ -508,8 +552,9 @@ Generates Terraform HCL files that provision AWS infrastructure from Technical D
 | `compute/container` (via Cell) | `aws_ecs_task_definition` (Fargate), `aws_ecs_service` |
 | `network/gateway` | `aws_apigatewayv2_api`, `aws_apigatewayv2_stage`, `aws_apigatewayv2_integration` (VPC-linked to ALB) |
 | Cell (`node/*`, `ruby/*`, `python/*`) | `aws_ecr_repository` + container definition wired into the ECS task def above. HTTP-serving cells also get `aws_lb_target_group` + `aws_lb_listener_rule` on the shared ALB |
-| Cell (`vite/*`) | `aws_s3_bucket`, `aws_s3_bucket_public_access_block`, `aws_s3_bucket_policy`, `aws_cloudfront_distribution`, `aws_cloudfront_origin_access_identity` |
-| Variable (`source: secret`, sensitive) | `aws_secretsmanager_secret` + `aws_secretsmanager_secret_version`. `JWT_SECRET` also gets a `random_password` resource; `DATABASE_URL` is derived from RDS outputs via `locals.tf` |
+| Cell (`vite/*`, `astro/*`) | `aws_s3_bucket`, `aws_s3_bucket_public_access_block`, `aws_s3_bucket_policy`, `aws_cloudfront_distribution`, `aws_cloudfront_origin_access_identity` |
+| Cell with `compute: 'lambda'` (api-cell fastify) | `aws_lambda_function` (zip), `aws_lambda_function_url` (`invoke_mode = RESPONSE_STREAM`, `authorization_type = NONE`), `aws_lambda_permission` (CloudFront principal), `aws_cloudfront_distribution` (no caching, all methods), `aws_wafv2_web_acl` (rate-based rule, default 100 req/5min/IP, attached to the distribution). Lambda + db-cell additionally emits `aws_db_proxy` + target group + target, an RDS-Proxy IAM role, lambda-side VPC config (private subnets + lambda SG), and an aliased `aws.us_east_1` provider for the WAF (CloudFront WAFs are global) |
+| Variable (`source: secret`, sensitive) | `aws_secretsmanager_secret` + `aws_secretsmanager_secret_version`. `JWT_SECRET` also gets a `random_password` resource; `DATABASE_URL` is derived from RDS outputs via `locals.tf` (or from the RDS Proxy endpoint when a lambda cell is in the plan) |
 
 Data sources pulled in: `aws_availability_zones` (for subnet AZ spread), `aws_secretsmanager_secret_version` (for the RDS-managed master password when deriving `DATABASE_URL`).
 
@@ -518,6 +563,10 @@ npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve
 ```
 
 **Safety rails:** `--adapter terraform/aws` without `--auto-approve` stops after `terraform plan`. `cba down … --adapter terraform/aws` always requires `--auto-approve`.
+
+**Lambda + RDS rule:** any lambda cell paired with a postgres db-cell automatically routes its `DATABASE_URL` through `aws_db_proxy` instead of hitting RDS directly. This is non-negotiable — Lambda concurrency burns RDS connections at any throughput without the proxy. ECS-only plans skip the proxy entirely (existing behavior preserved). The proxy override is applied per-plan; you don't toggle it.
+
+**WAF defaults:** the rate-based rule defaults to 100 requests / 5 minutes per IP. Override per-cell via `adapter.config.wafRateLimit` (raise for higher-traffic surfaces, lower for sensitive auth endpoints).
 
 ---
 

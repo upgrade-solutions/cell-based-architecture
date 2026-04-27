@@ -4,6 +4,7 @@ import { DnaValidator } from '@dna-codes/core'
 import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, ApiCellAdapter } from './types'
 import * as nestjsAdapter from './adapters/node/nestjs'
 import * as expressAdapter from './adapters/node/express'
+import * as fastifyAdapter from './adapters/node/fastify'
 import * as railsAdapter from './adapters/ruby/rails'
 import * as fastapiAdapter from './adapters/python/fastapi'
 
@@ -33,6 +34,7 @@ interface TechnicalDNA {
 const ADAPTERS: Record<string, ApiCellAdapter> = {
   'node/nestjs': nestjsAdapter,
   'node/express': expressAdapter,
+  'node/fastify': fastifyAdapter,
   'ruby/rails': railsAdapter,
   'python/fastapi': fastapiAdapter,
 }
@@ -129,7 +131,13 @@ export function run(technicalPath: string, cellName: string, outputDir: string):
   // ── Resolve adapter and generate ────────────────────────────────────────────
   const adapter = resolveAdapter(cell.adapter.type)
   fs.mkdirSync(path.resolve(outputDir), { recursive: true })
-  adapter.generate(apiDnaRaw as ProductApiDNA, coreRaw as ProductCoreDNA, path.resolve(outputDir), authConfig)
+  adapter.generate(
+    apiDnaRaw as ProductApiDNA,
+    coreRaw as ProductCoreDNA,
+    path.resolve(outputDir),
+    authConfig,
+    cell.adapter.config as Record<string, unknown> | undefined,
+  )
 
   console.log(`✓ Generated ${cellName} → ${outputDir}`)
 }

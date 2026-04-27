@@ -1,0 +1,30 @@
+schema: spec-driven
+
+context: |
+  Cell-based architecture: applications are built by injecting DNA (JSON business
+  descriptions) into Cells (TypeScript engines that read DNA and produce working
+  software — APIs, UIs, databases, workflows, deployments).
+
+  DNA has three one-way-downstream layers: Operational → Product → Technical.
+  Cells live in `technical/cells/` (api-cell, ui-cell, db-cell, event-bus-cell).
+  Tooling: `@cell/cba` (unified CLI in `packages/cba/`) and `@cell/cba-viz`
+  (architecture viewer in `packages/cba-viz/`).
+
+  Tech stack: TypeScript, npm workspaces, Node 20+. Infra is delivered via
+  `cba deliver` adapters (terraform/aws, aws-sam, docker-compose) — infra is
+  not a cell.
+
+  Conventions:
+    - Make all changes on `main`; commit after scoped work
+    - Always update `README.md` when behavior or structure changes
+    - Prefer the `cba` CLI over raw `docker compose` / `terraform` commands
+
+rules:
+  proposal:
+    - State the DNA layer(s) and Cell(s) the change touches
+    - Call out any new DNA primitives or schema changes explicitly
+  design:
+    - Distinguish DNA changes (declarative, in the `dna` repo) from Cell changes
+      (engine logic, in `technical/cells/` or `packages/`)
+  tasks:
+    - Include a README.md update task for any user-visible change
