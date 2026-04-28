@@ -23,8 +23,6 @@ describe('cba agent', () => {
   it('lists every AGENTS.md contract', () => {
     const r = cba(['agent', 'list'])
     expect(r.code).toBe(0)
-    // @dna-codes/core no longer ships an AGENTS.md (the package shifted to
-    // docs-only orientation upstream); only the per-layer docs are listed.
     expect(r.stdout).toContain('operational')
     expect(r.stdout).toContain('product')
     expect(r.stdout).toContain('technical')
@@ -36,9 +34,13 @@ describe('cba agent', () => {
     expect(r.stdout).not.toContain('domain:')
   })
 
-  it('errors on dna-core (no longer shipped by @dna-codes/core)', () => {
+  it('resolves dna-core to the package-level AGENTS.md', () => {
+    // @dna-codes/core ships an AGENTS.md (the dispatcher across the three
+    // layer docs). After `align-cba-internal-dna-codes-deps`, cba resolves it
+    // from the sibling `dna/packages/core/` rather than a registry copy.
     const r = cba(['agent', 'dna-core'])
-    expect(r.code).toBe(1)
+    expect(r.code).toBe(0)
+    expect(r.stdout).toContain('AGENTS.md: dna-core')
   })
 
   it('resolves layer shorthand', () => {
@@ -73,8 +75,14 @@ describe('cba agent', () => {
     expect(r.code).toBe(0)
     const parsed = JSON.parse(r.stdout)
     expect(parsed.concern).toBe('operational')
-    // Layer docs now ship inside @dna-codes/core (in node_modules)
-    expect(parsed.file).toMatch(/@dna-codes\/core\/docs\/operational\.md$/)
+    // Layer docs ship inside @dna-codes/core. After
+    // `align-cba-internal-dna-codes-deps`, cba resolves the package via a
+    // file: dep that symlinks to the sibling `dna/packages/core/`, so the
+    // reported path traces through the sibling — not through a registry
+    // copy in node_modules. Either ending is acceptable as long as the file
+    // resolves and has content; the regression marker is the suffix.
+    expect(parsed.file).toMatch(/docs\/operational\.md$/)
+    expect(parsed.file).not.toMatch(/node_modules\/@dna-codes\/core\/docs\/operational\.md$/)
     expect(typeof parsed.content).toBe('string')
     expect(parsed.content.length).toBeGreaterThan(100)
   })

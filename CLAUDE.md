@@ -23,3 +23,6 @@ Project-level OpenSpec context lives in `openspec/config.yaml`; specs in `opensp
 
 ## Conventions
 * In general, run commands separately, without `&&`
+
+## Sibling repos
+This repo consumes `@dna-codes/*` from a sibling `dna/` checkout under the same parent directory via `file:` references in `package.json` (declared at the workspace root because npm copies — does not symlink — `file:` deps in workspace member `package.json`s). Do not "fix" these to `^0.x` registry pins; the local-sibling chain is the durable consumption stance, mirrors the pattern `dna-platform` uses, and is gated by `packages/cba/test/dep-resolution.test.ts`. See README "Sibling repos" section and `openspec/changes/align-cba-internal-dna-codes-deps/` for the full rationale.

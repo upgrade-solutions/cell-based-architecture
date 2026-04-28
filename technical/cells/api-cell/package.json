@@ -15,7 +15,7 @@
     "typecheck:lending": "npm run generate:lending && npm install --prefix ../../../output/lending-api && npx tsc --noEmit --project ../../../output/lending-api/tsconfig.json"
   },
   "dependencies": {
-    "@dna-codes/core": "^0.3.0"
+    "@dna-codes/core": "file:../../../../dna/packages/core"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

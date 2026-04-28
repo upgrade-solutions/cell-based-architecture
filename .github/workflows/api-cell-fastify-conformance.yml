@@ -7,6 +7,12 @@
 # regenerates against a fresh checkout. See
 # `technical/cells/api-cell/test/fastify-conformance/build.test.ts` for what
 # this asserts.
+#
+# Sibling-repo layout: this repo consumes `@dna-codes/*` from a sibling `dna/`
+# checkout via `file:` references (see README "Sibling repos"). CI lays the
+# two repos out under $GITHUB_WORKSPACE/{cell-based-architecture,dna} so the
+# `file:../dna/packages/*` paths in cba's package.json resolve. The dna repo
+# is built first so its `dist/` exists when cba imports `@dna-codes/core`.
 name: api-cell fastify build-conformance
 
 on:
@@ -14,31 +20,52 @@ on:
     branches: [main]
     paths:
       - 'technical/cells/api-cell/**'
+      - 'package.json'
       - '.github/workflows/api-cell-fastify-conformance.yml'
   pull_request:
     paths:
       - 'technical/cells/api-cell/**'
+      - 'package.json'
       - '.github/workflows/api-cell-fastify-conformance.yml'
 
 jobs:
   fastify-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout cell-based-architecture (this repo)
+        uses: actions/checkout@v4
+        with:
+          path: cell-based-architecture
+
+      - name: Checkout sibling dna repo
+        uses: actions/checkout@v4
+        with:
+          repository: upgrade-solutions/dna
+          path: dna
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: |
+            cell-based-architecture/package-lock.json
+            dna/package-lock.json
 
-      - name: Install repo workspace deps
+      - name: Build sibling dna packages
+        working-directory: dna
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Install cba workspace deps
+        working-directory: cell-based-architecture
         run: npm install --no-audit --no-fund
 
       - name: Build api-cell
-        working-directory: technical/cells/api-cell
+        working-directory: cell-based-architecture/technical/cells/api-cell
         run: npm run build
 
       - name: Run fastify build-conformance suite
-        working-directory: technical/cells/api-cell
+        working-directory: cell-based-architecture/technical/cells/api-cell
         run: npm run test:fastify-build

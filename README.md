@@ -2,7 +2,7 @@
 
 Cell-based architecture is a philosophy for building applications by injecting **DNA** into **cells** — TypeScript engines that read DNA and produce working software (API endpoints, UIs, database schemas, etc.).
 
-- **DNA** — a JSON description language expressing a business domain across three layers (Operational, Product, Technical). Defined, schemafied, and validated by the [DNA repo](https://github.com/upgrade-solutions/dna), shipped on npm as `@dna-codes/core` + `@dna-codes/schemas`. CBA defers entirely to those packages — it does not ship its own copy of DNA primitives, schemas, or the validator.
+- **DNA** — a JSON description language expressing a business domain across three layers (Operational, Product, Technical). Defined, schemafied, and validated by the [DNA repo](https://github.com/upgrade-solutions/dna), distributed as `@dna-codes/core` + `@dna-codes/schemas`. CBA defers entirely to those packages — it does not ship its own copy of DNA primitives, schemas, or the validator. Locally, this repo consumes them via `file:` references to a sibling `dna/` checkout (see "Sibling repos" below); end-users can install them from npm.
 - **Cell** — a TypeScript package/engine that accepts one layer of DNA as input and produces code or deployable infrastructure.
 
 The relationship: DNA describes *what* the business is and does; cells decide *how* to implement it.
@@ -15,7 +15,43 @@ The relationship: DNA describes *what* the business is and does; cells decide *h
 | `@cell/cba-viz` | Interactive architecture viewer (Vite + React + JointJS) | [`packages/cba-viz/`](./packages/cba-viz/) |
 | `@cell/{api,ui,db}-cell` | Cells that consume DNA and produce code or infra | [`technical/cells/`](./technical/cells/) |
 
-DNA packages (`@dna-codes/core`, `@dna-codes/schemas`) live in the [DNA repo](https://github.com/upgrade-solutions/dna) and are pulled in from npm. See that README for schemas, TypeScript bindings, and layer docs.
+DNA packages (`@dna-codes/core`, `@dna-codes/schemas`, `@dna-codes/input-text`, `@dna-codes/output-openapi`) live in the [DNA repo](https://github.com/upgrade-solutions/dna). Locally this repo resolves them via `file:` references to a sibling checkout — see "Sibling repos" below. See the DNA repo's README for schemas, TypeScript bindings, and layer docs.
+
+## Sibling repos — local consumption
+
+`cell-based-architecture` consumes `@dna-codes/*` from a sibling `dna/` checkout under the same parent directory, resolved via `file:` references. The same pattern downstream consumers (e.g. `dna-platform`) use for **their** `@dna-codes/*` and `@cell/cba` deps; this repo extends it inward so the local-sibling resolution chain is unbroken end-to-end.
+
+```
+/Users/.../upgrade/
+├── dna/                              # @dna-codes/* sources (workspace)
+├── cell-based-architecture/          # this repo, consumes @dna-codes/* via file:
+└── dna-platform/                     # downstream consumer of both
+```
+
+Why `file:` instead of registry pins (`^0.x`):
+- **Co-evolution without publish round-trips.** A schema change in `dna/packages/core` is consumable here on the next `npm install`, with no `npm publish` step required.
+- **Single source of truth.** `require.resolve('@dna-codes/core')` from anywhere in this repo lands at the sibling, not at a shadow registry copy that drifts. (See `packages/cba/test/dep-resolution.test.ts`.)
+- **Aligned with downstream.** A downstream consumer's symlinked `dna` will, transitively, dominate cba's resolution; if cba carried registry pins, mixed copies would shadow each other unpredictably.
+
+**First-time setup (or after pulling updates in `../dna`):**
+
+```bash
+# 1. Verify sibling builds exist — the dna repo owns its build.
+ls ../dna/packages/core/dist/index.js
+ls ../dna/packages/input-text/dist/index.js
+ls ../dna/packages/output-openapi/dist/index.js
+# Missing? Build in ../dna; do not run sibling build scripts from here.
+
+# 2. Install in this repo (npm symlinks the siblings into node_modules/@dna-codes/*)
+npm install
+
+# 3. Smoke test — should print the realpath under dna/packages/, not node_modules
+node -e "console.log(require('fs').realpathSync(require.resolve('@dna-codes/core/package.json')))"
+```
+
+**Implementation detail.** npm copies (does not symlink) `file:` deps declared in *workspace member* `package.json`s. So although every workspace member here declares `@dna-codes/core: file:...` for clarity, the workspace **root** `package.json` also declares them under `dependencies` — that is the declaration that triggers the symlink. The root also carries an `overrides` block to force any transitive `@dna-codes/*` reference to resolve to the sibling. Do not "clean up" by reverting members to `^0.x` registry pins; the regression test will fail.
+
+**CI.** Any job that runs `npm install` here must check out the `dna` repo at `../dna/` first. Without it, the `file:` paths fail to resolve and the install errors before tests start.
 
 ---
 

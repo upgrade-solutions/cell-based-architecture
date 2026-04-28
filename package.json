@@ -15,5 +15,17 @@
     "generate:lending-db": "npm run generate:lending --workspace=@cell/db-cell",
     "start:express": "cd output/lending-api && npx ts-node src/main.ts",
     "start:nestjs": "cd output/lending-api-nestjs && npx ts-node -r tsconfig-paths/register src/main.ts"
+  },
+  "dependencies": {
+    "@dna-codes/core": "file:../dna/packages/core",
+    "@dna-codes/schemas": "file:../dna/packages/schemas",
+    "@dna-codes/input-text": "file:../dna/packages/input-text",
+    "@dna-codes/output-openapi": "file:../dna/packages/output-openapi"
+  },
+  "overrides": {
+    "@dna-codes/core": "file:../dna/packages/core",
+    "@dna-codes/schemas": "file:../dna/packages/schemas",
+    "@dna-codes/input-text": "file:../dna/packages/input-text",
+    "@dna-codes/output-openapi": "file:../dna/packages/output-openapi"
   }
 }

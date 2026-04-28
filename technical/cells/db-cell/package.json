@@ -10,7 +10,7 @@
     "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json db-cell ../../../output/lending-db"
   },
   "dependencies": {
-    "@dna-codes/core": "^0.3.0"
+    "@dna-codes/core": "file:../../../../dna/packages/core"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

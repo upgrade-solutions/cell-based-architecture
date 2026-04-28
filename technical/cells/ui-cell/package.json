@@ -17,7 +17,7 @@
     "generate": "ts-node -r tsconfig-paths/register src/index.ts"
   },
   "dependencies": {
-    "@dna-codes/core": "^0.3.0",
+    "@dna-codes/core": "file:../../../../dna/packages/core",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-collapsible": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.0",
