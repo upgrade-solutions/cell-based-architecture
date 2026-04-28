@@ -2,7 +2,43 @@
   "namespace": {
     "name": "ConformanceEcs",
     "path": "/conformance",
-    "description": "Minimal API surface used by the fastify build-conformance suite. Locked — do not couple to lending or any other canonical example."
+    "description": "Minimal API surface used by the fastify build-conformance suite. Locked — do not couple to lending or any other canonical example. The single endpoint exists to exercise the api-cell ↔ output-openapi flip: its request body declares an `object` Field with nested fields, which the runtime spec at /api-json must render with type:object + properties (not flatten to a string). See `flip-api-cell-to-output-openapi`."
   },
-  "endpoints": []
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/v1/convert",
+      "operation": "Conversion.Create",
+      "description": "Convert a payload from one shape to another. Carries object Fields in the request body to gate the api-cell ↔ output-openapi rendering chain.",
+      "request": {
+        "name": "ConvertRequest",
+        "fields": [
+          {
+            "name": "from",
+            "type": "object",
+            "required": true,
+            "fields": [
+              { "name": "format", "type": "string", "required": true },
+              { "name": "input", "type": "string", "required": true }
+            ]
+          },
+          {
+            "name": "to",
+            "type": "object",
+            "required": true,
+            "fields": [
+              { "name": "format", "type": "string", "required": true }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "name": "ConvertResponse",
+        "fields": [
+          { "name": "id", "type": "string", "required": true },
+          { "name": "status", "type": "string" }
+        ]
+      }
+    }
+  ]
 }

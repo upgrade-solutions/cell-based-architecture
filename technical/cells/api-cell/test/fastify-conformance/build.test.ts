@@ -100,11 +100,47 @@ function readFixture(name: string): {
   return { api, core, adapterConfig: cell?.adapter?.config }
 }
 
+/**
+ * Rewrite any `@dna-codes/*` dep that isn't published to the npm registry
+ * yet, swapping its version range for an absolute `file:` path to the
+ * sibling package under `<repo>/../dna/packages/*`. Test-local; the
+ * generator's emitted `package.json` keeps registry pins so end-user
+ * generated cells aren't coupled to the sibling layout — real consumers
+ * like dna-platform express the same intent via their own root-level
+ * `overrides` block, which doesn't conflict because dna-platform isn't
+ * itself the direct dep declarer for these packages. The conformance
+ * tmpdir IS the direct declarer, and npm rejects an override that
+ * conflicts with a direct dep, so we rewrite the dep itself.
+ */
+function rewriteUnpublishedDepsToSibling(outDir: string): void {
+  // __dirname = .../cell-based-architecture/technical/cells/api-cell/test/fastify-conformance
+  // 6 ups → .../upgrade, then dna/packages.
+  const siblingDnaRoot = path.resolve(__dirname, '..', '..', '..', '..', '..', '..', 'dna', 'packages')
+  const unpublished = ['output-openapi'] // add others here as needed
+  const pkgPath = path.join(outDir, 'package.json')
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+  for (const name of unpublished) {
+    const key = `@dna-codes/${name}`
+    if (pkg.dependencies?.[key]) {
+      pkg.dependencies[key] = `file:${path.join(siblingDnaRoot, name)}`
+    }
+  }
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+}
+
+/**
+ * Use an isolated npm cache under $TMPDIR. Avoids polluting (or being
+ * blocked by) the user's `~/.npm` cache, which on long-lived dev machines
+ * frequently hits EPERM on root-owned tempfiles. CI gets a fresh cache anyway.
+ */
+const ISOLATED_CACHE = path.join(os.tmpdir(), 'fastify-conform-npm-cache')
+
 function runBuild(outDir: string): void {
   // --no-audit/--no-fund: cut network noise and CI flake on the audit endpoint.
   // --prefer-offline: when a previous fixture warmed the npm cache, skip the
   // registry roundtrip for the second fixture. First fixture still goes online.
-  execSync('npm install --no-audit --no-fund --prefer-offline', {
+  rewriteUnpublishedDepsToSibling(outDir)
+  execSync(`npm install --no-audit --no-fund --prefer-offline --cache="${ISOLATED_CACHE}"`, {
     cwd: outDir,
     stdio: 'inherit',
   })
@@ -251,14 +287,57 @@ describe.each(fixtures)('fastify build-conformance — $label', (f) => {
   ;(f.runtime ? test : test.skip)('GET /api-json returns valid OpenAPI JSON', async () => {
     const res = await httpGet(`http://127.0.0.1:${port}/api-json`)
     expect(res.status).toBe(200)
-    const spec = JSON.parse(res.body) as Record<string, unknown>
-    // The conformance fixture deliberately ships an empty `endpoints` array,
-    // so `paths` may be empty / missing. The version field is the regression
-    // marker — its absence is what Swagger UI used to complain about, and
-    // would still indicate a broken /api-json wiring.
+    const spec = JSON.parse(res.body) as Record<string, any>
+    // Version field is the regression marker — its absence indicates a
+    // broken /api-json wiring (the original swagger-ui-on-v5 bug).
     const hasOpenApi = typeof spec.openapi === 'string' && (spec.openapi as string).startsWith('3.')
     const hasSwagger = spec.swagger === '2.0'
     expect(hasOpenApi || hasSwagger).toBe(true)
+  })
+
+  // ── api-cell ↔ output-openapi flip canary ─────────────────────────────
+  // This is the canary for `flip-api-cell-to-output-openapi`. Object Fields
+  // in DNA must render as `type: 'object'` with nested `properties` in the
+  // runtime spec. If a Field type renders flat (e.g. `from: { type: 'string' }`),
+  // the flip has come undone — either the api-cell template reverted to the
+  // hand-rolled builder, or @dna-codes/output-openapi's Field-type mapping
+  // regressed. The fixture's /v1/convert endpoint carries `from` and `to`
+  // object Fields specifically to force this assertion.
+  ;(f.runtime ? test : test.skip)('renders object Field requests with nested properties (output-openapi delegation)', async () => {
+    const res = await httpGet(`http://127.0.0.1:${port}/api-json`)
+    expect(res.status).toBe(200)
+    const spec = JSON.parse(res.body) as Record<string, any>
+
+    const post = spec.paths?.['/v1/convert']?.post
+    expect(post).toBeDefined()
+
+    // The renderer extracts named schemas into components and references
+    // them with $ref. Resolve the schema either from a $ref or inline.
+    const requestSchemaRef = post.requestBody?.content?.['application/json']?.schema
+    expect(requestSchemaRef).toBeDefined()
+
+    let requestSchema: any
+    if (requestSchemaRef.$ref) {
+      const refName = String(requestSchemaRef.$ref).replace('#/components/schemas/', '')
+      requestSchema = spec.components?.schemas?.[refName]
+    } else {
+      requestSchema = requestSchemaRef
+    }
+    expect(requestSchema).toBeDefined()
+    expect(requestSchema.type).toBe('object')
+    expect(requestSchema.properties?.from).toMatchObject({
+      type: 'object',
+      properties: expect.objectContaining({
+        format: expect.objectContaining({ type: 'string' }),
+        input: expect.objectContaining({ type: 'string' }),
+      }),
+    })
+    expect(requestSchema.properties?.to).toMatchObject({
+      type: 'object',
+      properties: expect.objectContaining({
+        format: expect.objectContaining({ type: 'string' }),
+      }),
+    })
   })
 
   ;(f.runtime ? test : test.skip)('GET / redirects to /docs', async () => {

@@ -159,11 +159,15 @@ bootstrap().catch(err => {
  * response stream. CloudFront forwards the stream untouched when its cache
  * behavior is set to Managed-CachingDisabled (terraform-aws emits that).
  *
- * OpenAPI-as-contract seam: the proposal calls for the lambda compute path
- * to consume the OpenAPI document emitted by @dna-codes/output-openapi rather
- * than reading product.api.json directly. Until that package publishes
- * (sister proposal task 6.1), this entrypoint loads product.api.json — the
- * same source the ECS path uses. Swap point is the loadDNA() function below.
+ * OpenAPI-as-contract seam — partial:
+ * - The runtime spec served at /api-json is rendered by
+ *   @dna-codes/output-openapi (see ./interpreter/openapi). DNA → OpenAPI
+ *   translation lives upstream now.
+ * - Route registration (registerRoutes) still consumes product.api.json
+ *   directly. Flipping it to consume the OpenAPI document is a separate,
+ *   larger change (param parsing, validation middleware, error shapes)
+ *   deferred to a follow-on. The loadDNA() function below is still the
+ *   swap point for that future change.
  */
 export function generateLambdaHandler(namespace: Namespace, authMode?: string): string {
   const authImport = authMode === 'built-in'
@@ -187,9 +191,11 @@ const DNA_API = path.resolve(__dirname, 'dna/api.json')
 const DNA_CORE = path.resolve(__dirname, 'dna/product.core.json')
 
 /**
- * SEAM: when @dna-codes/output-openapi publishes, swap the api.json read for
- * a read of the emitted OpenAPI document and adapt registerRoutes to consume
- * it. Everything else in this file is compute-target agnostic.
+ * loadDNA is the swap point for the deferred routing-from-OpenAPI change.
+ * Today registerRoutes consumes product.api.json directly; when that flip
+ * happens, this function becomes the place to read an OpenAPI document
+ * instead. The /api-json render seam has already been crossed (see
+ * ./interpreter/openapi).
  */
 function loadDNA() {
   return {

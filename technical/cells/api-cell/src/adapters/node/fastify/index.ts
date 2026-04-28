@@ -36,11 +36,13 @@ export type ComputeTarget = 'ecs' | 'lambda'
  * `src/main.ts` (ECS) vs `src/handler.ts` (Lambda), `package.json`
  * dependencies, and a few build settings differ.
  *
- * OpenAPI-as-contract seam: when `compute === 'lambda'`, the Lambda
- * entrypoint will eventually consume an OpenAPI document emitted by
- * `@dna-codes/output-openapi` instead of `product.api.json` directly. Until
- * that package publishes, both compute targets read `product.api.json` and
- * the OpenAPI swap is a single-file change in `src/handler.ts`.
+ * OpenAPI-as-contract seam — partial. The runtime spec served at `/api-json`
+ * is rendered by `@dna-codes/output-openapi` (see `generators/openapi.ts`)
+ * — DNA → OpenAPI translation lives upstream, not in cba. Route registration
+ * (`registerRoutes`) still consumes `product.api.json` directly; flipping it
+ * to consume the OpenAPI document is a separate, larger change (param
+ * parsing, validation middleware, error shapes) deferred to a follow-on.
+ * Both compute targets currently read `product.api.json` for routing.
  */
 export const generate: ApiCellAdapter['generate'] = (
   api: ProductApiDNA,

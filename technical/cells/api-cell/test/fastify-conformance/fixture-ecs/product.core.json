@@ -2,6 +2,19 @@
   "domain": {
     "name": "Conformance",
     "path": "/conformance",
-    "description": "Minimal core DNA paired with product.api.json — empty resource set is enough for the generated fastify app to compile."
-  }
+    "description": "Minimal core DNA paired with product.api.json. The Conversion resource exists so the runtime registerRoutes can wire the /v1/convert endpoint without 'unknown resource' errors. Boot completes; the endpoint is never invoked by the conformance test (only /api-json is asserted)."
+  },
+  "resources": [
+    {
+      "name": "Conversion",
+      "description": "Opaque conformance resource. Not modelled in any real domain.",
+      "attributes": [
+        { "name": "id", "type": "string", "required": true },
+        { "name": "status", "type": "string" }
+      ],
+      "actions": [
+        { "name": "Create" }
+      ]
+    }
+  ]
 }

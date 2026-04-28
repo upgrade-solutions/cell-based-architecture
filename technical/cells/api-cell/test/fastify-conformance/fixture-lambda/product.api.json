@@ -2,7 +2,43 @@
   "namespace": {
     "name": "ConformanceLambda",
     "path": "/conformance",
-    "description": "Minimal API surface used by the fastify build-conformance suite (lambda compute target). Locked — do not couple to lending or any other canonical example."
+    "description": "Minimal API surface used by the fastify build-conformance suite (lambda compute target). Locked — do not couple to lending or any other canonical example. Mirrors fixture-ecs so the lambda build path also exercises the api-cell ↔ output-openapi rendering of object Fields (build/typecheck only — the lambda fixture has no runtime block)."
   },
-  "endpoints": []
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/v1/convert",
+      "operation": "Conversion.Create",
+      "description": "Convert a payload from one shape to another. Carries object Fields in the request body to gate the api-cell ↔ output-openapi rendering chain.",
+      "request": {
+        "name": "ConvertRequest",
+        "fields": [
+          {
+            "name": "from",
+            "type": "object",
+            "required": true,
+            "fields": [
+              { "name": "format", "type": "string", "required": true },
+              { "name": "input", "type": "string", "required": true }
+            ]
+          },
+          {
+            "name": "to",
+            "type": "object",
+            "required": true,
+            "fields": [
+              { "name": "format", "type": "string", "required": true }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "name": "ConvertResponse",
+        "fields": [
+          { "name": "id", "type": "string", "required": true },
+          { "name": "status", "type": "string" }
+        ]
+      }
+    }
+  ]
 }
