@@ -1,23 +1,29 @@
 import { ComputeTarget } from '..'
 
 export function generatePackageJson(appName: string, compute: ComputeTarget = 'ecs'): string {
+  // Fastify 5 + v5-aligned plugin majors. Mixing v4 and v5 plugins against any
+  // single fastify install throws FST_ERR_PLUGIN_VERSION_MISMATCH at startup,
+  // so the four fastify-* deps must move in lockstep. @fastify/swagger@^9 was
+  // already v5-only; cors and swagger-ui needed bumping to clear the mismatch.
   const baseDeps: Record<string, string> = {
-    '@fastify/cors': '^9.0.0',
+    '@fastify/cors': '^11.0.0',
     '@fastify/swagger': '^9.0.0',
-    '@fastify/swagger-ui': '^4.0.0',
+    '@fastify/swagger-ui': '^5.0.0',
     bcryptjs: '^2.4.0',
     dotenv: '^16.0.0',
     'drizzle-orm': '^0.30.0',
-    fastify: '^4.28.0',
+    fastify: '^5.0.0',
     jsonwebtoken: '^9.0.0',
     'jwks-rsa': '^3.1.0',
     pg: '^8.11.0',
   }
 
-  // @fastify/aws-lambda v4+ ships streamifyResponse support — required for SSE
-  // through Lambda Function URLs with invoke_mode = RESPONSE_STREAM.
+  // @fastify/aws-lambda v5 is the line aligned with fastify@5 (v4 was the
+  // fastify@4 line). Streamified-response support is present from v4 onward,
+  // so v5 retains the SSE-through-Lambda-Function-URL behavior the lambda
+  // entrypoint relies on.
   const lambdaDeps: Record<string, string> = {
-    '@fastify/aws-lambda': '^4.1.0',
+    '@fastify/aws-lambda': '^5.0.0',
   }
 
   const dependencies =

@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "test": "node --experimental-vm-modules ../../../node_modules/.bin/jest",
+    "test:fastify-build": "node --experimental-vm-modules ../../../node_modules/.bin/jest --config jest.fastify-build.config.js",
     "generate": "ts-node -r tsconfig-paths/register src/index.ts",
     "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json api-cell ../../../output/lending-api",
     "generate:lending-nestjs": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json api-cell-nestjs ../../../output/lending-api-nestjs",
@@ -28,7 +29,11 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "testPathIgnorePatterns": ["/node_modules/", "/dist/"],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/",
+      "/test/fastify-conformance/"
+    ],
     "moduleNameMapper": {
       "^@dna-codes/core$": "<rootDir>/../../../node_modules/@dna-codes/core/dist/index.js"
     }

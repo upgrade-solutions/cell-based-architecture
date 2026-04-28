@@ -90,8 +90,8 @@ describe('fastify adapter — Lambda compute', () => {
     expect(fs.existsSync(path.join(outDir, 'src/handler.ts'))).toBe(true)
   })
 
-  test('does NOT emit src/main.ts', () => {
-    expect(fs.existsSync(path.join(outDir, 'src/main.ts'))).toBe(false)
+  test('also emits src/main.ts so contributors can run a local listener', () => {
+    expect(fs.existsSync(path.join(outDir, 'src/main.ts'))).toBe(true)
   })
 
   test('handler imports @fastify/aws-lambda and uses streamifyResponse', () => {

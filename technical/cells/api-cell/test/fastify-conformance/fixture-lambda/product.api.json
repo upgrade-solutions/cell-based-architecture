@@ -1,0 +1,8 @@
+{
+  "namespace": {
+    "name": "ConformanceLambda",
+    "path": "/conformance",
+    "description": "Minimal API surface used by the fastify build-conformance suite (lambda compute target). Locked — do not couple to lending or any other canonical example."
+  },
+  "endpoints": []
+}

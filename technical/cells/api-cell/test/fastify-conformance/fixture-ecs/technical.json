@@ -1,0 +1,14 @@
+{
+  "cells": [
+    {
+      "name": "api",
+      "dna": "product.api",
+      "adapter": {
+        "type": "node/fastify",
+        "config": {
+          "core_dna": "product.core"
+        }
+      }
+    }
+  ]
+}

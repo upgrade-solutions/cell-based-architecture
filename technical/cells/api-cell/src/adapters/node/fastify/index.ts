@@ -79,12 +79,14 @@ export const generate: ApiCellAdapter['generate'] = (
   write(outputDir, 'src/interpreter/router.ts', generateRouter())
 
   // ── Entry point + seed ──────────────────────────────────────────────────────
+  // main.ts is always emitted: ECS uses it as its listener; Lambda uses it for
+  // local dev (`npm run start:dev`) so contributors can hit /health and /api
+  // without deploying. handler.ts is the Lambda runtime entrypoint and is the
+  // only file that imports @fastify/aws-lambda — gating it on compute keeps
+  // ECS bundles free of an unused dep and the corresponding TS import error.
+  write(outputDir, 'src/main.ts', generateMain(api.namespace, authMode))
   if (compute === 'lambda') {
-    // Lambda export — handler entrypoint, no listener.
     write(outputDir, 'src/handler.ts', generateLambdaHandler(api.namespace, authMode))
-  } else {
-    // ECS entrypoint — Fastify listens on :PORT.
-    write(outputDir, 'src/main.ts', generateMain(api.namespace, authMode))
   }
   write(outputDir, 'src/seed.ts', generateSeed())
 

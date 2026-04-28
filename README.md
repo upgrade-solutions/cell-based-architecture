@@ -78,7 +78,7 @@ The Node adapters expose identical Swagger UI (`/api`), Redoc (`/docs`), and raw
 
 ### `compute` hint (ECS vs Lambda)
 
-The Fastify adapter accepts a `compute: 'ecs' | 'lambda'` cell config. The default is `ecs` — the same long-running server every other Node adapter produces. Set `compute: 'lambda'` to emit a Lambda-targeted variant that wraps Fastify with `@fastify/aws-lambda` v4+ in streaming mode (`awslambda.streamifyResponse`), suitable for Lambda Function URLs with `invoke_mode = RESPONSE_STREAM`.
+The Fastify adapter accepts a `compute: 'ecs' | 'lambda'` cell config. The default is `ecs` — the same long-running server every other Node adapter produces. Set `compute: 'lambda'` to also emit a Lambda-targeted entrypoint that wraps Fastify with `@fastify/aws-lambda@^5` in streaming mode (`awslambda.streamifyResponse`), suitable for Lambda Function URLs with `invoke_mode = RESPONSE_STREAM`. The generated `package.json` pins fastify@^5 plus a v5-aligned plugin set (`@fastify/cors@^11`, `@fastify/swagger@^9`, `@fastify/swagger-ui@^5`); these four versions move in lockstep — drift in any one re-introduces `FST_ERR_PLUGIN_VERSION_MISMATCH` at startup. If you see that error, regenerate the cell against the current cba (older generated trees pinned a mismatched set).
 
 ```json
 {
@@ -94,6 +94,7 @@ The Fastify adapter accepts a `compute: 'ecs' | 'lambda'` cell config. The defau
 | | `compute: 'ecs'` (default) | `compute: 'lambda'` |
 |---|---|---|
 | Entrypoint | `src/main.ts` calls `app.listen()` | `src/handler.ts` exports a Lambda handler |
+| Files emitted | `src/main.ts` only | `src/main.ts` (kept for local dev) **and** `src/handler.ts` |
 | Packaging | Docker image → ECR → ECS Fargate | `lambda.zip` artifact (via `npm run package`) |
 | SSE | Works (Fastify `reply.raw.write`) | Works (streaming wrapper forwards to Function URL) |
 | Hot DNA reload | Yes (fs.watch + restart warning) | No (cold-start reload only) |
@@ -617,7 +618,7 @@ npm test                    # runs all workspace tests
 | Package | Tests | Coverage |
 |---------|-------|----------|
 | `@dna-codes/core` (validator) | 42 | Per-schema validation, composite documents, cross-layer validation (lives upstream in the DNA repo) |
-| `@cell/api-cell` | 68 | NestJS generators, Express integration, NestJS integration, **adapter conformance** (10 tests) |
+| `@cell/api-cell` | 92 | NestJS generators, Express integration, NestJS integration, Fastify generator (both compute targets), **adapter conformance** (10 tests). Plus a separate `npm run test:fastify-build` suite (real `npm install` + tsc per compute target) — slow, run in CI, see below. |
 | `@cell/ui-cell` | 14 | **Adapter conformance** (14 tests) |
 
 ## Adapter conformance tests
@@ -627,6 +628,12 @@ Conformance tests verify that all adapters for a given cell produce the same ext
 **API-cell**: Generates all 3 adapters (NestJS, Express, Rails) and asserts they agree on HTTP method + path pairs, operation mappings, request body fields, role-based access enforcement, and Dockerfiles.
 
 **UI-cell**: Generates all 3 adapters (Vite/React, Vite/Vue, Next/React) and asserts identical bundled DNA, same block types, consistent `config.json` DNA fetch paths, and Dockerfiles.
+
+### Fastify build-conformance suite
+
+Lives at `technical/cells/api-cell/test/fastify-conformance/`. For each compute target (`ecs` and `lambda`), the suite generates against a locked minimal fixture, runs a real `npm install --no-audit --no-fund` plus `npm run build` in a tmpdir, and asserts the expected `dist/` artifacts (`dist/main.js` for both, `dist/handler.js` only for lambda). Excluded from `npm test` because each fixture pulls fastify + plugins from the registry — runs via `npm run test:fastify-build` and a dedicated CI job (`.github/workflows/api-cell-fastify-conformance.yml`).
+
+This is the regression net for adapter-template version drift: the four fastify deps (`fastify`, `@fastify/cors`, `@fastify/swagger`, `@fastify/swagger-ui`) carry strict peer-version constraints; a unit test on the generator can't catch a peer mismatch — only a real install can. If you bump any of them in `src/adapters/node/fastify/generators/scaffold.ts`, this suite is the gate.
 
 ---
 

@@ -1,0 +1,44 @@
+# Build-conformance gate for the fastify api-cell adapter.
+#
+# Why a dedicated job: the suite runs a real `npm install` per fixture (slow,
+# network-dependent), so it's excluded from the default `npm test`. Without
+# this gate, version drift in the four fastify-* deps will silently
+# reintroduce FST_ERR_PLUGIN_VERSION_MISMATCH at startup of any consumer that
+# regenerates against a fresh checkout. See
+# `technical/cells/api-cell/test/fastify-conformance/build.test.ts` for what
+# this asserts.
+name: api-cell fastify build-conformance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'technical/cells/api-cell/**'
+      - '.github/workflows/api-cell-fastify-conformance.yml'
+  pull_request:
+    paths:
+      - 'technical/cells/api-cell/**'
+      - '.github/workflows/api-cell-fastify-conformance.yml'
+
+jobs:
+  fastify-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install repo workspace deps
+        run: npm install --no-audit --no-fund
+
+      - name: Build api-cell
+        working-directory: technical/cells/api-cell
+        run: npm run build
+
+      - name: Run fastify build-conformance suite
+        working-directory: technical/cells/api-cell
+        run: npm run test:fastify-build

@@ -189,7 +189,14 @@ function loadDNA() {
   }
 }
 
-let cachedHandler: ReturnType<typeof awsLambdaFastify> | null = null
+// @fastify/aws-lambda@^5 ships two overloads for awsLambdaFastify (promise vs.
+// callback). TS's overload resolution picks the callback variant, which then
+// rejects the 2-arg \`h(event, context)\` calls below. We always invoke the
+// promise form, so we narrow the cached handler's type explicitly rather than
+// importing a named type (the package exports the type only via a namespace,
+// which doesn't survive default-import + ts-node combos cleanly).
+type PromiseLambdaHandler = (event: any, context: any) => Promise<any>
+let cachedHandler: PromiseLambdaHandler | null = null
 
 async function buildApp(): Promise<FastifyInstance> {
   console.log(\`[store] using \${getStoreMode()}\`)
@@ -210,11 +217,11 @@ async function buildApp(): Promise<FastifyInstance> {
   return app
 }
 
-async function ensureHandler() {
+async function ensureHandler(): Promise<PromiseLambdaHandler> {
   if (cachedHandler) return cachedHandler
   const app = await buildApp()
   await app.ready()
-  cachedHandler = awsLambdaFastify(app)
+  cachedHandler = awsLambdaFastify(app) as unknown as PromiseLambdaHandler
   return cachedHandler
 }
 
