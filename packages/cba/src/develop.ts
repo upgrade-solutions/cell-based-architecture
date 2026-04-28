@@ -208,9 +208,10 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
   // under output/, so the generator's own `dna/` ancestor-walk wouldn't find
   // the source tree.
   const dnaRoot = findDnaRoot(paths.files.technical)
-  const results: Array<{ cell: string; ok: boolean; code: number }> = []
+  const results: Array<{ cell: string; ok: boolean; code: number; error?: string }> = []
   for (const p of plans) {
     if (!json) console.log(`→ ${p.name} (${p.adapter}) → ${path.relative(process.cwd(), p.outputDir)}`)
+    const cwd = workspaceDir(p.workspace)
     const result = spawnSync(
       'npx',
       [
@@ -223,11 +224,24 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
         p.outputDir,
       ],
       {
-        cwd: workspaceDir(p.workspace),
+        cwd,
         stdio: json ? 'pipe' : 'inherit',
         env: { ...process.env, CBA_DNA_BASE: dnaRoot },
       },
     )
+    if (result.error) {
+      // ENOENT on cwd is the most common shape — surface the cwd so the user
+      // doesn't have to dig into source to see what path was attempted.
+      const detail = (result.error as NodeJS.ErrnoException).code === 'ENOENT' ? ` (cwd: ${cwd})` : ''
+      const message = `Failed to spawn cell generator for "${p.name}": ${result.error.message}${detail}`
+      results.push({ cell: p.name, ok: false, code: 1, error: result.error.message })
+      if (json) {
+        emitError(message, opts, { results })
+      } else {
+        console.error(`✗ ${message}`)
+      }
+      process.exit(1)
+    }
     results.push({ cell: p.name, ok: result.status === 0, code: result.status ?? 1 })
     if (result.status !== 0) {
       if (json) {
@@ -242,11 +256,26 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
   emitOk({ domain, results }, opts, () => `✓ Generated ${results.length} cell(s) for ${domain}`)
 }
 
+/**
+ * Resolve the cell-based-architecture workspace root from cba's own install
+ * location, not from the consumer's cwd. When cba is installed via a `file:`
+ * dep, npm symlinks `consumer/node_modules/@cell/cba → cba-workspace/packages/cba`;
+ * `realpathSync` follows that link back to the actual workspace so the join
+ * below points at real `packages/` and `technical/cells/` siblings.
+ *
+ * In-workspace behavior is identical: `realpathSync` is a no-op when the
+ * package isn't reached through a symlink.
+ */
+function cbaWorkspaceRoot(): string {
+  const pkgPath = require.resolve('@cell/cba/package.json')
+  const realPkgPath = fs.realpathSync(pkgPath)
+  return path.resolve(path.dirname(realPkgPath), '..', '..')
+}
+
 function workspaceDir(workspace: string): string {
   // All cell workspaces live under technical/cells/<name>
   // All package workspaces live under packages/<name>
-  const { findRepoRoot } = require('./context')
-  const root = findRepoRoot()
+  const root = cbaWorkspaceRoot()
   const name = workspace.replace('@cell/', '')
   if (name === 'cba') {
     return path.join(root, 'packages', name)

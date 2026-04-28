@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Entry point for the `cba` CLI.
-# Executes the TypeScript source via ts-node so there's no build step.
+# When consumed as a package, prefer the prebuilt dist/. In development,
+# fall back to ts-node on src/ so there's no build step in the inner loop.
 set -e
 # Resolve symlinks so BASH_SOURCE points at the actual script location.
 SOURCE="${BASH_SOURCE[0]}"
@@ -12,7 +13,12 @@ done
 DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 CBA_ROOT="$(cd "$DIR/.." && pwd)"
 
-# Find ts-node by walking up looking for node_modules/.bin/ts-node
+# Prefer the prebuilt dist when present (consumed as a package).
+if [ -f "$CBA_ROOT/dist/index.js" ]; then
+  exec node "$CBA_ROOT/dist/index.js" "$@"
+fi
+
+# Dev fallback: run TypeScript source via ts-node.
 find_ts_node() {
   local d="$1"
   while [ "$d" != "/" ]; do
@@ -27,7 +33,7 @@ find_ts_node() {
 
 TS_NODE="$(find_ts_node "$CBA_ROOT")"
 if [ -z "$TS_NODE" ]; then
-  echo "cba: ts-node not found. Run 'npm install' at the repo root." >&2
+  echo "cba: no dist/ build and ts-node not found. Run 'npm run build' (or 'npm install' for dev)." >&2
   exit 1
 fi
 

@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc",
     "cba": "ts-node src/index.ts",
-    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest"
+    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/dist/ --testPathIgnorePatterns=/test/consumer-mode/",
+    "test:consumer-mode": "node --experimental-vm-modules ../../node_modules/.bin/jest --runTestsByPath test/consumer-mode/run.test.ts"
   },
   "dependencies": {
     "@dna-codes/core": "^0.3.0"

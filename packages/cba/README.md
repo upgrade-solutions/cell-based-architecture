@@ -220,4 +220,50 @@ packages/cba/
 └── tsconfig.json
 ```
 
-No build step — `bin/cba` runs via `ts-node`.
+`bin/cba` prefers the prebuilt `dist/index.js` when present (the path used
+when `@cell/cba` is consumed as an installed package) and falls back to
+`ts-node src/index.ts` for in-workspace development. Run `npm run build`
+when source changes need to ship to consumers.
+
+## Run from a downstream consumer
+
+`@cell/cba` is designed to be consumed from outside its own monorepo.
+A consumer project depends on it via `npm install @cell/cba` (or a
+`file:` ref while iterating locally) and runs `npx cba <command>` from
+its own root:
+
+```jsonc
+// consumer/package.json
+{
+  "dependencies": {
+    "@cell/cba": "file:../cell-based-architecture/packages/cba"
+  }
+}
+```
+
+```bash
+cd consumer
+npm install
+npx cba develop <domain> --env dev
+```
+
+The consumer owns `dna/<domain>/`. cba resolves its own cell workspaces
+(api-cell, ui-cell, db-cell) from its install location, not from the
+consumer's cwd, so the cell generators run against the consumer's DNA
+without any cross-repo path assumptions.
+
+### Consumer-mode regression test
+
+`test/consumer-mode/run.test.ts` enforces this contract by staging a
+fixture project that depends on `@cell/cba` via `file:`, running a real
+`npm install`, then `npx cba develop`, and asserting the cell output
+lands under the consumer's `output/`. It's the safety net for the class
+of bugs where cba works inside its own monorepo but breaks under a
+downstream consumer.
+
+It's slow (real `npm install`) so it's excluded from the default test
+suite. Run it explicitly:
+
+```bash
+npm run test:consumer-mode --workspace=@cell/cba
+```

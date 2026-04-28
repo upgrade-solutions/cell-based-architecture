@@ -385,7 +385,7 @@ http://localhost:5175/?domain=torts/marshall&phase=run&sub=deployment&env=prod
 - **Discovery workspace (Guide tab)** — 3-phase pipeline: **Discover** (tag text fragments as DNA primitives), **Define** (browse and refine Operational DNA), **Design** (auto-generates SOP docs, process flow DAGs, and Product DNA summary)
 - **Cross-layer view** — single-capability lens spanning Operational → Product API → Product UI
 - **Multi-layer editing** — per-layer canvas with shape palette and save pipeline
-- **Schema-driven inspector** — live RJSF form generated from `@dna/core` schemas
+- **Schema-driven inspector** — live RJSF form generated from `@dna-codes/schemas`
 - **Write-back** — save positions and edits back to `technical.json` or `operational.json` (Ctrl+S)
 - **Live status** — polls the selected adapter every 5 seconds and updates technical node status in real time
 - **Terraform/AWS probe** — reads `terraform.tfstate` + queries AWS APIs to map live infrastructure status back to DNA node IDs
@@ -572,7 +572,7 @@ npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve
 
 # Validation
 
-Validation is handled by `@dna/validator` (see [DNA repo](https://github.com/upgrade-solutions/dna)). The `cba validate` command wraps it for the full lifecycle:
+Validation is handled by the `DnaValidator` exported from `@dna-codes/core` (see [DNA repo](https://github.com/upgrade-solutions/dna)). The `cba validate` command wraps it for the full lifecycle:
 
 ```bash
 npx cba validate lending --layer operational   # validate one layer
@@ -597,7 +597,7 @@ npx cba validate lending --json                # structured JSON errors
 Programmatic access:
 
 ```typescript
-import { DnaValidator } from '@dna/validator'
+import { DnaValidator } from '@dna-codes/core'
 
 const validator = new DnaValidator()
 const result = validator.validateCrossLayer({ operational, productApi, productUi, technical })
@@ -616,7 +616,7 @@ npm test                    # runs all workspace tests
 
 | Package | Tests | Coverage |
 |---------|-------|----------|
-| `@dna/validator` | 42 | Per-schema validation, composite documents, cross-layer validation |
+| `@dna-codes/core` (validator) | 42 | Per-schema validation, composite documents, cross-layer validation (lives upstream in the DNA repo) |
 | `@cell/api-cell` | 68 | NestJS generators, Express integration, NestJS integration, **adapter conformance** (10 tests) |
 | `@cell/ui-cell` | 14 | **Adapter conformance** (14 tests) |
 

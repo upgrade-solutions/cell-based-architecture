@@ -1,0 +1,29 @@
+{
+  "environments": [
+    { "name": "dev", "description": "Consumer-mode regression test environment." }
+  ],
+  "providers": [
+    { "name": "aws", "type": "cloud", "region": "us-east-1", "description": "Primary cloud provider." }
+  ],
+  "constructs": [],
+  "variables": [
+    { "name": "DATABASE_URL", "source": "secret", "required": false }
+  ],
+  "cells": [
+    {
+      "name": "api-cell",
+      "description": "Fastify cell — exercises the consumer-mode spawn path.",
+      "dna": "lending/product.api",
+      "adapter": {
+        "type": "node/fastify",
+        "config": {
+          "compute": "lambda",
+          "core_dna": "lending/product.core",
+          "port": 3001
+        }
+      },
+      "constructs": [],
+      "variables": []
+    }
+  ]
+}

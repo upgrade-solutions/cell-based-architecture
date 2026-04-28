@@ -46,8 +46,8 @@ Build the planned cells that extend the architecture beyond API and UI.
 
 Introduce the `Signal` primitive and extend existing primitives to support cross-domain event-driven communication. A Signal is a named domain event published after a Capability executes — it crosses domain boundaries and carries a typed payload contract.
 
-- [x] Define `Signal` schema (`packages/dna/schemas/operational/signal.json`) — name, capability, description, typed payload fields
-- [x] Add `signals` array to operational composite schema (`packages/dna/schemas/operational/operational.json`)
+- [x] Define `Signal` schema (`@dna-codes/schemas/operational/signal.json`) — name, capability, description, typed payload fields
+- [x] Add `signals` array to operational composite schema (`@dna-codes/schemas/operational/operational.json`)
 - [x] Extend `Outcome` schema with `emits` field — array of Signal names published when outcome completes (cross-domain, async; distinct from `initiates` which is intra-domain, sync)
 - [x] Extend `Cause` schema with `source: "signal"` and `signal` field — subscribe to Signals from any domain
 - [x] Cross-layer validation: `Outcome.emits` references valid Signal names, `Signal.capability` references valid Capability
@@ -96,7 +96,7 @@ Replace direct HTTP delivery with durable queue-based delivery. A worker process
 
 Feature flags as another predicate on the existing operational `Rule.allow[]` shape — not a new primitive. An always-off flag is equivalent to `allow: []`; an on-for-role-X flag is equivalent to adding a role entry. One schema extension, then a ripple through every cell adapter that emits authz middleware and every UI adapter that emits access guards.
 
-- [x] **Schema extension** — `packages/dna/schemas/operational/rule.json` adds optional `flags: string[]` to each `allow[]` entry. Semantics: an entry matches iff its `role` + `ownership` pass AND every named flag in `flags[]` is currently enabled. Free-form strings, no separate flag registry, no `dna-validator` cross-check — typos surface at runtime not validate time. Deliberately minimal to let consumers move fast.
+- [x] **Schema extension** — `@dna-codes/schemas/operational/rule.json` adds optional `flags: string[]` to each `allow[]` entry. Semantics: an entry matches iff its `role` + `ownership` pass AND every named flag in `flags[]` is currently enabled. Free-form strings, no separate flag registry, no `dna-validator` cross-check — typos surface at runtime not validate time. Deliberately minimal to let consumers move fast.
 - [x] **api-cell adapters** — authz middleware generators for `node/express`, `node/nestjs`, `python/fastapi`, and `ruby/rails` now honor `rule.allow[].flags`. An injectable `isFlagEnabled(name)` helper (per language) reads `FLAG_<UPPER_SNAKE_NAME>` env vars by default; users swap the helper module to plug in LaunchDarkly / Unleash / GrowthBook. `entryMatches` is now (role OR role-any) AND (ownership if present) AND (all flags enabled). 7 new tests, 76 passing total.
 - [x] **ui-cell adapters** — `vite/react`, `vite/vue`, and `next/react` gain a render-time visibility guard (pure function of user + flag snapshot) and a click-time guard that re-reads the same snapshot as a fast-path check before firing the API call. Flag source is an injectable React context (or Vue provide) that fetches `/api/flags` at app mount; fail-closed on missing/404. Disable-with-tooltip for buttons controlled by flags ("Requires feature: X"), hide entirely when the role itself denies. Note: the existing UI adapters had NO authz at all before this chunk, so the whole guard layer was introduced from scratch alongside operational-DNA loading into `UiCellContext` and user role extraction from the `auth_token` JWT. 18 new tests, 37 passing total.
 - [x] **cba-viz flag chip widget** — `FlagChipsWidget.tsx` replaces the default RJSF vertical text-array input for `rule.allow[].flags` with inline emerald tag chips. Scoped via a nested `ui:widget` override in the Rule form's `uiSchema`, so other string-array fields (`conditions`, `allow` itself) keep their default rendering. Enter or comma commits, × removes, backspace on empty input pops the last chip, blur commits in-progress drafts, duplicates silently ignored. No autocomplete — the schema has no flag registry to populate from.
@@ -158,7 +158,7 @@ A general-purpose application shell that works across web and mobile, with produ
 - [ ] Block migration — migrate FormBlock, TableBlock, DetailBlock, ActionsBlock, EmptyStateBlock from inline styles to Tailwind classes (follow-up)
 
 **Implementation touches:**
-1. `packages/dna/schemas/product/web/layout.json` — add `"universal"` to the type enum, add optional `features` and `tenants` properties
+1. `@dna-codes/schemas/product/web/layout.json` — add `"universal"` to the type enum, add optional `features` and `tenants` properties
 2. `technical/cells/ui-cell/src/adapters/vite/react/generators/scaffold.ts` — add `xstate` + `@xstate/react` to generated `package.json` dependencies
 3. `technical/cells/ui-cell/src/adapters/vite/react/generators/renderer.ts` — add `rendererLayoutMachine()` (XState machine) and `rendererUniversalLayout()` (React component) generator functions
 4. `technical/cells/ui-cell/src/adapters/vite/react/index.ts` — wire new generators into the output pipeline
@@ -204,7 +204,7 @@ Two cross-cutting pieces land first because the demo's prompt-to-deploy flow dep
 
 Today, technical DNA and cells read operational DNA directly via cross-layer validation. That leaks operational primitives into places that should only see the product surface. Product core fixes this: technical DNA reads **only** `product.core.json` + `product.api.json` + `product.ui.json`, and operational DNA becomes invisible downstream of product.
 
-- [x] **`packages/dna/schemas/product/product.core.json`** — new schema for the self-contained product-core document. Flat `nouns[]` at the top level plus optional `capabilities`, `causes`, `rules`, `outcomes`, `lifecycles`, `signals`, `relationships`, `equations`. Registered in the dna-validator.
+- [x] **`@dna-codes/schemas/product/product.core.json`** — new schema for the self-contained product-core document. Flat `nouns[]` at the top level plus optional `capabilities`, `causes`, `rules`, `outcomes`, `lifecycles`, `signals`, `relationships`, `equations`. Registered in the dna-validator.
 - [x] **`product-core-materializer`** — `packages/cba/src/product-core.ts` walks `operational.json`, collects noun references from `product.api.json` (resources[].noun) and `product.ui.json` (pages[].resource), expands the closure via relationships, and filters downstream primitives to the surfaced capability set.
 - [x] **`cba develop` integration** — `cba develop <domain>` auto-materializes `product.core.json` before each cell runs. `cba product core materialize <domain>` is the manual trigger.
 - [x] **Cells read product core, not operational** — `api-cell` (express/nestjs/fastapi/rails), `ui-cell` (vite/react, vite/vue, next/react), `db-cell`, and `event-bus-cell` all load `product.core.json` in place of `operational.json`. Signal middleware, validators, routing, schema generation, and signal receivers reference product core. The Express runtime interpreter reads `src/dna/product.core.json` at startup and on hot-reload.
@@ -268,7 +268,7 @@ Evolve `cba-viz` from a read-only viewer of the derived Technical deployment gra
 **Guiding decisions:**
 - **Files remain canonical through Phase 5c.2.** The editor reads and writes per-domain JSON (`operational.json`, `product.*.json`, `technical.json`) through the Vite dev middleware. This preserves CLI compatibility (`cba views`, `cba deliver`, `dna-validator`) automatically and avoids a new backend service while the editor UX is still shaking out.
 - **Graph DB + GraphQL is Phase 5c.3, not day one.** Introducing Neo4j + `@neo4j/graphql` is deferred until we've seen real access patterns — multi-user editing, cross-domain queries, history. The JSON Schemas that drive form generation in earlier phases carry forward unchanged.
-- **Schemas are the single source of truth** for form generation. `packages/dna/schemas/operational/*.json`, `packages/dna/schemas/product/*.json`, and `packages/dna/schemas/technical/*.json` already describe every primitive; RJSF (`@rjsf/core`) renders them into the inspector panel without hand-written editor code.
+- **Schemas are the single source of truth** for form generation. `@dna-codes/schemas/operational/*.json`, `@dna-codes/schemas/product/*.json`, and `@dna-codes/schemas/technical/*.json` already describe every primitive; RJSF (`@rjsf/core`) renders them into the inspector panel without hand-written editor code.
 
 ### Phase 5c.1: Technical viewer (Shipped)
 
@@ -287,7 +287,7 @@ Evolve `cba-viz` from a read-only viewer of the derived Technical deployment gra
 Bring Operational DNA into `cba-viz` — authoring Nouns, Capabilities, Rules, Outcomes, Signals, Lifecycles via a canvas + schema-driven inspector.
 
 - [x] **Layer-agnostic load/save middleware** — `GET /api/dna/:layer/:domain` and `POST /api/dna/:layer/:domain` endpoints in `packages/cba-viz/vite.config.ts`. Atomic write (`.tmp` + rename). `GET /api/schemas/:family/:name` serves JSON schemas from the repo's layer schema directories.
-- [x] **Operational types + loader** — `packages/cba-viz/src/loaders/operational-loader.ts` mirrors `packages/dna/schemas/operational/*.json` in TypeScript interfaces. `parseOperationalDNA`, `loadOperationalDNA` functions.
+- [x] **Operational types + loader** — `packages/cba-viz/src/loaders/operational-loader.ts` mirrors `@dna-codes/schemas/operational/*.json` in TypeScript interfaces. `parseOperationalDNA`, `loadOperationalDNA` functions.
 - [x] **Operational shape system** — `packages/cba-viz/src/shapes/operational/` with `NounShape` (slate rounded rect, attribute count badge), `CapabilityShape` (emerald pill, R/O badges), `RuleShape` (hexagon, amber=access / cyan=condition), `OutcomeShape` (violet rounded square), `SignalShape` (rose diamond). `ZoneContainer` gains a `domain-operational` color entry.
 - [x] **Operational mapper** — `packages/cba-viz/src/mappers/operational-to-graph.ts` emits domain zones, nouns, capabilities, rule/outcome satellites, signals, and edges for `Outcome.initiates`, `Outcome.emits`, `Cause` with `source: "signal"`. Manual column-per-noun layout with saved-layout overlay support.
 - [x] **`OperationalCanvas` component** — mirrors the technical canvas (paper setup, zoom, pan, fade-in). `Canvas.tsx` renamed to `TechnicalCanvas.tsx` so naming stays parallel.
