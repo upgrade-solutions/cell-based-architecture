@@ -2,8 +2,27 @@ import { Namespace } from '../../../../types'
 
 /**
  * ECS entrypoint: builds Fastify, registers routes, calls listen(). Mirrors
- * the express adapter's main.ts: hot DNA reload via fs.watch, Swagger UI at
- * /api, Redoc at /docs, /api-json for the spec.
+ * the express adapter's main.ts: hot DNA reload via fs.watch, Redoc at
+ * /docs, /api-json for the spec.
+ *
+ * Docs strategy (see openspec change `fix-fastify-adapter-swagger-ui-wiring`):
+ * Redoc only. We do NOT use `@fastify/swagger` or `@fastify/swagger-ui`, and
+ * we do NOT hand-roll a Swagger UI page. Reasons:
+ *   - The api-cell builds the OpenAPI document directly from DNA; there are
+ *     no route schemas for `@fastify/swagger` to introspect, so its
+ *     `mode: 'static'` path was the only useful seam — and it captures the
+ *     doc at registration, turning the plugin into dead weight that has to be
+ *     re-fed via decorator overrides.
+ *   - `@fastify/swagger-ui@^5` force-resolves `<routePrefix>/json` through
+ *     `app.swagger()`, ignoring `uiConfig.url`. That was the proximate cause
+ *     of the "definition does not specify a valid version field" error the
+ *     change fixes; any reintroduction of the plugin pair re-introduces it.
+ *   - Redoc already renders the same OpenAPI doc with a built-in
+ *     "Request samples" panel (curl + copy button) out of the box, so a
+ *     second renderer added no real value to justify the extra HTML/CDN
+ *     surface.
+ * Two plugin majors leave the dep set; one renderer (Redoc) remains, served
+ * from CDN at /docs.
  */
 export function generateMain(namespace: Namespace, authMode?: string): string {
   const title = namespace.name
@@ -19,8 +38,6 @@ import * as fs from 'fs'
 import * as path from 'path'
 import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
-import swagger from '@fastify/swagger'
-import swaggerUi from '@fastify/swagger-ui'
 import { registerRoutes } from './interpreter/router'
 import { buildOpenApiSpec } from './interpreter/openapi'
 import { seedFromProductCoreDna, getStoreMode } from './interpreter/store'${authImport}
@@ -56,9 +73,9 @@ async function buildApp(): Promise<FastifyInstance> {
 
   app.get('/health', async () => ({ status: 'ok' }))
 
-  // Root redirects to Swagger UI so visiting http://host:port/ in a browser
+  // Root redirects to Redoc so visiting http://host:port/ in a browser
   // doesn't return a 404 page.
-  app.get('/', async (_req, reply) => reply.redirect('/api'))
+  app.get('/', async (_req, reply) => reply.redirect('/docs'))
 
   app.get('/api-json', async () => currentSpec)
 
@@ -78,13 +95,6 @@ async function buildApp(): Promise<FastifyInstance> {
     <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
   </body>
 </html>\`
-  })
-
-  // Swagger UI — fed from the dynamically rebuilt /api-json route.
-  await app.register(swagger, { mode: 'static', specification: { document: currentSpec as any } })
-  await app.register(swaggerUi, {
-    routePrefix: '/api',
-    uiConfig: { url: '/api-json' },
   })${authRegister}
 
   // Register DNA-driven routes
@@ -121,7 +131,6 @@ async function bootstrap() {
   const port = Number(process.env.PORT ?? 3001)
   await app.listen({ port, host: '0.0.0.0' })
   console.log(\`Listening:  http://localhost:\${port}\`)
-  console.log(\`Swagger UI: http://localhost:\${port}/api\`)
   console.log(\`Redoc:      http://localhost:\${port}/docs\`)
   console.log(\`OpenAPI:    http://localhost:\${port}/api-json\`)
 

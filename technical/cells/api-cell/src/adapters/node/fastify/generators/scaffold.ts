@@ -3,12 +3,17 @@ import { ComputeTarget } from '..'
 export function generatePackageJson(appName: string, compute: ComputeTarget = 'ecs'): string {
   // Fastify 5 + v5-aligned plugin majors. Mixing v4 and v5 plugins against any
   // single fastify install throws FST_ERR_PLUGIN_VERSION_MISMATCH at startup,
-  // so the four fastify-* deps must move in lockstep. @fastify/swagger@^9 was
-  // already v5-only; cors and swagger-ui needed bumping to clear the mismatch.
+  // so the fastify-* deps must move in lockstep.
+  //
+  // Docs are served by a hand-rolled Redoc HTML page in main.ts, loading the
+  // Redoc bundle from CDN. We deliberately do NOT carry `@fastify/swagger` or
+  // `@fastify/swagger-ui` — the api-cell builds the OpenAPI doc directly from
+  // DNA, so the plugin pair would be dead weight, and `@fastify/swagger-ui@^5`
+  // also force-routes its own spec URL through `app.swagger()`, which broke
+  // Swagger UI rendering against the v9/v5 plugin pair. See the comment on
+  // `generateMain` for the full rationale.
   const baseDeps: Record<string, string> = {
     '@fastify/cors': '^11.0.0',
-    '@fastify/swagger': '^9.0.0',
-    '@fastify/swagger-ui': '^5.0.0',
     bcryptjs: '^2.4.0',
     dotenv: '^16.0.0',
     'drizzle-orm': '^0.30.0',
