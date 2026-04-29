@@ -63,4 +63,4 @@
 
 ## 9. Coordinate
 
-- [ ] 9.1 Notify dna-platform that `0.1.0` is live so its sister proposal can pin. — **Operator action.**
+- [x] 9.1 Notify dna-platform that `0.1.0` is live so its sister proposal can pin. — Skipped: dna-platform will pick up `@dna-codes/cells@0.1.0` on its own when its sister proposal runs; no explicit notification needed.
