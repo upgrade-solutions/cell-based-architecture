@@ -52,7 +52,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rewrite file: deps to registry pins
+      - name: 'Rewrite file: deps to registry pins'
         # Source package.json files use `file:../dna/packages/*` for local dev.
         # In CI we replace those with `^0.4.0` so npm resolves them from
         # GitHub Packages instead of expecting a sibling checkout. Hardcoded
