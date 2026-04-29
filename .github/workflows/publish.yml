@@ -1,23 +1,27 @@
-# Publish all `@dna-codes/*` workspace packages to GitHub Packages.
+# Publish all `@dna-codes/cells*` workspace packages to GitHub Packages.
 #
 # Triggers:
 #   - tag push matching `v*` — the canonical release path. Tag the commit
 #     after merging the version bump; the workflow takes it from there.
 #   - `workflow_dispatch` — manual run via the Actions UI for off-cycle
-#     republishes (e.g., re-tagging after a hotfix without a version bump).
+#     republishes.
 #
 # What it publishes:
 #   `@dna-codes/cells`, `@dna-codes/cells-viz`, `@dna-codes/cells-api`,
 #   `@dna-codes/cells-ui`, `@dna-codes/cells-db`. The `npm publish --workspaces`
 #   step honors each package's `publishConfig.registry` (GitHub Packages)
-#   and `version`. Bump the version in every package.json before tagging
-#   if you want a multi-package release; otherwise npm refuses to republish
-#   over an existing version.
+#   and `version`. Bump the version in every workspace `package.json` before
+#   tagging if you want a multi-package release; otherwise npm refuses to
+#   republish over an existing version.
 #
-# Sibling-repo build assumption: this repo's deps include `file:` references
-# into a sibling `dna/` checkout (see README "Sibling repos"). The publish
-# job checks out the dna repo too so `npm ci` resolves cleanly. Mirrors the
-# `api-cell-fastify-conformance.yml` workflow's layout.
+# How dna-side deps resolve: the source `package.json`s in this repo declare
+# `@dna-codes/dna-*` deps as `file:../dna/packages/*` for the local-sibling
+# dev loop. The "Rewrite file: deps to registry pins" step below swaps those
+# `file:` paths for `^0.4.0` registry ranges *in the runner's checkout only*
+# — git source is untouched. Consumers of our published packages install
+# `@dna-codes/dna-*@^0.4.0` from GitHub Packages without needing a sibling
+# checkout. The same `GITHUB_TOKEN` provides packages:read for installs and
+# packages:write for publishes.
 name: Publish to GitHub Packages
 
 on:
@@ -33,16 +37,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout cells (this repo)
-        uses: actions/checkout@v4
-        with:
-          path: cell-based-architecture
-
-      - name: Checkout sibling dna repo
-        uses: actions/checkout@v4
-        with:
-          repository: dna-codes/dna
-          path: dna
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
@@ -50,20 +45,60 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@dna-codes'
 
-      - name: Install + build sibling dna packages
-        working-directory: dna
+      - name: Configure GitHub Packages auth
         run: |
-          npm ci
-          npm run build --workspaces --if-present
+          echo "@dna-codes:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install + build cells
-        working-directory: cell-based-architecture
+      - name: Rewrite file: deps to registry pins
+        # Source package.json files use `file:../dna/packages/*` for local dev.
+        # In CI we replace those with `^0.4.0` so npm resolves them from
+        # GitHub Packages instead of expecting a sibling checkout. Hardcoded
+        # path list — only six files, no glob dep needed.
         run: |
-          npm ci
-          npm run build --workspaces --if-present
+          node -e '
+            const fs = require("fs");
+            const targets = [
+              "package.json",
+              "packages/cba/package.json",
+              "packages/cba-viz/package.json",
+              "technical/cells/api-cell/package.json",
+              "technical/cells/ui-cell/package.json",
+              "technical/cells/db-cell/package.json",
+            ];
+            const REGISTRY_RANGE = "^0.4.0";
+            for (const p of targets) {
+              const j = JSON.parse(fs.readFileSync(p, "utf-8"));
+              for (const block of [j.dependencies, j.devDependencies, j.overrides]) {
+                if (!block) continue;
+                for (const k of Object.keys(block)) {
+                  if (k.startsWith("@dna-codes/dna-") && String(block[k]).startsWith("file:")) {
+                    console.log(`${p}: ${k}: ${block[k]} → ${REGISTRY_RANGE}`);
+                    block[k] = REGISTRY_RANGE;
+                  }
+                }
+              }
+              fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n", "utf-8");
+            }
+          '
+
+      - name: Install (regenerate lockfile against the registry)
+        # The committed package-lock.json references file: paths and would
+        # fail with `npm ci`. Regenerate against the rewritten package.json
+        # via `npm install` so the registry-pinned dna packages are pulled
+        # from GitHub Packages.
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund
+
+      - name: Build all workspaces
+        run: npm run build --workspaces --if-present
 
       - name: Publish to GitHub Packages
-        working-directory: cell-based-architecture
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm publish --workspaces --access public
