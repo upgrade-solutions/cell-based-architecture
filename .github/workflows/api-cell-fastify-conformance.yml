@@ -41,7 +41,7 @@ jobs:
       - name: Checkout sibling dna repo
         uses: actions/checkout@v4
         with:
-          repository: upgrade-solutions/dna
+          repository: dna-codes/dna
           path: dna
 
       - uses: actions/setup-node@v4

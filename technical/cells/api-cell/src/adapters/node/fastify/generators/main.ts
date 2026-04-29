@@ -161,7 +161,7 @@ bootstrap().catch(err => {
  *
  * OpenAPI-as-contract seam — partial:
  * - The runtime spec served at /api-json is rendered by
- *   @dna-codes/output-openapi (see ./interpreter/openapi). DNA → OpenAPI
+ *   @dna-codes/dna-output-openapi (see ./interpreter/openapi). DNA → OpenAPI
  *   translation lives upstream now.
  * - Route registration (registerRoutes) still consumes product.api.json
  *   directly. Flipping it to consume the OpenAPI document is a separate,

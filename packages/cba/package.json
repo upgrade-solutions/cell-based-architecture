@@ -1,12 +1,20 @@
 {
-  "name": "@cell/cba",
-  "version": "0.0.1",
-  "private": true,
-  "description": "Unified CLI for the cell-based architecture lifecycle: discover, design, develop, deliver.",
+  "name": "@dna-codes/cells",
+  "version": "0.1.0",
+  "description": "Unified CLI for the cell-based architecture lifecycle: discover, design, develop, deliver. Ships the `cba` binary.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "cba": "./bin/cba"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   },
   "scripts": {
     "build": "tsc",
@@ -15,7 +23,7 @@
     "test:consumer-mode": "node --experimental-vm-modules ../../node_modules/.bin/jest --runTestsByPath test/consumer-mode/run.test.ts"
   },
   "dependencies": {
-    "@dna-codes/core": "file:../../../dna/packages/core"
+    "@dna-codes/dna-core": "file:../../../dna/packages/core"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

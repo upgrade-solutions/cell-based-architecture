@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { DnaValidator } from '@dna-codes/core'
+import { DnaValidator } from '@dna-codes/dna-core'
 import { ProductCoreDNA, DbCellAdapter, DbAdapterConfig, DbConstructConfig } from './types'
 import * as postgresAdapter from './adapters/postgres'
 

@@ -1,4 +1,4 @@
-# @cell/cba
+# @dna-codes/cells
 
 Unified CLI for the cell-based architecture lifecycle.
 
@@ -221,14 +221,14 @@ packages/cba/
 ```
 
 `bin/cba` prefers the prebuilt `dist/index.js` when present (the path used
-when `@cell/cba` is consumed as an installed package) and falls back to
+when `@dna-codes/cells` is consumed as an installed package) and falls back to
 `ts-node src/index.ts` for in-workspace development. Run `npm run build`
 when source changes need to ship to consumers.
 
 ## Run from a downstream consumer
 
-`@cell/cba` is designed to be consumed from outside its own monorepo.
-A consumer project depends on it via `npm install @cell/cba` (or a
+`@dna-codes/cells` is designed to be consumed from outside its own monorepo.
+A consumer project depends on it via `npm install @dna-codes/cells` (or a
 `file:` ref while iterating locally) and runs `npx cba <command>` from
 its own root:
 
@@ -236,7 +236,7 @@ its own root:
 // consumer/package.json
 {
   "dependencies": {
-    "@cell/cba": "file:../cell-based-architecture/packages/cba"
+    "@dna-codes/cells": "file:../cell-based-architecture/packages/cba"
   }
 }
 ```
@@ -255,7 +255,7 @@ without any cross-repo path assumptions.
 ### Consumer-mode regression test
 
 `test/consumer-mode/run.test.ts` enforces this contract by staging a
-fixture project that depends on `@cell/cba` via `file:`, running a real
+fixture project that depends on `@dna-codes/cells` via `file:`, running a real
 `npm install`, then `npx cba develop`, and asserting the cell output
 lands under the consumer's `output/`. It's the safety net for the class
 of bugs where cba works inside its own monorepo but breaks under a
@@ -265,5 +265,5 @@ It's slow (real `npm install`) so it's excluded from the default test
 suite. Run it explicitly:
 
 ```bash
-npm run test:consumer-mode --workspace=@cell/cba
+npm run test:consumer-mode --workspace=@dna-codes/cells
 ```

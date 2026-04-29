@@ -1,9 +1,16 @@
 {
-  "name": "@cell/api-cell",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@dna-codes/cells-api",
+  "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --experimental-vm-modules ../../../node_modules/.bin/jest",
@@ -15,7 +22,7 @@
     "typecheck:lending": "npm run generate:lending && npm install --prefix ../../../output/lending-api && npx tsc --noEmit --project ../../../output/lending-api/tsconfig.json"
   },
   "dependencies": {
-    "@dna-codes/core": "file:../../../../dna/packages/core"
+    "@dna-codes/dna-core": "file:../../../../dna/packages/core"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -35,7 +42,7 @@
       "/test/fastify-conformance/"
     ],
     "moduleNameMapper": {
-      "^@dna-codes/core$": "<rootDir>/../../../node_modules/@dna-codes/core/dist/index.js"
+      "^@dna-codes/dna-core$": "<rootDir>/../../../node_modules/@dna-codes/dna-core/dist/index.js"
     }
   }
 }

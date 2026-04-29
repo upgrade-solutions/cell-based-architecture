@@ -13,7 +13,7 @@ import { DomainPaths, loadLayer } from './context'
  * (via `cba product core materialize` or automatically during `cba develop`)
  * overwrites `product.core.json` with the current projection.
  *
- * The shape of Product Core matches `@dna-codes/core`'s ProductCoreDNA:
+ * The shape of Product Core matches `@dna-codes/dna-core`'s ProductCoreDNA:
  *   { domain, resources?, operations?, triggers?, relationships? }
  *
  * The earlier model (capabilities, outcomes, signals, equations, lifecycles)

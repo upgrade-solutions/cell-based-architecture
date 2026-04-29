@@ -2,8 +2,8 @@
   "name": "cba-consumer-mode-fixture",
   "version": "0.0.0",
   "private": true,
-  "description": "Fixture project that depends on @cell/cba via a file: ref. Used by run.test.ts; the file: path is rewritten to an absolute path at test runtime.",
+  "description": "Fixture project that depends on @dna-codes/cells via a file: ref. Used by run.test.ts; the file: path is rewritten to an absolute path at test runtime.",
   "dependencies": {
-    "@cell/cba": "file:../../.."
+    "@dna-codes/cells": "file:../../.."
   }
 }

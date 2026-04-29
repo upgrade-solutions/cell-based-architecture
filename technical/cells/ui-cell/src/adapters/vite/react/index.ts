@@ -49,7 +49,7 @@ export const generate: UiCellAdapter['generate'] = (
 
   // ── Vendor mode + primitives path ───────────────────────────────────────────
   const vendorComponents = ctx?.vendorComponents ?? true
-  const primitivesPath = vendorComponents ? '../primitives' : '@cell/ui-cell/primitives'
+  const primitivesPath = vendorComponents ? '../primitives' : '@dna-codes/cells-ui/primitives'
 
   // ── config.json — tells the renderer where to fetch DNA at runtime ───────────
   write(outputDir, 'public/config.json', JSON.stringify({

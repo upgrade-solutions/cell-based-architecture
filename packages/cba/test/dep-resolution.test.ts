@@ -22,11 +22,13 @@
 import { realpathSync } from 'fs'
 import * as path from 'path'
 
-test('@dna-codes/core resolves to the local sibling, not a node_modules copy', () => {
-  const resolved = realpathSync(require.resolve('@dna-codes/core/package.json'))
+test('@dna-codes/dna-core resolves to the local sibling, not a node_modules copy', () => {
+  const resolved = realpathSync(require.resolve('@dna-codes/dna-core/package.json'))
   // Land under .../dna/packages/core/package.json, not under .../node_modules/.
+  // (The package was renamed to @dna-codes/dna-core in `rebrand-to-dna-prefix`,
+  // but the on-disk directory in the sibling repo stayed `core/`.)
   expect(resolved).toMatch(/\/dna\/packages\/core\/package\.json$/)
-  expect(resolved).not.toMatch(/node_modules\/@dna-codes\/core\/package\.json$/)
+  expect(resolved).not.toMatch(/node_modules\/@dna-codes\/dna-core\/package\.json$/)
 
   // And the resolved sibling lives outside cell-based-architecture/ entirely.
   // Walk up from the resolved package.json: parent is `core/`, then `packages/`,

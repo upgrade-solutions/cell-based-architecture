@@ -1,15 +1,22 @@
 {
-  "name": "@cell/cba-viz",
-  "private": true,
-  "version": "0.0.1",
+  "name": "@dna-codes/cells-viz",
+  "version": "0.1.0",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dna-codes/core": "file:../../../dna/packages/core",
+    "@dna-codes/dna-core": "file:../../../dna/packages/core",
     "@joint/plus": "file:joint-plus.tgz",
     "@rjsf/core": "^6.4.2",
     "@rjsf/utils": "^6.4.2",

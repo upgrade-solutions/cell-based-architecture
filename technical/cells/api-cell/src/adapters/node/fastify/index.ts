@@ -37,7 +37,7 @@ export type ComputeTarget = 'ecs' | 'lambda'
  * dependencies, and a few build settings differ.
  *
  * OpenAPI-as-contract seam — partial. The runtime spec served at `/api-json`
- * is rendered by `@dna-codes/output-openapi` (see `generators/openapi.ts`)
+ * is rendered by `@dna-codes/dna-output-openapi` (see `generators/openapi.ts`)
  * — DNA → OpenAPI translation lives upstream, not in cba. Route registration
  * (`registerRoutes`) still consumes `product.api.json` directly; flipping it
  * to consume the OpenAPI document is a separate, larger change (param

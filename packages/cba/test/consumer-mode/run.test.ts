@@ -1,7 +1,7 @@
 /**
  * Consumer-mode regression test.
  *
- * Stages a fixture project that depends on @cell/cba via a file: ref into a
+ * Stages a fixture project that depends on @dna-codes/cells via a file: ref into a
  * tmp dir, runs `npm install` then `npx cba develop`, and asserts that cell
  * artifacts land where they should. This is the missing safety net for the
  * "cba works in its own monorepo but breaks under a downstream consumer"
@@ -34,7 +34,7 @@ function rewritePackageJson(tmpDir: string): void {
   const pkgPath = path.join(tmpDir, 'package.json')
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
   pkg.dependencies = pkg.dependencies ?? {}
-  pkg.dependencies['@cell/cba'] = `file:${CBA_PACKAGE_DIR}`
+  pkg.dependencies['@dna-codes/cells'] = `file:${CBA_PACKAGE_DIR}`
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
 }
 
@@ -51,7 +51,7 @@ describe('cba develop from a downstream consumer', () => {
     // to ts-node-from-cwd, which isn't the path we're regression-testing.
     execFileSync('npm', ['run', 'build'], { cwd: CBA_PACKAGE_DIR, stdio: 'inherit' })
 
-    // npm install — pulls in @cell/cba via the absolute file: ref. The flags
+    // npm install — pulls in @dna-codes/cells via the absolute file: ref. The flags
     // keep the install quiet and avoid hitting the registry for audit/fund.
     execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: tmpDir, stdio: 'inherit' })
   }, 5 * 60 * 1000)

@@ -1,0 +1,69 @@
+# Publish all `@dna-codes/*` workspace packages to GitHub Packages.
+#
+# Triggers:
+#   - tag push matching `v*` — the canonical release path. Tag the commit
+#     after merging the version bump; the workflow takes it from there.
+#   - `workflow_dispatch` — manual run via the Actions UI for off-cycle
+#     republishes (e.g., re-tagging after a hotfix without a version bump).
+#
+# What it publishes:
+#   `@dna-codes/cells`, `@dna-codes/cells-viz`, `@dna-codes/cells-api`,
+#   `@dna-codes/cells-ui`, `@dna-codes/cells-db`. The `npm publish --workspaces`
+#   step honors each package's `publishConfig.registry` (GitHub Packages)
+#   and `version`. Bump the version in every package.json before tagging
+#   if you want a multi-package release; otherwise npm refuses to republish
+#   over an existing version.
+#
+# Sibling-repo build assumption: this repo's deps include `file:` references
+# into a sibling `dna/` checkout (see README "Sibling repos"). The publish
+# job checks out the dna repo too so `npm ci` resolves cleanly. Mirrors the
+# `api-cell-fastify-conformance.yml` workflow's layout.
+name: Publish to GitHub Packages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cells (this repo)
+        uses: actions/checkout@v4
+        with:
+          path: cell-based-architecture
+
+      - name: Checkout sibling dna repo
+        uses: actions/checkout@v4
+        with:
+          repository: dna-codes/dna
+          path: dna
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@dna-codes'
+
+      - name: Install + build sibling dna packages
+        working-directory: dna
+        run: |
+          npm ci
+          npm run build --workspaces --if-present
+
+      - name: Install + build cells
+        working-directory: cell-based-architecture
+        run: |
+          npm ci
+          npm run build --workspaces --if-present
+
+      - name: Publish to GitHub Packages
+        working-directory: cell-based-architecture
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish --workspaces --access public

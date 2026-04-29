@@ -122,11 +122,14 @@ describe('fastify adapter — Lambda compute', () => {
     expect(pkg.scripts['start:dev']).toBeUndefined()
   })
 
-  test('seam: Lambda entrypoint reads product.api.json (until output-openapi ships)', () => {
+  test('routing seam: Lambda entrypoint reads product.api.json directly for now', () => {
     const handler = fs.readFileSync(path.join(outDir, 'src/handler.ts'), 'utf-8')
     expect(handler).toContain('dna/api.json')
-    // SEAM marker present so the future migration is greppable
-    expect(handler).toContain('SEAM')
-    expect(handler).toContain('@dna-codes/output-openapi')
+    // The /api-json render seam has been crossed via the interpreter/openapi
+    // wrapper (which delegates to @dna-codes/dna-output-openapi). Routing is
+    // the still-pending seam; the marker comment in the handler makes the
+    // future swap greppable.
+    expect(handler).toContain('./interpreter/openapi')
+    expect(handler).toContain('swap point for the deferred routing-from-OpenAPI')
   })
 })

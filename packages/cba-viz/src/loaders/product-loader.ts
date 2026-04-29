@@ -5,7 +5,7 @@
  * heavily (Resource, Field, Action, Operation are used by product-core,
  * product-api, and product-ui).
  *
- * Field names and shapes mirror `@dna-codes/schemas/product/**.json`. The
+ * Field names and shapes mirror `@dna-codes/dna-schemas/product/**.json`. The
  * RJSF inspector form round-trips data through these interfaces back to the
  * schema — any drift breaks editing silently.
  *
@@ -104,7 +104,7 @@ export interface ProductCoreDomain {
 
 /**
  * Product Core is a materialized projection of operational DNA. Its shape
- * follows `@dna-codes/core`'s ProductCoreDNA: domain + resources, operations,
+ * follows `@dna-codes/dna-core`'s ProductCoreDNA: domain + resources, operations,
  * triggers, relationships. The legacy fields (capabilities, outcomes, signals,
  * equations, lifecycles) are gone with the model rewrite.
  */

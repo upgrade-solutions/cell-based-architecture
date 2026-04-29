@@ -1,16 +1,23 @@
 {
-  "name": "@cell/db-cell",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@dna-codes/cells-db",
+  "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "generate": "ts-node -r tsconfig-paths/register src/index.ts",
     "generate:lending": "ts-node -r tsconfig-paths/register src/index.ts ../../../dna/lending/technical.json db-cell ../../../output/lending-db"
   },
   "dependencies": {
-    "@dna-codes/core": "file:../../../../dna/packages/core"
+    "@dna-codes/dna-core": "file:../../../../dna/packages/core"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

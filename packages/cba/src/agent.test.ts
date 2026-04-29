@@ -35,7 +35,7 @@ describe('cba agent', () => {
   })
 
   it('resolves dna-core to the package-level AGENTS.md', () => {
-    // @dna-codes/core ships an AGENTS.md (the dispatcher across the three
+    // @dna-codes/dna-core ships an AGENTS.md (the dispatcher across the three
     // layer docs). After `align-cba-internal-dna-codes-deps`, cba resolves it
     // from the sibling `dna/packages/core/` rather than a registry copy.
     const r = cba(['agent', 'dna-core'])
@@ -75,7 +75,7 @@ describe('cba agent', () => {
     expect(r.code).toBe(0)
     const parsed = JSON.parse(r.stdout)
     expect(parsed.concern).toBe('operational')
-    // Layer docs ship inside @dna-codes/core. After
+    // Layer docs ship inside @dna-codes/dna-core. After
     // `align-cba-internal-dna-codes-deps`, cba resolves the package via a
     // file: dep that symlinks to the sibling `dna/packages/core/`, so the
     // reported path traces through the sibling — not through a registry

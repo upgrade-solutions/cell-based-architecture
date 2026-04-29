@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { DnaValidator } from '@dna-codes/core'
+import { DnaValidator } from '@dna-codes/dna-core'
 import { ProductApiDNA, ProductCoreDNA, AuthProviderConfig, ApiCellAdapter } from './types'
 import * as nestjsAdapter from './adapters/node/nestjs'
 import * as expressAdapter from './adapters/node/express'

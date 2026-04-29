@@ -64,7 +64,7 @@ COMMANDS
   schema         Show the JSON schema for a primitive type
   validate       Validate the operational layer
 
-PRIMITIVES (sourced from @dna-codes/schemas)
+PRIMITIVES (sourced from @dna-codes/dna-schemas)
   People       — Person, Role, Group, Membership
   Entities     — Resource, Attribute, Relationship
   Activities   — Operation, Task, Step (inside Process), Process, Trigger, Rule

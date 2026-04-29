@@ -1,7 +1,7 @@
 /**
  * Operational DNA types + loader.
  *
- * Field names and shapes mirror `@dna-codes/schemas/operational/*.json` exactly.
+ * Field names and shapes mirror `@dna-codes/dna-schemas/operational/*.json` exactly.
  * The RJSF-driven inspector form round-trips data through these interfaces back
  * to the schema, so any drift breaks editing silently. If you change a schema,
  * update the corresponding interface here and re-run tsc.
@@ -9,7 +9,7 @@
 
 import { migrateOperationalDNA } from './migrate-to-uuid.ts'
 
-// ── Primitive types (mirror @dna-codes/schemas/operational/*.json) ─────────
+// ── Primitive types (mirror @dna-codes/dna-schemas/operational/*.json) ─────────
 
 export type ActionType = 'read' | 'write' | 'destructive'
 

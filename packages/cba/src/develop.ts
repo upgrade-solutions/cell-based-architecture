@@ -20,11 +20,11 @@ interface CellPlan {
  * Convention: adapter-type prefix identifies the cell package.
  */
 function workspaceForAdapter(adapterType: string): string | undefined {
-  if (adapterType.startsWith('node/')) return '@cell/api-cell'
-  if (adapterType.startsWith('ruby/')) return '@cell/api-cell'
-  if (adapterType.startsWith('python/')) return '@cell/api-cell'
-  if (adapterType === 'postgres') return '@cell/db-cell'
-  if (adapterType.startsWith('vite/') || adapterType.startsWith('next/')) return '@cell/ui-cell'
+  if (adapterType.startsWith('node/')) return '@dna-codes/cells-api'
+  if (adapterType.startsWith('ruby/')) return '@dna-codes/cells-api'
+  if (adapterType.startsWith('python/')) return '@dna-codes/cells-api'
+  if (adapterType === 'postgres') return '@dna-codes/cells-db'
+  if (adapterType.startsWith('vite/') || adapterType.startsWith('next/')) return '@dna-codes/cells-ui'
   return undefined
 }
 
@@ -259,7 +259,7 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
 /**
  * Resolve the cell-based-architecture workspace root from cba's own install
  * location, not from the consumer's cwd. When cba is installed via a `file:`
- * dep, npm symlinks `consumer/node_modules/@cell/cba → cba-workspace/packages/cba`;
+ * dep, npm symlinks `consumer/node_modules/@dna-codes/cells → cba-workspace/packages/cba`;
  * `realpathSync` follows that link back to the actual workspace so the join
  * below points at real `packages/` and `technical/cells/` siblings.
  *
@@ -267,20 +267,33 @@ export function runDevelop(argv: string[], args: ParsedArgs): void {
  * package isn't reached through a symlink.
  */
 function cbaWorkspaceRoot(): string {
-  const pkgPath = require.resolve('@cell/cba/package.json')
+  const pkgPath = require.resolve('@dna-codes/cells/package.json')
   const realPkgPath = fs.realpathSync(pkgPath)
   return path.resolve(path.dirname(realPkgPath), '..', '..')
 }
 
+/**
+ * Workspace package name → relative directory path.
+ *
+ * After the `rebrand-to-cells-prefix` change, package names live under the
+ * `@dna-codes/*` scope but on-disk directory names didn't change (the
+ * proposal explicitly kept the workspace layout — only names moved).
+ * That divergence means we can't derive the directory from the name with
+ * a string transform; an explicit map is the simplest stable answer.
+ */
+const WORKSPACE_DIRS: Record<string, string> = {
+  '@dna-codes/cells': 'packages/cba',
+  '@dna-codes/cells-viz': 'packages/cba-viz',
+  '@dna-codes/cells-api': 'technical/cells/api-cell',
+  '@dna-codes/cells-ui': 'technical/cells/ui-cell',
+  '@dna-codes/cells-db': 'technical/cells/db-cell',
+}
+
 function workspaceDir(workspace: string): string {
-  // All cell workspaces live under technical/cells/<name>
-  // All package workspaces live under packages/<name>
   const root = cbaWorkspaceRoot()
-  const name = workspace.replace('@cell/', '')
-  if (name === 'cba') {
-    return path.join(root, 'packages', name)
-  }
-  return path.join(root, 'technical/cells', name)
+  const sub = WORKSPACE_DIRS[workspace]
+  if (!sub) throw new Error(`Unknown cba workspace: ${workspace}`)
+  return path.join(root, sub)
 }
 
 /**

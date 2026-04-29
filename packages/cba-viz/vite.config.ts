@@ -9,7 +9,7 @@ import { createRequire } from 'node:module'
 import { exec, execFile } from 'node:child_process'
 
 // Vite loads this config as ESM, so `require` isn't in scope — use
-// createRequire to resolve @dna-codes/schemas's on-disk location for schema serving.
+// createRequire to resolve @dna-codes/dna-schemas's on-disk location for schema serving.
 const requireFromHere = createRequire(import.meta.url)
 
 /** Path to the cba CLI binary, resolved from the monorepo root. */
@@ -744,11 +744,11 @@ function resolveDnaFile(domain: string, layer: string): string | null {
 }
 
 /**
- * Schema families map to layer roots inside the `@dna-codes/schemas` package.
+ * Schema families map to layer roots inside the `@dna-codes/dna-schemas` package.
  * The dev server streams schemas back to the RJSF-driven inspector forms, so
  * there's one source of truth across CLI, validator, and viewer.
  */
-const DNA_SCHEMAS_ROOT = path.dirname(requireFromHere.resolve('@dna-codes/schemas/package.json'))
+const DNA_SCHEMAS_ROOT = path.dirname(requireFromHere.resolve('@dna-codes/dna-schemas/package.json'))
 const SCHEMA_DIRS: Record<string, string> = {
   'operational': path.join(DNA_SCHEMAS_ROOT, 'operational'),
   'product': path.join(DNA_SCHEMAS_ROOT, 'product'),
@@ -764,7 +764,7 @@ function resolveSchemaFile(family: string, name: string): string | null {
 /**
  * Dereference cross-schema `$ref`s into a self-contained document.
  *
- * JSON Schemas in `@dna-codes/schemas` use absolute URIs like
+ * JSON Schemas in `@dna-codes/dna-schemas` use absolute URIs like
  * `https://dna.codes/schemas/operational/attribute` as refs across files.
  * RJSF's bundled ajv validator only resolves internal references (`#/...`),
  * so without preprocessing a form for a Resource explodes with "Could not

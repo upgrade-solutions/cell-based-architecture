@@ -5,9 +5,9 @@ import { Layer } from './context'
 /**
  * Catalog of primitive types per layer + where they live in the layer document.
  *
- * Primitive *names* and *shapes* come from the @dna-codes/schemas package — we
+ * Primitive *names* and *shapes* come from the @dna-codes/dna-schemas package — we
  * don't hardcode the list of valid types. The schema files in
- * @dna-codes/schemas/{operational,product/{core,api,web},technical}/*.json
+ * @dna-codes/dna-schemas/{operational,product/{core,api,web},technical}/*.json
  * define what's valid; we walk those directories at module-load time to
  * discover the type set.
  *
@@ -28,9 +28,9 @@ export interface PrimitiveSpec {
   childOf?: 'noun' | 'resource' | 'page'
 }
 
-/** Resolve the on-disk schemas directory bundled with @dna-codes/schemas. */
+/** Resolve the on-disk schemas directory bundled with @dna-codes/dna-schemas. */
 function schemasRoot(): string {
-  return path.dirname(require.resolve('@dna-codes/schemas/package.json'))
+  return path.dirname(require.resolve('@dna-codes/dna-schemas/package.json'))
 }
 
 /** Read the title-case display name from a JSON Schema file. */
@@ -61,7 +61,7 @@ function typeNameFor(schemaFile: string): string {
 
 /**
  * CBA-convention map of primitive type → document location. Keys are
- * `<layer-segment>/<schema-basename>` matching the `@dna-codes/schemas`
+ * `<layer-segment>/<schema-basename>` matching the `@dna-codes/dna-schemas`
  * directory layout. Schemas not listed here are treated as "child" shapes
  * (e.g. operational/action, operational/attribute) and surfaced via their
  * parent's primitive walk.
@@ -126,11 +126,11 @@ const LAYER_BY_SEGMENT: Record<string, Layer> = {
   technical: 'technical',
 }
 
-/** Layer segments to walk (matches the @dna-codes/schemas directory tree). */
+/** Layer segments to walk (matches the @dna-codes/dna-schemas directory tree). */
 const LAYER_SEGMENTS = ['operational', 'product/core', 'product/api', 'product/web', 'technical'] as const
 
 /**
- * Walk the @dna-codes/schemas directory tree and build the canonical primitive
+ * Walk the @dna-codes/dna-schemas directory tree and build the canonical primitive
  * catalog. Each primitive's type name comes from its schema's `title` field;
  * its location comes from the LOCATIONS convention map.
  *

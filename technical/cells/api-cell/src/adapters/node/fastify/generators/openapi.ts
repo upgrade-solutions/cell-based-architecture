@@ -1,7 +1,7 @@
 /**
  * Generates `src/interpreter/openapi.ts` in the emitted fastify cell.
  *
- * Delegates the DNA → OpenAPI 3.1 render to `@dna-codes/output-openapi` —
+ * Delegates the DNA → OpenAPI 3.1 render to `@dna-codes/dna-output-openapi` —
  * the canonical contract layer. Adding a Field type in DNA + extending
  * output-openapi propagates here automatically on next regen, with no
  * cba-side change. (See `flip-api-cell-to-output-openapi` for the rationale
@@ -29,11 +29,11 @@
  * not bundled.
  */
 export function generateOpenApi(): string {
-  return `import { render } from '@dna-codes/output-openapi'
+  return `import { render } from '@dna-codes/dna-output-openapi'
 
 /**
  * Build the runtime OpenAPI 3.1 doc served at /api-json. Delegates the
- * DNA → OpenAPI render to @dna-codes/output-openapi, then post-processes
+ * DNA → OpenAPI render to @dna-codes/dna-output-openapi, then post-processes
  * for cba-runtime parity (bearer auth shape, default error responses,
  * resource tags, x-roles). See the cba adapter source for the full
  * rationale and the parity checklist.

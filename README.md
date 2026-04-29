@@ -2,7 +2,7 @@
 
 Cell-based architecture is a philosophy for building applications by injecting **DNA** into **cells** — TypeScript engines that read DNA and produce working software (API endpoints, UIs, database schemas, etc.).
 
-- **DNA** — a JSON description language expressing a business domain across three layers (Operational, Product, Technical). Defined, schemafied, and validated by the [DNA repo](https://github.com/upgrade-solutions/dna), distributed as `@dna-codes/core` + `@dna-codes/schemas`. CBA defers entirely to those packages — it does not ship its own copy of DNA primitives, schemas, or the validator. Locally, this repo consumes them via `file:` references to a sibling `dna/` checkout (see "Sibling repos" below); end-users can install them from npm.
+- **DNA** — a JSON description language expressing a business domain across three layers (Operational, Product, Technical). Defined, schemafied, and validated by the [DNA repo](https://github.com/dna-codes/dna), distributed as `@dna-codes/dna-core` + `@dna-codes/dna-schemas`. CBA defers entirely to those packages — it does not ship its own copy of DNA primitives, schemas, or the validator. Locally, this repo consumes them via `file:` references to a sibling `dna/` checkout (see "Sibling repos" below); end-users can install them from npm.
 - **Cell** — a TypeScript package/engine that accepts one layer of DNA as input and produces code or deployable infrastructure.
 
 The relationship: DNA describes *what* the business is and does; cells decide *how* to implement it.
@@ -11,15 +11,15 @@ The relationship: DNA describes *what* the business is and does; cells decide *h
 
 | Package | What it is | Where |
 |---------|-----------|-------|
-| `@cell/cba` | Unified CLI for the full cell-based-architecture lifecycle | [`packages/cba/`](./packages/cba/) |
-| `@cell/cba-viz` | Interactive architecture viewer (Vite + React + JointJS) | [`packages/cba-viz/`](./packages/cba-viz/) |
-| `@cell/{api,ui,db}-cell` | Cells that consume DNA and produce code or infra | [`technical/cells/`](./technical/cells/) |
+| `@dna-codes/cells` | Unified CLI for the full cell-based-architecture lifecycle (ships the `cba` binary) | [`packages/cba/`](./packages/cba/) |
+| `@dna-codes/cells-viz` | Interactive architecture viewer (Vite + React + JointJS) | [`packages/cba-viz/`](./packages/cba-viz/) |
+| `@dna-codes/cells-{api,ui,db}` | Cells that consume DNA and produce code or infra | [`technical/cells/`](./technical/cells/) |
 
-DNA packages (`@dna-codes/core`, `@dna-codes/schemas`, `@dna-codes/input-text`, `@dna-codes/output-openapi`) live in the [DNA repo](https://github.com/upgrade-solutions/dna). Locally this repo resolves them via `file:` references to a sibling checkout — see "Sibling repos" below. See the DNA repo's README for schemas, TypeScript bindings, and layer docs.
+DNA packages (`@dna-codes/dna-core`, `@dna-codes/dna-schemas`, `@dna-codes/dna-input-text`, `@dna-codes/dna-output-openapi`) live in the [DNA repo](https://github.com/dna-codes/dna). Locally this repo resolves them via `file:` references to a sibling checkout — see "Sibling repos" below. See the DNA repo's README for schemas, TypeScript bindings, and layer docs.
 
 ## Sibling repos — local consumption
 
-`cell-based-architecture` consumes `@dna-codes/*` from a sibling `dna/` checkout under the same parent directory, resolved via `file:` references. The same pattern downstream consumers (e.g. `dna-platform`) use for **their** `@dna-codes/*` and `@cell/cba` deps; this repo extends it inward so the local-sibling resolution chain is unbroken end-to-end.
+`cell-based-architecture` consumes `@dna-codes/*` from a sibling `dna/` checkout under the same parent directory, resolved via `file:` references. The same pattern downstream consumers (e.g. `dna-platform`) use for **their** `@dna-codes/*` and `@dna-codes/cells` deps; this repo extends it inward so the local-sibling resolution chain is unbroken end-to-end.
 
 ```
 /Users/.../upgrade/
@@ -30,7 +30,7 @@ DNA packages (`@dna-codes/core`, `@dna-codes/schemas`, `@dna-codes/input-text`, 
 
 Why `file:` instead of registry pins (`^0.x`):
 - **Co-evolution without publish round-trips.** A schema change in `dna/packages/core` is consumable here on the next `npm install`, with no `npm publish` step required.
-- **Single source of truth.** `require.resolve('@dna-codes/core')` from anywhere in this repo lands at the sibling, not at a shadow registry copy that drifts. (See `packages/cba/test/dep-resolution.test.ts`.)
+- **Single source of truth.** `require.resolve('@dna-codes/dna-core')` from anywhere in this repo lands at the sibling, not at a shadow registry copy that drifts. (See `packages/cba/test/dep-resolution.test.ts`.)
 - **Aligned with downstream.** A downstream consumer's symlinked `dna` will, transitively, dominate cba's resolution; if cba carried registry pins, mixed copies would shadow each other unpredictably.
 
 **First-time setup (or after pulling updates in `../dna`):**
@@ -46,10 +46,10 @@ ls ../dna/packages/output-openapi/dist/index.js
 npm install
 
 # 3. Smoke test — should print the realpath under dna/packages/, not node_modules
-node -e "console.log(require('fs').realpathSync(require.resolve('@dna-codes/core/package.json')))"
+node -e "console.log(require('fs').realpathSync(require.resolve('@dna-codes/dna-core/package.json')))"
 ```
 
-**Implementation detail.** npm copies (does not symlink) `file:` deps declared in *workspace member* `package.json`s. So although every workspace member here declares `@dna-codes/core: file:...` for clarity, the workspace **root** `package.json` also declares them under `dependencies` — that is the declaration that triggers the symlink. The root also carries an `overrides` block to force any transitive `@dna-codes/*` reference to resolve to the sibling. Do not "clean up" by reverting members to `^0.x` registry pins; the regression test will fail.
+**Implementation detail.** npm copies (does not symlink) `file:` deps declared in *workspace member* `package.json`s. So although every workspace member here declares `@dna-codes/dna-core: file:...` for clarity, the workspace **root** `package.json` also declares them under `dependencies` — that is the declaration that triggers the symlink. The root also carries an `overrides` block to force any transitive `@dna-codes/*` reference to resolve to the sibling. Do not "clean up" by reverting members to `^0.x` registry pins; the regression test will fail.
 
 **CI.** Any job that runs `npm install` here must check out the `dna` repo at `../dna/` first. Without it, the `file:` paths fail to resolve and the install errors before tests start.
 
@@ -57,13 +57,13 @@ node -e "console.log(require('fs').realpathSync(require.resolve('@dna-codes/core
 
 # DNA — The Three Layers
 
-DNA documents are defined and described in the [DNA repo](https://github.com/upgrade-solutions/dna). The three layers are:
+DNA documents are defined and described in the [DNA repo](https://github.com/dna-codes/dna). The three layers are:
 
 | Layer | What it captures | DNA repo doc |
 |-------|------------------|--------------|
-| **Operational** | What the business does — Resources/Persons/Roles/Groups + Memberships, Operations, Triggers, Rules, Tasks, Processes | [`docs/operational.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/operational.md) |
-| **Product** | What gets built — three sub-layers: core (Resources, Operations, Fields, Actions), api (Endpoints, Schemas, Namespaces), ui (Pages, Routes, Blocks, Layouts) | [`docs/product.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/product.md) |
-| **Technical** | How it gets built — Cells, Constructs, Providers, Environments, Variables, Views | [`docs/technical.md`](https://github.com/upgrade-solutions/dna/blob/main/docs/technical.md) |
+| **Operational** | What the business does — Resources/Persons/Roles/Groups + Memberships, Operations, Triggers, Rules, Tasks, Processes | [`docs/operational.md`](https://github.com/dna-codes/dna/blob/main/docs/operational.md) |
+| **Product** | What gets built — three sub-layers: core (Resources, Operations, Fields, Actions), api (Endpoints, Schemas, Namespaces), ui (Pages, Routes, Blocks, Layouts) | [`docs/product.md`](https://github.com/dna-codes/dna/blob/main/docs/product.md) |
+| **Technical** | How it gets built — Cells, Constructs, Providers, Environments, Variables, Views | [`docs/technical.md`](https://github.com/dna-codes/dna/blob/main/docs/technical.md) |
 
 Layers flow one-way downstream — Operational → Product → Technical — with upper layers never depending on lower ones.
 
@@ -140,7 +140,7 @@ Existing `node/nestjs`, `node/express`, `ruby/rails`, `python/fastapi` adapters 
 
 ### OpenAPI as the contract (forward direction)
 
-The boundary between the layers: **DNA describes**, `@dna-codes/output-openapi` **renders** (DNA → OpenAPI 3.1), api-cell **consumes the render**. The Fastify adapter's runtime spec served at `/api-json` is rendered by `output-openapi`, not by a hand-rolled builder in cba — so adding a Field type in DNA + extending the upstream renderer propagates here automatically on next regen, with no cba-side change. (The `flip-api-cell-to-output-openapi` change is what crossed this seam; the conformance suite carries an object-Field canary that fails loud if the wiring regresses.) The fastify wrapper does post-process the rendered doc for parity gaps that aren't in the upstream renderer yet — `securitySchemes.bearerAuth`, per-endpoint `security`, default 401/403/404 stub responses, resource-name tags, and cba-internal `x-roles` from access rules. As `output-openapi` grows, those post-processes will move upstream and shrink to nothing.
+The boundary between the layers: **DNA describes**, `@dna-codes/dna-output-openapi` **renders** (DNA → OpenAPI 3.1), api-cell **consumes the render**. The Fastify adapter's runtime spec served at `/api-json` is rendered by `output-openapi`, not by a hand-rolled builder in cba — so adding a Field type in DNA + extending the upstream renderer propagates here automatically on next regen, with no cba-side change. (The `flip-api-cell-to-output-openapi` change is what crossed this seam; the conformance suite carries an object-Field canary that fails loud if the wiring regresses.) The fastify wrapper does post-process the rendered doc for parity gaps that aren't in the upstream renderer yet — `securitySchemes.bearerAuth`, per-endpoint `security`, default 401/403/404 stub responses, resource-name tags, and cba-internal `x-roles` from access rules. As `output-openapi` grows, those post-processes will move upstream and shrink to nothing.
 
 Routing is the **other** seam, still pending. `registerRoutes` consumes `product.api.json` directly today; flipping it to consume the OpenAPI document (param parsing, validation middleware, error shapes) is a separate, larger change. The non-Fastify adapters (Express, NestJS, Rails, FastAPI) still hand-roll their OpenAPI emission too — each is its own flip; tracked as follow-ons.
 
@@ -281,7 +281,7 @@ The `astro` adapter ships two flavors selected via cell config:
 
 **Marketing** — plain Astro SSG. Each DNA `Page` → `src/pages/<route>.astro`; the `Layout` → `src/layouts/Site.astro`; each unique `Block` → `src/components/Block<Name>.astro`. Routes with `:id`-style params become Astro `[id]` segments. Output is static HTML; terraform-aws delivers via S3 + CloudFront, the same path used for `vite/*` cells.
 
-**Starlight** — Astro + `@astrojs/starlight` (docs UI). Each DNA `Page` becomes a Markdown entry under `src/content/docs/`; sidebar order matches the page list. When `openapiPath` is set in cell config, the `starlight-openapi` plugin renders an API reference section sourced from a document emitted by `@dna-codes/output-openapi`.
+**Starlight** — Astro + `@astrojs/starlight` (docs UI). Each DNA `Page` becomes a Markdown entry under `src/content/docs/`; sidebar order matches the page list. When `openapiPath` is set in cell config, the `starlight-openapi` plugin renders an API reference section sourced from a document emitted by `@dna-codes/dna-output-openapi`.
 
 ### Layout system
 
@@ -387,7 +387,7 @@ The `db-cell` is **infrastructure-only** — it provisions the Postgres instance
 
 ## `event-bus-cell` (paused)
 
-Cross-domain signaling was scaffolded against the previous DNA model that included `Signal` as a top-level primitive with `Outcome.emits` carrying the publish list. Both `Signal` and `Outcome` were removed in the model rewrite — state mutations now live as `Operation.changes[]`, and there is no top-level Signal primitive in `@dna-codes/schemas`.
+Cross-domain signaling was scaffolded against the previous DNA model that included `Signal` as a top-level primitive with `Outcome.emits` carrying the publish list. Both `Signal` and `Outcome` were removed in the model rewrite — state mutations now live as `Operation.changes[]`, and there is no top-level Signal primitive in `@dna-codes/dna-schemas`.
 
 The cell directory remains in `technical/cells/event-bus-cell/` for reference, but is excluded from the active build/test pipeline. A redesign that maps Triggers (`source: "operation"` chains) onto an event bus is on the roadmap. See [ROADMAP.md](ROADMAP.md).
 
@@ -424,7 +424,7 @@ http://localhost:5175/?domain=torts/marshall&phase=run&sub=deployment&env=prod
 - **Discovery workspace (Guide tab)** — 3-phase pipeline: **Discover** (tag text fragments as DNA primitives), **Define** (browse and refine Operational DNA), **Design** (auto-generates SOP docs, process flow DAGs, and Product DNA summary)
 - **Cross-layer view** — single-capability lens spanning Operational → Product API → Product UI
 - **Multi-layer editing** — per-layer canvas with shape palette and save pipeline
-- **Schema-driven inspector** — live RJSF form generated from `@dna-codes/schemas`
+- **Schema-driven inspector** — live RJSF form generated from `@dna-codes/dna-schemas`
 - **Write-back** — save positions and edits back to `technical.json` or `operational.json` (Ctrl+S)
 - **Live status** — polls the selected adapter every 5 seconds and updates technical node status in real time
 - **Terraform/AWS probe** — reads `terraform.tfstate` + queries AWS APIs to map live infrastructure status back to DNA node IDs
@@ -444,7 +444,7 @@ http://localhost:5175/?domain=torts/marshall&phase=run&sub=deployment&env=prod
 
 # The `cba` CLI
 
-`cba` is the unified CLI for the cell-based architecture lifecycle, organized around the three DNA layers plus build and deploy. It ships as the `@cell/cba` workspace package.
+`cba` is the unified CLI for the cell-based architecture lifecycle, organized around the three DNA layers plus build and deploy. It ships as the `@dna-codes/cells` workspace package.
 
 ```bash
 npx cba --help                                      # root help
@@ -611,7 +611,7 @@ npx cba up torts/marshall --env prod --adapter terraform/aws --auto-approve
 
 # Validation
 
-Validation is handled by the `DnaValidator` exported from `@dna-codes/core` (see [DNA repo](https://github.com/upgrade-solutions/dna)). The `cba validate` command wraps it for the full lifecycle:
+Validation is handled by the `DnaValidator` exported from `@dna-codes/dna-core` (see [DNA repo](https://github.com/dna-codes/dna)). The `cba validate` command wraps it for the full lifecycle:
 
 ```bash
 npx cba validate lending --layer operational   # validate one layer
@@ -636,7 +636,7 @@ npx cba validate lending --json                # structured JSON errors
 Programmatic access:
 
 ```typescript
-import { DnaValidator } from '@dna-codes/core'
+import { DnaValidator } from '@dna-codes/dna-core'
 
 const validator = new DnaValidator()
 const result = validator.validateCrossLayer({ operational, productApi, productUi, technical })
@@ -655,9 +655,9 @@ npm test                    # runs all workspace tests
 
 | Package | Tests | Coverage |
 |---------|-------|----------|
-| `@dna-codes/core` (validator) | 42 | Per-schema validation, composite documents, cross-layer validation (lives upstream in the DNA repo) |
-| `@cell/api-cell` | 92 | NestJS generators, Express integration, NestJS integration, Fastify generator (both compute targets), **adapter conformance** (10 tests). Plus a separate `npm run test:fastify-build` suite (real `npm install` + tsc per compute target) — slow, run in CI, see below. |
-| `@cell/ui-cell` | 14 | **Adapter conformance** (14 tests) |
+| `@dna-codes/dna-core` (validator) | 42 | Per-schema validation, composite documents, cross-layer validation (lives upstream in the DNA repo) |
+| `@dna-codes/cells-api` | 92 | NestJS generators, Express integration, NestJS integration, Fastify generator (both compute targets), **adapter conformance** (10 tests). Plus a separate `npm run test:fastify-build` suite (real `npm install` + tsc per compute target) — slow, run in CI, see below. |
+| `@dna-codes/cells-ui` | 14 | **Adapter conformance** (14 tests) |
 
 ## Adapter conformance tests
 
@@ -669,7 +669,7 @@ Conformance tests verify that all adapters for a given cell produce the same ext
 
 ### Fastify build-conformance suite
 
-Lives at `technical/cells/api-cell/test/fastify-conformance/`. For each compute target (`ecs` and `lambda`), the suite generates against a locked minimal fixture, runs a real `npm install --no-audit --no-fund` plus `npm run build` in a tmpdir, and asserts the expected `dist/` artifacts (`dist/main.js` for both, `dist/handler.js` only for lambda). The ECS fixture additionally boots `dist/main.js` on a free port and asserts the runtime docs surface — `/health` 200, `/docs` returns Redoc HTML, `/api-json` returns valid OpenAPI JSON, `/` redirects to `/docs`, and the `/v1/convert` request body renders nested `from`/`to` `type: 'object'` properties (the api-cell ↔ `@dna-codes/output-openapi` flip canary). Excluded from `npm test` because each fixture pulls fastify + plugins from the registry — runs via `npm run test:fastify-build` and a dedicated CI job (`.github/workflows/api-cell-fastify-conformance.yml`).
+Lives at `technical/cells/api-cell/test/fastify-conformance/`. For each compute target (`ecs` and `lambda`), the suite generates against a locked minimal fixture, runs a real `npm install --no-audit --no-fund` plus `npm run build` in a tmpdir, and asserts the expected `dist/` artifacts (`dist/main.js` for both, `dist/handler.js` only for lambda). The ECS fixture additionally boots `dist/main.js` on a free port and asserts the runtime docs surface — `/health` 200, `/docs` returns Redoc HTML, `/api-json` returns valid OpenAPI JSON, `/` redirects to `/docs`, and the `/v1/convert` request body renders nested `from`/`to` `type: 'object'` properties (the api-cell ↔ `@dna-codes/dna-output-openapi` flip canary). Excluded from `npm test` because each fixture pulls fastify + plugins from the registry — runs via `npm run test:fastify-build` and a dedicated CI job (`.github/workflows/api-cell-fastify-conformance.yml`).
 
 This is the regression net for adapter-template drift on two axes: (1) **version drift** — the fastify deps (`fastify`, `@fastify/cors`, plus `@fastify/aws-lambda` for lambda) carry strict peer-version constraints, and only a real install can catch a peer mismatch; (2) **wiring drift** — the docs surface silently breaking at runtime (the original `@fastify/swagger@^9` + `@fastify/swagger-ui@^5` regression where `/api/json` returned `{}` and Swagger UI failed at "definition does not specify a valid version field") is what motivated dropping the plugin pair entirely in favor of Redoc-only at `/docs`. If you bump any dep in `src/adapters/node/fastify/generators/scaffold.ts` or change the docs route in `generators/main.ts`, this suite is the gate.
 
@@ -744,6 +744,36 @@ Project-level OpenSpec layout:
 - `openspec/changes/` — in-flight proposals; archived ones move to `openspec/changes/archive/`
 
 Skip OpenSpec only for trivial fixes, doc tweaks, or one-off experiments.
+
+---
+
+# Releasing
+
+All five workspace packages — `@dna-codes/cells`, `@dna-codes/cells-viz`, `@dna-codes/cells-api`, `@dna-codes/cells-ui`, `@dna-codes/cells-db` — publish together to GitHub Packages on tag push. Workflow: `.github/workflows/publish.yml`.
+
+```bash
+# 1. Bump version in every package.json that should ship (workspace root has none).
+#    Keep them in lockstep so consumers can pin a single version.
+#    Five files: packages/{cba,cba-viz}/package.json, technical/cells/{api,ui,db}-cell/package.json.
+
+# 2. Commit the version bump.
+git add -A && git commit -m "release: 0.2.0"
+
+# 3. Tag and push.
+git tag v0.2.0
+git push origin main --tags
+```
+
+The workflow checks out the sibling `dna/` repo at `dna-codes/dna`, builds both repos, and runs `npm publish --workspaces` against `https://npm.pkg.github.com`. Each package's `publishConfig.registry` ensures it lands in the right place. `npm` refuses to republish over an existing version, so a re-tag without a bump is a no-op (use `workflow_dispatch` from the Actions UI for off-cycle re-runs).
+
+Consumers (e.g. `dna-platform`) authenticate to GitHub Packages with a `.npmrc` line:
+
+```
+@dna-codes:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+Then `npm install @dna-codes/cells@0.2.0` works the same as any registry install.
 
 ---
 

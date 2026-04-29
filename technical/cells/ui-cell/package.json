@@ -1,7 +1,6 @@
 {
-  "name": "@cell/ui-cell",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@dna-codes/cells-ui",
+  "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -11,13 +10,22 @@
     },
     "./primitives": "./src/primitives/index.ts"
   },
+  "files": [
+    "dist",
+    "src/primitives",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --experimental-vm-modules ../../../node_modules/.bin/jest --passWithNoTests",
     "generate": "ts-node -r tsconfig-paths/register src/index.ts"
   },
   "dependencies": {
-    "@dna-codes/core": "file:../../../../dna/packages/core",
+    "@dna-codes/dna-core": "file:../../../../dna/packages/core",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-collapsible": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.0",
@@ -40,7 +48,7 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@dna-codes/core$": "<rootDir>/../../../node_modules/@dna-codes/core/dist/index.js"
+      "^@dna-codes/dna-core$": "<rootDir>/../../../node_modules/@dna-codes/dna-core/dist/index.js"
     }
   }
 }

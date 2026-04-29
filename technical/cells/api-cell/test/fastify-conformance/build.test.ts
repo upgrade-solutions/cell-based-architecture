@@ -116,13 +116,18 @@ function rewriteUnpublishedDepsToSibling(outDir: string): void {
   // __dirname = .../cell-based-architecture/technical/cells/api-cell/test/fastify-conformance
   // 6 ups → .../upgrade, then dna/packages.
   const siblingDnaRoot = path.resolve(__dirname, '..', '..', '..', '..', '..', '..', 'dna', 'packages')
-  const unpublished = ['output-openapi'] // add others here as needed
+  // Map of dep name (as declared in the generated cell's package.json) →
+  // sibling directory name. After `rebrand-to-dna-prefix`, packages live
+  // under `@dna-codes/dna-*` but on-disk dirs in the sibling stayed as
+  // `core/`, `output-openapi/`, etc., so the two diverge.
+  const unpublished: Array<{ depName: string; dirName: string }> = [
+    { depName: '@dna-codes/dna-output-openapi', dirName: 'output-openapi' },
+  ]
   const pkgPath = path.join(outDir, 'package.json')
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
-  for (const name of unpublished) {
-    const key = `@dna-codes/${name}`
-    if (pkg.dependencies?.[key]) {
-      pkg.dependencies[key] = `file:${path.join(siblingDnaRoot, name)}`
+  for (const { depName, dirName } of unpublished) {
+    if (pkg.dependencies?.[depName]) {
+      pkg.dependencies[depName] = `file:${path.join(siblingDnaRoot, dirName)}`
     }
   }
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')

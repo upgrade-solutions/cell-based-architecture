@@ -13,7 +13,7 @@ export function generatePackageJson(appName: string, compute: ComputeTarget = 'e
   // Swagger UI rendering against the v9/v5 plugin pair. See the comment on
   // `generateMain` for the full rationale.
   const baseDeps: Record<string, string> = {
-    '@dna-codes/output-openapi': '^0.1.0',
+    '@dna-codes/dna-output-openapi': '^0.4.0',
     '@fastify/cors': '^11.0.0',
     bcryptjs: '^2.4.0',
     dotenv: '^16.0.0',
