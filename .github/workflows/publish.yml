@@ -46,11 +46,14 @@ jobs:
           scope: '@dna-codes'
 
       - name: Configure GitHub Packages auth
+        # The literal `${NODE_AUTH_TOKEN}` is resolved by npm at read time
+        # against the env of whichever step is running, so the install step
+        # uses DNA_PACKAGES_TOKEN (read access to dna-codes/dna's published
+        # packages) and the publish step uses GITHUB_TOKEN (write access to
+        # this repo's packages).
         run: |
           echo "@dna-codes:registry=https://npm.pkg.github.com" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Rewrite file: deps to registry pins'
         # Source package.json files use `file:../dna/packages/*` for local dev.
@@ -88,9 +91,11 @@ jobs:
         # The committed package-lock.json references file: paths and would
         # fail with `npm ci`. Regenerate against the rewritten package.json
         # via `npm install` so the registry-pinned dna packages are pulled
-        # from GitHub Packages.
+        # from GitHub Packages. NODE_AUTH_TOKEN here is the org PAT that
+        # has packages:read on dna-codes packages — the default GITHUB_TOKEN
+        # is repo-scoped and can't read packages owned by a sibling repo.
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.DNA_PACKAGES_TOKEN }}
         run: |
           rm -f package-lock.json
           npm install --no-audit --no-fund
