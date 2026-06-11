@@ -1,5 +1,7 @@
 # Cell-based Architecture
 
+> **⚠ Archived** — active development has moved to the [`dna` monorepo](https://github.com/dna-codes/dna) under [`engine/`](https://github.com/dna-codes/dna/tree/main/engine). This repo is preserved for history. No further commits will be made here.
+
 Cell-based architecture is a philosophy for building applications by injecting **DNA** into **cells** — TypeScript engines that read DNA and produce working software (API endpoints, UIs, database schemas, etc.).
 
 - **DNA** — a JSON description language expressing a business domain across three layers (Operational, Product, Technical). Defined, schemafied, and validated by the [DNA repo](https://github.com/dna-codes/dna), distributed as `@dna-codes/dna-core` + `@dna-codes/dna-schemas`. CBA defers entirely to those packages — it does not ship its own copy of DNA primitives, schemas, or the validator. Locally, this repo consumes them via `file:` references to a sibling `dna/` checkout (see "Sibling repos" below); end-users can install them from npm.
